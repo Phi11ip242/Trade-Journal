@@ -1,0 +1,485 @@
+<!doctype html>
+<!--
+  TRADE JOURNAL
+  ==============
+  Four files: index.html, styles.css, app.js and config.js. No build step —
+  host them as a static site (Render, GitHub Pages, Netlify).
+
+  config.js is the only file you edit: your Supabase project URL, its
+  publishable key, and the journal's name. See README.md for the full setup.
+
+  WHERE YOUR DATA LIVES
+  ======================
+  In your own Supabase project:
+    table "trades"    one row per trade; the trade exactly as you typed it
+                      is in the "data" column
+    table "settings"  one row: deposit, sizing, pairs, deposits/withdrawals,
+                      and your Rulebook and Psychology chapters
+  Pips, P/L, R, idea numbers, balances and stats are never stored — they are
+  recalculated from the trades every time the page draws.
+
+  You sign in with your own email and password. Row Level Security lets a
+  signed-in user read and write only their own rows, and public sign-ups are
+  switched off, so the page being public doesn't expose your journal.
+
+  "Export JSON" (top right) downloads everything as one backup file — keep
+  one somewhere safe, e.g. at each weekly review.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade Journal</title>
+<link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1 data-app-name>Trade Journal</h1>
+    <span>Trade journal<span id="user-email"></span></span>
+  </div>
+
+  <nav class="tabs">
+    <button id="tab-new" type="button" data-view="new">+ Log Trade</button>
+    <button id="tab-list" type="button" data-view="list" class="active">Trade Log</button>
+    <button id="tab-dash" type="button" data-view="dash">Dashboard</button>
+    <button id="tab-sizing" type="button" data-view="sizing">Position Sizing</button>
+    <button id="tab-weekly" type="button" data-view="weekly">Weekly Review</button>
+    <button id="tab-milestones" type="button" data-view="milestones">Milestones</button>
+    <button id="tab-rulebook" type="button" data-view="rulebook">Rulebook</button>
+    <button id="tab-psychology" type="button" data-view="psychology">Psychology</button>
+  </nav>
+
+  <div class="header-actions">
+    <button id="btn-export" class="ghost" type="button" title="Download all trades and settings as a .json backup file">Export JSON</button>
+    <button id="btn-import" class="ghost" type="button" title="Load a previously exported .json file (replaces current data)">Import JSON</button>
+    <input type="file" id="import-file" accept="application/json,.json" hidden>
+    <button id="sync-status" class="sync-status" type="button" hidden></button>
+    <button id="btn-signout" class="ghost" type="button" hidden>Sign out</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ LOG / EDIT TRADE VIEW ============ -->
+  <section id="view-new" class="view hidden">
+    <div class="panel">
+      <form id="trade-form" novalidate>
+        <h2 class="form-title" id="form-title">Log Trade</h2>
+
+        <fieldset>
+          <legend>Trade</legend>
+          <div class="grid">
+            <div class="field">
+              <label for="f-date">Date</label>
+              <input type="date" id="f-date">
+            </div>
+            <div class="field">
+              <label for="f-pair">Pair</label>
+              <select id="f-pair"></select>
+            </div>
+            <div class="field">
+              <span class="label">Direction</span>
+              <div class="seg" id="f-direction" role="group" aria-label="Direction"></div>
+            </div>
+          </div>
+          <div class="field field-gap">
+            <span class="label">Session</span>
+            <div class="seg" id="f-session" role="group" aria-label="Session"></div>
+          </div>
+          <div class="field field-gap">
+            <span class="label">Source</span>
+            <div class="seg" id="f-source" role="group" aria-label="Source"></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Bias</legend>
+          <div class="bias-rows" id="f-bias"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Entry</legend>
+          <div class="field">
+            <label for="f-confirmation">Confirmation</label>
+            <textarea id="f-confirmation" placeholder="What confirmed the entry?"></textarea>
+          </div>
+          <div class="grid field-gap">
+            <div class="field">
+              <label for="f-entry">Entry</label>
+              <input type="number" step="any" inputmode="decimal" id="f-entry">
+            </div>
+            <div class="field">
+              <label for="f-sl">Stop Loss</label>
+              <input type="number" step="any" inputmode="decimal" id="f-sl">
+            </div>
+            <div class="field">
+              <span class="label">SL pips</span>
+              <div class="readout num" id="f-sl-pips">—</div>
+            </div>
+          </div>
+          <div class="sl-note" id="f-sl-note"></div>
+          <label class="sl-apply" id="f-sl-apply-wrap" hidden>
+            <input type="checkbox" id="f-sl-apply" checked>
+            <span id="f-sl-apply-text"></span>
+          </label>
+          <div class="warn-list" id="f-warnings"></div>
+          <div class="size-hint" id="f-size-hint"></div>
+          <div class="plan-hint num" id="f-plan" hidden></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Closes</legend>
+          <div class="field">
+            <span class="label">Status</span>
+            <div class="seg" id="f-status" role="group" aria-label="Status"></div>
+          </div>
+          <div class="hint field-gap" id="f-status-hint"></div>
+          <div class="close-rows field-gap" id="f-closes"></div>
+          <div class="hint" id="f-closes-empty">No closes yet. Add closes now or later via Edit.</div>
+          <div class="close-footer">
+            <button type="button" id="btn-add-close">+ Add close</button>
+            <div class="close-totals num" id="f-close-totals"></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>After the trade</legend>
+          <div class="field">
+            <label for="f-lesson">Mistake / Lesson</label>
+            <textarea id="f-lesson"></textarea>
+          </div>
+        </fieldset>
+
+        <div class="form-error" id="form-error" hidden></div>
+
+        <div class="form-actions">
+          <button type="submit" class="primary" id="btn-submit">Save Trade</button>
+          <button type="button" class="ghost" id="btn-clear">Clear Form</button>
+          <button type="button" class="ghost" id="btn-cancel-edit" hidden>Cancel Edit</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ TRADE LOG VIEW ============ -->
+  <section id="view-list" class="view">
+    <div class="filter-bar">
+      <div class="field">
+        <label for="ff-session">Session</label>
+        <select id="ff-session"></select>
+      </div>
+      <div class="field">
+        <label for="ff-source">Source</label>
+        <select id="ff-source"></select>
+      </div>
+      <div class="field">
+        <label for="ff-direction">Direction</label>
+        <select id="ff-direction"></select>
+      </div>
+      <div class="field">
+        <label for="ff-result">Result</label>
+        <select id="ff-result"></select>
+      </div>
+      <div class="field">
+        <label for="ff-from">From</label>
+        <input type="date" id="ff-from">
+      </div>
+      <div class="field">
+        <label for="ff-to">To</label>
+        <input type="date" id="ff-to">
+      </div>
+      <div class="field filter-clear">
+        <button type="button" class="ghost" id="ff-clear">Clear Filters</button>
+      </div>
+    </div>
+
+    <div class="table-wrap" id="table-wrap">
+      <table class="trade-table">
+        <thead>
+          <tr>
+            <th class="r">#</th>
+            <th class="col-date">Date</th>
+            <th>Session</th>
+            <th>Dir</th>
+            <th>Source</th>
+            <th>Bias</th>
+            <th class="r">Entry</th>
+            <th class="r">SL pips</th>
+            <th class="r">Lots</th>
+            <th class="r">P/L</th>
+            <th class="r">R</th>
+            <th class="r">Idea</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div class="panel empty-state" id="empty-state" hidden></div>
+  </section>
+
+  <!-- ============ DASHBOARD VIEW ============ -->
+  <section id="view-dash" class="view hidden">
+    <div class="filter-bar">
+      <div class="field">
+        <label for="df-source">Source</label>
+        <select id="df-source"></select>
+      </div>
+      <div class="field">
+        <label for="df-from">From</label>
+        <input type="date" id="df-from">
+      </div>
+      <div class="field">
+        <label for="df-to">To</label>
+        <input type="date" id="df-to">
+      </div>
+      <div class="field filter-clear">
+        <button type="button" class="ghost" id="df-clear">Clear Filters</button>
+      </div>
+    </div>
+    <div class="hint filter-note" id="df-note" hidden></div>
+    <div class="panel empty-state" id="dash-empty" hidden>No closed trades yet</div>
+
+    <div id="dash-body">
+      <div class="panel">
+        <h2 class="panel-title">Core (by idea)</h2>
+        <div class="stats-grid" id="dash-core"></div>
+        <div class="hint field-gap" id="dash-core-note" hidden></div>
+        <div class="verdict" id="dash-verdict"></div>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">Returns</h2>
+        <div class="stats-grid" id="dash-returns"></div>
+        <div class="hint field-gap">ROI = the period's P/L ÷ the balance at the start of that period. Lifetime ROI is on the money deposited. Averages are per period with closed trades. Compounded = the steady weekly / monthly rate that turns the deposit into today's balance.</div>
+        <div class="returns-tables field-gap">
+          <div>
+            <h3 class="sub-title">By month</h3>
+            <div class="mini-scroll"><table class="mini-table" id="dash-months"></table></div>
+          </div>
+          <div>
+            <h3 class="sub-title">By week</h3>
+            <div class="mini-scroll returns-weeks"><table class="mini-table" id="dash-weeks"></table></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">Equity curve</h2>
+        <div class="chart-readout num" id="equity-readout"></div>
+        <div class="equity-chart" id="equity-chart"></div>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">By Source (by idea)</h2>
+        <div class="mini-scroll">
+          <table class="mini-table" id="dash-source"></table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2 class="panel-title">By Session</h2>
+        <table class="mini-table" id="dash-session"></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ POSITION SIZING + SETTINGS VIEW ============ -->
+  <section id="view-sizing" class="view hidden">
+    <div class="panel">
+      <h2 class="panel-title">Where you stand</h2>
+      <div class="stats-grid" id="size-stand"></div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Risk &amp; plan</h2>
+      <div class="hint">Risk is for the <strong>whole idea</strong> — every entry together, if all of them get stopped. Sizes use your current balance and update as it changes. <strong>20% per idea is the hard cap.</strong></div>
+      <div class="grid field-gap sizing-settings">
+        <div class="field"><label for="sz-signal">Signal risk (%)</label><input type="number" step="any" inputmode="decimal" id="sz-signal" data-sizing="signal"></div>
+        <div class="field"><label for="sz-own">Own trade risk (%)</label><input type="number" step="any" inputmode="decimal" id="sz-own" data-sizing="own"></div>
+        <div class="field"><label for="s-defaultStop">Plan / max stop (pips)</label><input type="number" step="any" inputmode="decimal" id="s-defaultStop" data-setting="defaultStop"></div>
+        <div class="field"><label for="sz-rr">Take profit at (R)</label><input type="number" step="any" inputmode="decimal" id="sz-rr" data-sizing="rr"></div>
+        <div class="field"><label for="sz-beAt">Stop to BE at (R)</label><input type="number" step="any" inputmode="decimal" id="sz-beAt" data-sizing="beAt"></div>
+        <div class="field"><label for="sz-layer">Layer gap (pips)</label><input type="number" step="any" inputmode="decimal" id="sz-layer" data-sizing="layer"></div>
+      </div>
+      <div class="form-error field-gap" id="sz-error" hidden></div>
+    </div>
+
+    <div class="plan-grid" id="plan-cards"></div>
+
+    <div class="panel">
+      <h2 class="panel-title">Trade management — reward : risk</h2>
+      <div class="hint" id="rr-intro"></div>
+      <div class="partials-grid field-gap" id="partials-cards"></div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Settings</h2>
+      <div class="grid">
+        <div class="field">
+          <label for="s-startingDeposit">Starting deposit ($)</label>
+          <input type="number" step="any" inputmode="decimal" id="s-startingDeposit" data-setting="startingDeposit">
+        </div>
+        <div class="field">
+          <label for="s-depositsWithdrawals">Adjustment before the ledger ($)</label>
+          <input type="number" step="any" inputmode="decimal" id="s-depositsWithdrawals" data-setting="depositsWithdrawals">
+        </div>
+        <div class="field">
+          <label for="s-maxDrawdown">Max drawdown (%)</label>
+          <input type="number" step="any" inputmode="decimal" id="s-maxDrawdown" data-setting="maxDrawdown">
+        </div>
+      </div>
+
+      <h2 class="panel-title field-gap pairs-title">Deposits &amp; withdrawals</h2>
+      <div class="hint">Money you put in or take out, with the date. It moves your balance but never counts as P/L, ROI or drawdown. Entries lock when saved — unlock one to change or delete it.</div>
+      <div class="flow-add field-gap">
+        <input type="date" id="cf-date" aria-label="Date">
+        <select id="cf-type" aria-label="Type"><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option></select>
+        <input type="number" step="any" min="0" inputmode="decimal" id="cf-amount" placeholder="Amount $" aria-label="Amount in dollars">
+        <input type="text" id="cf-note" placeholder="Note (optional)" aria-label="Note">
+        <button type="button" id="cf-add">+ Add &amp; lock</button>
+      </div>
+      <div class="form-error field-gap" id="cf-error" hidden></div>
+      <div class="mini-scroll field-gap"><table class="mini-table flow-table" id="cf-table"></table></div>
+
+      <h2 class="panel-title field-gap pairs-title">Pairs</h2>
+      <div class="pair-rows" id="s-pairs"></div>
+      <div class="pair-add">
+        <input type="text" id="s-pair-new" placeholder="New pair, e.g. EURUSD" aria-label="New pair name" autocapitalize="characters">
+        <button type="button" id="s-pair-add">+ Add pair</button>
+      </div>
+      <div class="form-error field-gap" id="s-pair-error" hidden></div>
+    </div>
+  </section>
+
+  <!-- ============ MILESTONES VIEW ============ -->
+  <section id="view-milestones" class="view hidden">
+    <div class="panel">
+      <h2 class="panel-title">Account balance</h2>
+      <div class="ms-progress" id="ms-progress"></div>
+      <div class="ms-grid field-gap" id="ms-balance"></div>
+    </div>
+    <div class="panel">
+      <h2 class="panel-title">Best day</h2>
+      <div class="ms-grid" id="ms-day"></div>
+    </div>
+    <div class="panel">
+      <h2 class="panel-title">Best week</h2>
+      <div class="ms-grid" id="ms-week"></div>
+    </div>
+    <div class="panel">
+      <h2 class="panel-title">Best month</h2>
+      <div class="ms-grid" id="ms-month"></div>
+    </div>
+    <div class="panel">
+      <div class="ms-records-head">
+        <h2 class="panel-title">Records (by idea)</h2>
+        <div class="field">
+          <label for="ms-source">Source</label>
+          <select id="ms-source"></select>
+        </div>
+      </div>
+      <div class="stats-grid" id="ms-records"></div>
+      <div class="hint field-gap">Milestones unlock by themselves when they happen — there are no targets or deadlines. Streaks count fully closed ideas; breakeven ideas (within $1 of zero) neither extend nor break a streak.</div>
+    </div>
+  </section>
+
+  <!-- ============ RULEBOOK VIEW ============ -->
+  <!-- Chapters are saved with your settings and edited in the app. -->
+  <section id="view-rulebook" class="view hidden">
+    <div class="book" id="book-rulebook">
+      <div class="panel rb-intro book-head">
+        <div class="book-title-row">
+          <h2 class="panel-title">The Rulebook</h2>
+          <button type="button" class="small book-edit">Edit</button>
+        </div>
+        <p>How I trade and what I trade. Latest rules only — when a rule changes, edit it in place.</p>
+        <nav class="rb-toc" aria-label="Rulebook chapters"></nav>
+        <div class="rb-tools book-tools">
+          <button type="button" class="ghost small book-open-all">Open all</button>
+          <button type="button" class="ghost small book-close-all">Close all</button>
+          <button type="button" class="ghost small" id="rb-reset" title="Replace every chapter with the starter version">Reset to starter</button>
+        </div>
+      </div>
+      <div class="book-body"></div>
+    </div>
+  </section>
+
+  <!-- ============ PSYCHOLOGY VIEW ============ -->
+  <section id="view-psychology" class="view hidden">
+    <div class="book" id="book-psychology">
+      <div class="panel rb-intro book-head">
+        <div class="book-title-row">
+          <h2 class="panel-title">Psychology</h2>
+          <button type="button" class="small book-edit">Edit</button>
+        </div>
+        <p>The method is the easy part — execution decides the results. Read this once a week.</p>
+        <div class="ps-read-row">
+          <button type="button" class="primary small" id="ps-read">I've read it this week</button>
+          <span class="ps-last" id="ps-last"></span>
+        </div>
+        <nav class="rb-toc" aria-label="Psychology chapters"></nav>
+        <div class="rb-tools book-tools">
+          <button type="button" class="ghost small book-open-all">Open all</button>
+          <button type="button" class="ghost small book-close-all">Close all</button>
+          <button type="button" class="ghost small" id="ps-reset" title="Replace every chapter with the starter version">Reset to starter</button>
+        </div>
+      </div>
+      <div class="book-body"></div>
+    </div>
+  </section>
+
+  <!-- ============ WEEKLY REVIEW VIEW ============ -->
+  <section id="view-weekly" class="view hidden">
+    <div class="panel">
+      <div class="week-bar">
+        <button type="button" class="ghost small" id="wk-prev" aria-label="Previous week">&lsaquo;</button>
+        <div class="week-range" id="week-range-label"></div>
+        <button type="button" class="ghost small" id="wk-next" aria-label="Next week">&rsaquo;</button>
+        <select id="wk-source" class="wk-source" aria-label="Source"></select>
+        <div class="week-export">
+          <button type="button" class="ghost small" id="wk-pdf">Download PDF</button>
+          <button type="button" class="ghost small" id="wk-xlsx">Download Excel</button>
+        </div>
+      </div>
+      <div class="stats-grid" id="weekly-stats-grid"></div>
+    </div>
+
+    <div class="panel empty-state" id="weekly-empty" hidden>No trades this week</div>
+    <div class="panel" id="weekly-trades" hidden></div>
+
+  </section>
+
+</main>
+
+<!-- ============ SIGN IN ============ -->
+<div class="modal-overlay auth-overlay" id="auth-screen">
+  <div class="modal-box auth-box">
+    <h2 data-app-name>Trade Journal</h2>
+    <p class="auth-loading" id="auth-loading">Loading your journal&hellip;</p>
+    <form id="auth-form" hidden novalidate>
+      <p class="modal-sub">Sign in to open your journal.</p>
+      <div class="field">
+        <label for="auth-email">Email</label>
+        <input type="email" id="auth-email" autocomplete="username" required>
+      </div>
+      <div class="field field-gap">
+        <label for="auth-password">Password</label>
+        <input type="password" id="auth-password" autocomplete="current-password" required>
+      </div>
+      <div class="auth-error" id="auth-error" role="alert" hidden></div>
+      <button type="submit" class="primary auth-submit" id="auth-submit">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <span data-app-name>Trade Journal</span> · saved to your Supabase account · Export JSON now and then as a backup
+</footer>
+
+</body>
+</html>
