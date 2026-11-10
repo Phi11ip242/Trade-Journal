@@ -18,12 +18,13 @@
     { id: "acc-ava", name: "AvaTrade", startingDeposit: 1000, adjustment: 0 },
     { id: "acc-kudo", name: "Kudo", startingDeposit: 300, adjustment: 0 }
   ];
-  // risk = % of the account per idea when following that provider.
+  // risk = % of the account per idea when following that provider;
+  // stop = their usual stop in pips from the worst entry (0 = the plan stop).
   var DEFAULT_PROVIDERS = [
-    { id: "prov-aj", name: "AJ", risk: 5 },
-    { id: "prov-aaron", name: "Aaron", risk: 20 },
-    { id: "prov-thomas", name: "Thomas", risk: 20 },
-    { id: "prov-nick", name: "Nick", risk: 20 }
+    { id: "prov-aj", name: "AJ", risk: 5, stop: 100 },
+    { id: "prov-aaron", name: "Aaron", risk: 20, stop: 120 },
+    { id: "prov-thomas", name: "Thomas", risk: 20, stop: 100 },
+    { id: "prov-nick", name: "Nick", risk: 20, stop: 100 }
   ];
   var NO_PROVIDER = "Signal (no provider)";
   var BIASES = ["Bullish", "Bearish", "Ranging"];
@@ -35,7 +36,8 @@
     "Signal":    { def: 5, max: MAX_IDEA_RISK },
     "Own Trade": { def: 5, max: MAX_IDEA_RISK }
   };
-  var CLOSE_TYPES = ["TP", "BE", "SL", "Partial", "TP1", "TP2", "TP3", "Force Close"];
+  // Any other type stored on a trade (TP6, TP7, ...) is kept and shown too.
+  var CLOSE_TYPES = ["TP", "TP1", "TP2", "TP3", "TP4", "TP5", "Full TP", "Partial", "BE", "SL", "Force Close"];
 
   // Used when a trade's pair isn't in the Settings pair list, so a calc
   // never comes out as NaN.
@@ -314,9 +316,10 @@
     // Providers.
     if(Array.isArray(s.providers)){
       d.providers = s.providers.filter(function(v){ return v && typeof v === "object" && str(v.name).trim(); }).map(function(v){
-        var r = num(v.risk);
+        var r = num(v.risk), st = num(v.stop);
         return { id: str(v.id) || makeId(), name: str(v.name).trim(),
-          risk: r !== null && r >= SIZING_LIMITS.signal[0] && r <= SIZING_LIMITS.signal[1] ? r : SIZING_DEFAULTS.signal };
+          risk: r !== null && r >= SIZING_LIMITS.signal[0] && r <= SIZING_LIMITS.signal[1] ? r : SIZING_DEFAULTS.signal,
+          stop: st !== null && st > 0 && st <= 1000 ? st : 0 };
       });
     }
     d.startingDeposit = 0;
@@ -528,7 +531,11 @@
 
   // The plan stop distance, in pips from the idea's WORST entry: the plan
   // stop from Position Sizing, the same for every source.
-  function planStopPips(source, settings){
+  function planStopPips(source, settings, providerId){
+    if(source === "Signal"){
+      var p = providerById(settings, providerId);
+      if(p && p.stop > 0) return p.stop;
+    }
     return settings.defaultStop;
   }
 
@@ -556,7 +563,7 @@
   function planStop(draft, legs, settings){
     var sign = dirSign(draft.direction);
     var spec = pairSpec(settings, draft.pair);
-    var pipCount = planStopPips(draft.source, settings);
+    var pipCount = planStopPips(draft.source, settings, draft.provider);
     for(var i = legs.length - 1; i >= 0; i--){
       var s = num(legs[i].stopLoss), e = num(legs[i].entry);
       if(s === null || e === null || s === e) continue;
@@ -641,19 +648,20 @@
   function sizingPlans(balance, settings, usdPerPip){
     var sz = settings.sizing || SIZING_DEFAULTS;
     var L = sz.layer, stop = settings.defaultStop;
-    var canLayer = stop - 2 * L >= LAST_LEG_MIN_STOP;
-    function single(risk){ return layerPlan([stop], [0], balance, risk, usdPerPip); }
-    function three(risk){
-      return canLayer ? layerPlan([stop, stop - L, stop - 2 * L], [0, L, 2 * L], balance, risk, usdPerPip) : null;
+    function single(risk, st){ st = st || stop; return layerPlan([st], [0], balance, risk, usdPerPip); }
+    function three(risk, st){
+      st = st || stop;
+      return st - 2 * L >= LAST_LEG_MIN_STOP ? layerPlan([st, st - L, st - 2 * L], [0, L, 2 * L], balance, risk, usdPerPip) : null;
     }
     return {
       stop: stop,
       layer: L,
       minLayerStop: 2 * L + LAST_LEG_MIN_STOP,
       providers: (settings.providers || []).map(function(p){
-        return { id: p.id, name: p.name, risk: p.risk, single: single(p.risk), three: three(p.risk) };
+        var st = p.stop > 0 ? p.stop : stop;
+        return { id: p.id, name: p.name, risk: p.risk, stop: st, single: single(p.risk, st), three: three(p.risk, st) };
       }),
-      own: { risk: sz.own, single: single(sz.own), three: three(sz.own) }
+      own: { risk: sz.own, stop: stop, single: single(sz.own), three: three(sz.own) }
     };
   }
 
@@ -1674,7 +1682,8 @@
     row.className = "close-row";
     row.innerHTML =
       '<select class="c-type" aria-label="Close type">' +
-        CLOSE_TYPES.map(function(t){ return "<option>" + escapeHtml(t) + "</option>"; }).join("") +
+        CLOSE_TYPES.concat(c && c.type && CLOSE_TYPES.indexOf(c.type) === -1 ? [c.type] : [])
+          .map(function(t){ return "<option>" + escapeHtml(t) + "</option>"; }).join("") +
       "</select>" +
       '<input type="number" step="any" inputmode="decimal" class="c-price" placeholder="Price" aria-label="Close price">' +
       '<input type="number" step="any" inputmode="decimal" class="c-lots" placeholder="Lots" aria-label="Close lots">' +
@@ -1786,7 +1795,7 @@
   }
 
   // The plan stop is also the most a stop may be.
-  function maxStopFor(){ return settings.defaultStop; }
+  function maxStopFor(draft){ return planStopPips(draft.source, settings, draft.provider); }
 
   function updateLive(){
     var draft = readForm();
@@ -1800,7 +1809,7 @@
     else elSLPips.textContent = (hasDir ? fmtPips(calc.slPips) : calc.stopDistance.toFixed(1)) + " pips";
 
     var warnings = [];
-    var maxStop = maxStopFor();
+    var maxStop = maxStopFor(draft);
     if(calc.stopDistance !== null && calc.stopDistance > maxStop){
       warnings.push("Stop is " + calc.stopDistance.toFixed(1) + " pips — your max is " + maxStop + ".");
     }
@@ -2663,11 +2672,12 @@
         if(!plan || plan.tooSmall){
           return "<tr><td>" + escapeHtml(r[0]) + "</td><td>" + r[1].risk + "%</td><td colspan=\"4\" class=\"neutral\">Below 0.01 lots at this balance</td></tr>";
         }
-        var reward = round2(plan.lots * p.stop * sz.rr * usd);
+        var st = r[1].stop;
+        var reward = round2(plan.lots * st * sz.rr * usd);
         return "<tr><td>" + escapeHtml(r[0]) + "</td><td>" + r[1].risk + "%</td><td>" + fmtLots(plan.lots) + " lots</td>" +
-          "<td>" + fmtMoney(-plan.risk) + " <span class=\"neutral\">(−" + p.stop + " pips)</span></td>" +
-          "<td>+" + clean(p.stop * sz.beAt) + " pips</td>" +
-          "<td>" + fmtMoney(reward) + " <span class=\"neutral\">(+" + clean(p.stop * sz.rr) + " pips)</span></td></tr>";
+          "<td>" + fmtMoney(-plan.risk) + " <span class=\"neutral\">(−" + st + " pips)</span></td>" +
+          "<td>+" + clean(st * sz.beAt) + " pips</td>" +
+          "<td>" + fmtMoney(reward) + " <span class=\"neutral\">(+" + clean(st * sz.rr) + " pips)</span></td></tr>";
       }).join("") + "</tbody></table></div>" +
       '<div class="hint field-gap">With 3 layered entries the take profit is measured from the first entry, so the deeper entries pay a little more than ' + sz.rr + "R.</div>";
   }
@@ -2718,14 +2728,11 @@
       statCard("status", "Status", a.stopped ? "STOP — drawdown limit hit" : "OK to trade")
         .replace('class="stat-card"', 'class="stat-card ' + (a.stopped ? "status-stop" : "status-ok") + '"');
 
-    var layerNote = p.own.three ?
-      "Layered toward the stop every " + L + " pips; the last entry stays " + (p.stop - 2 * L) + " pips from the stop." :
-      "";
-    var noLayer = "The " + p.stop + "-pip stop is too tight to layer 3 entries " + L + " pips apart (needs " + p.minLayerStop + "+). Take 1 entry.";
-
     function card(key, title, plan, sub){
+      var layerNote = "Layered toward the stop every " + L + " pips; the last entry stays " + (plan.stop - 2 * L) + " pips from the stop.";
+      var noLayer = "The " + plan.stop + "-pip stop is too tight to layer 3 entries " + L + " pips apart (needs " + p.minLayerStop + "+). Take 1 entry.";
       return planCard(key, title, plan.risk, sub,
-        planBlock("1 entry", plan.single, "Stop " + p.stop + " pips.") +
+        planBlock("1 entry", plan.single, "Stop " + plan.stop + " pips.") +
         (plan.three ? planBlock("3 entries", plan.three, layerNote) : '<div class="hint">' + escapeHtml(noLayer) + "</div>"));
     }
 
@@ -2819,7 +2826,7 @@
       return '<div class="pair-row" data-id="' + escapeHtml(v.id) + '">' +
         '<div class="field"><label>Provider</label><input type="text" class="v-name" value="' + escapeHtml(v.name) + '" aria-label="Provider name"></div>' +
         '<div class="field"><label>Risk per idea (%)</label><input type="number" step="any" inputmode="decimal" class="v-risk" value="' + v.risk + '"></div>' +
-        '<div class="field"><label>Trades</label><div class="v-used">' + used + "</div></div>" +
+        '<div class="field"><label>Stop (pips) · ' + used + (used === 1 ? " trade" : " trades") + '</label><input type="number" step="any" inputmode="decimal" class="v-stop" value="' + (v.stop || settings.defaultStop) + '"></div>' +
         '<button type="button" class="p-remove v-remove" aria-label="Remove ' + escapeHtml(v.name) + '"' +
           (used ? ' disabled title="Has trades — can\'t be removed"' : ' title="Remove this provider"') + ">&times;</button>" +
       "</div>";
@@ -2889,6 +2896,10 @@
       if(!name) return showErr(elProvError, "A provider needs a name.");
       if(name === "Own Trade" || name === "Signal" || name === NO_PROVIDER || nameTaken(settings.providers, name, v.id)) return showErr(elProvError, name + " is already used.");
       v.name = name;
+    }else if(ev.target.classList.contains("v-stop")){
+      var st = num(ev.target.value);
+      if(st === null || !(st > 0) || st > 1000) return showErr(elProvError, "The stop must be above 0 pips.");
+      v.stop = st;
     }else{
       var n = num(ev.target.value);
       if(!sizingValid("signal", n)) return showErr(elProvError, SIZING_MSG.provider);
@@ -2907,7 +2918,7 @@
     var name = elProvNew.value.trim();
     if(!name) return showErr(elProvError, "Type the provider's name first.");
     if(name === "Own Trade" || name === "Signal" || name === NO_PROVIDER || nameTaken(settings.providers, name, "")) return showErr(elProvError, name + " is already used.");
-    settings.providers.push({ id: makeId(), name: name, risk: SIZING_DEFAULTS.signal });
+    settings.providers.push({ id: makeId(), name: name, risk: SIZING_DEFAULTS.signal, stop: settings.defaultStop });
     elProvNew.value = "";
     showErr(elProvError, "");
     afterProviderChange();
