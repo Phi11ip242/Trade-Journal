@@ -14,6 +14,18 @@
   var SESSIONS = ["Asia", "London", "New York"];
   var DIRECTIONS = ["Buy", "Sell"];
   var SOURCES = ["Signal", "Own Trade"];
+  var DEFAULT_ACCOUNTS = [
+    { id: "acc-ava", name: "AvaTrade", startingDeposit: 1000, adjustment: 0 },
+    { id: "acc-kudo", name: "Kudo", startingDeposit: 300, adjustment: 0 }
+  ];
+  // risk = % of the account per idea when following that provider.
+  var DEFAULT_PROVIDERS = [
+    { id: "prov-aj", name: "AJ", risk: 5 },
+    { id: "prov-aaron", name: "Aaron", risk: 20 },
+    { id: "prov-thomas", name: "Thomas", risk: 20 },
+    { id: "prov-nick", name: "Nick", risk: 20 }
+  ];
+  var NO_PROVIDER = "Signal (no provider)";
   var BIASES = ["Bullish", "Bearish", "Ranging"];
   var BIAS_FRAMES = [["daily", "Daily"], ["h4", "4H"], ["h1", "1H"], ["m15", "15M"]];
   // Risk per idea by source, % of balance: the most the sizer allows.
@@ -176,7 +188,14 @@
   // ---------- settings + trade shapes ----------
   function defaultSettings(){
     return {
-      startingDeposit: 1000,
+      // Each broker account keeps its own money: starting deposit, an
+      // adjustment for money in/out before the ledger, and its own
+      // deposits/withdrawals (cashFlows carry the account id).
+      accounts: DEFAULT_ACCOUNTS.map(function(a){ return Object.assign({}, a); }),
+      // Who called a Signal trade, with the risk % per idea for their signals.
+      providers: DEFAULT_PROVIDERS.map(function(p){ return Object.assign({}, p); }),
+      // Kept for the account views (filled per account by viewSettings).
+      startingDeposit: 0,
       depositsWithdrawals: 0,
       defaultStop: 100,        // pips — the plan / max stop
       maxDrawdown: 30,         // %
@@ -209,7 +228,7 @@
     return out;
   }
 
-  var SETTINGS_KEYS = ["startingDeposit", "depositsWithdrawals", "defaultStop", "maxDrawdown",
+  var SETTINGS_KEYS = ["accounts", "providers", "startingDeposit", "depositsWithdrawals", "defaultStop", "maxDrawdown",
     "pairs", "cashFlows", "sizing", "rulebook", "psychology", "psychReadAt"];
 
   function normalizeSizing(v){
@@ -230,13 +249,14 @@
   // Dated money in or out of the account. Not trading P/L: they move the
   // balance but never count toward P/L, win rate or ROI. Saved entries are
   // locked; they can only be changed after an explicit unlock.
-  var FLOW_KEYS = ["id", "date", "type", "amount", "note", "createdAt"];
+  var FLOW_KEYS = ["id", "account", "date", "type", "amount", "note", "createdAt"];
   function normalizeFlow(f){
     f = (f && typeof f === "object") ? f : {};
     var amount = num(f.amount);
     var createdAt = num(f.createdAt);
     return Object.assign(extraFields(f, FLOW_KEYS), {
       id: str(f.id) || makeId(),
+      account: str(f.account),
       date: str(f.date),
       type: f.type === "withdrawal" ? "withdrawal" : "deposit",
       amount: amount !== null ? Math.abs(amount) : 0,
@@ -275,6 +295,32 @@
     d.psychReadAt = /^\d{4}-\d{2}-\d{2}$/.test(str(s.psychReadAt)) ? str(s.psychReadAt) : "";
     d.sizing = normalizeSizing(s.sizing);
     d.cashFlows = Array.isArray(s.cashFlows) ? s.cashFlows.map(normalizeFlow).filter(function(f){ return f.date && f.amount > 0; }) : [];
+
+    // Accounts. Settings saved before accounts existed had one deposit for
+    // the whole journal: that becomes a single "Main account" to rename.
+    var accounts = Array.isArray(s.accounts) ? s.accounts.filter(function(a){ return a && typeof a === "object"; }).map(function(a){
+      var dep = num(a.startingDeposit), adj = num(a.adjustment);
+      return { id: str(a.id) || makeId(), name: str(a.name).trim() || "Account",
+        startingDeposit: dep === null ? 0 : dep, adjustment: adj === null ? 0 : adj };
+    }) : [];
+    if(!accounts.length && !Array.isArray(s.accounts) && (num(s.startingDeposit) !== null || Array.isArray(s.cashFlows))){
+      var oldDep = num(s.startingDeposit), oldAdj = num(s.depositsWithdrawals);
+      accounts = [{ id: "acc-1", name: "Main account", startingDeposit: oldDep === null ? 1000 : oldDep, adjustment: oldAdj === null ? 0 : oldAdj }];
+    }
+    if(accounts.length) d.accounts = accounts;
+    var accIds = d.accounts.map(function(a){ return a.id; });
+    d.cashFlows.forEach(function(f){ if(accIds.indexOf(f.account) === -1) f.account = accIds[0]; });
+
+    // Providers.
+    if(Array.isArray(s.providers)){
+      d.providers = s.providers.filter(function(v){ return v && typeof v === "object" && str(v.name).trim(); }).map(function(v){
+        var r = num(v.risk);
+        return { id: str(v.id) || makeId(), name: str(v.name).trim(),
+          risk: r !== null && r >= SIZING_LIMITS.signal[0] && r <= SIZING_LIMITS.signal[1] ? r : SIZING_DEFAULTS.signal };
+      });
+    }
+    d.startingDeposit = 0;
+    d.depositsWithdrawals = 0;
     if(Array.isArray(s.pairs)){
       var pairs = s.pairs.map(function(p){
         p = p || {};
@@ -294,7 +340,7 @@
   // exactly as it is (mfePrice from before MFE was dropped, overDailyLimit,
   // status). Anything derived (pips, P/L, idea, balance) is recalculated on
   // render and never stored.
-  var TRADE_KEYS = ["id", "createdAt", "updatedAt", "date", "session", "pair", "direction", "source", "bias",
+  var TRADE_KEYS = ["id", "createdAt", "updatedAt", "date", "session", "pair", "direction", "source", "account", "provider", "bias",
     "confirmation", "entry", "stopLoss", "closes", "lesson"];
   var STATUSES = ["Open", "Closed"];
 
@@ -313,6 +359,8 @@
       pair: str(t.pair),
       direction: t.direction === "Sell" ? "Sell" : "Buy",
       source: str(t.source),
+      account: str(t.account),
+      provider: t.source === "Signal" ? str(t.provider) : "",
       bias: Object.assign(extraFields(bias, ["daily", "h4", "h1", "m15"]), {
         daily: str(bias.daily),
         h4: str(bias.h4),
@@ -408,6 +456,53 @@
     };
   }
 
+  // ---------- accounts + providers ----------
+  // A trade with no account (logged before accounts existed) or an account
+  // that was removed belongs to the first account.
+  function accountIdOf(t, settings){
+    var list = settings.accounts || [];
+    for(var i = 0; i < list.length; i++) if(list[i].id === t.account) return t.account;
+    return list.length ? list[0].id : "";
+  }
+  function accountById(settings, id){
+    return (settings.accounts || []).filter(function(a){ return a.id === id; })[0] || null;
+  }
+  function providerById(settings, id){
+    return (settings.providers || []).filter(function(p){ return p.id === id; })[0] || null;
+  }
+  // Who the trade's idea came from: a provider's name, "Own Trade", or
+  // NO_PROVIDER for a Signal trade nobody is credited with.
+  function whoOf(t, settings){
+    if(t.source === "Own Trade") return "Own Trade";
+    var p = providerById(settings, t.provider);
+    return p ? p.name : NO_PROVIDER;
+  }
+  // The filter used on every tab: "" = everything, "Signal" = every signal
+  // trade, otherwise one provider's name or "Own Trade".
+  function matchWho(source, who, f){
+    if(!f) return true;
+    if(f === "Signal") return source === "Signal";
+    return who === f;
+  }
+  function whoOptions(settings){
+    return [{ value: "Signal", label: "All signals" }]
+      .concat((settings.providers || []).map(function(p){ return { value: p.name, label: p.name }; }))
+      .concat([{ value: NO_PROVIDER, label: NO_PROVIDER }, { value: "Own Trade", label: "Own Trade" }]);
+  }
+  // Settings narrowed to one account ("" = every account added together):
+  // its starting money and its deposits/withdrawals. The rest is shared.
+  function viewSettings(settings, accountId){
+    var list = (settings.accounts || []).filter(function(a){ return !accountId || a.id === accountId; });
+    return Object.assign({}, settings, {
+      startingDeposit: round2(sum(list.map(function(a){ return a.startingDeposit; }))),
+      depositsWithdrawals: round2(sum(list.map(function(a){ return a.adjustment; }))),
+      cashFlows: (settings.cashFlows || []).filter(function(f){ return !accountId || f.account === accountId; })
+    });
+  }
+  function viewTrades(trades, settings, accountId){
+    return accountId ? trades.filter(function(t){ return accountIdOf(t, settings) === accountId; }) : trades;
+  }
+
   function sortChronological(trades){
     return trades.slice().sort(function(a, b){
       if(a.date !== b.date) return a.date < b.date ? -1 : 1;
@@ -426,6 +521,8 @@
       prev.pair === t.pair &&
       prev.direction === t.direction &&
       prev.source === t.source &&
+      accountIdOf(prev, settings) === accountIdOf(t, settings) &&
+      prev.provider === t.provider &&
       Math.abs(b - a) < IDEA_ENTRY_GAP_PIPS * pairSpec(settings, t.pair).pipSize;
   }
 
@@ -489,10 +586,15 @@
   }
 
   // The risk % of a whole idea for a source, from the sizing settings.
-  function riskPctForSource(source, settings){
+  // The risk % of a whole idea: Own Trade from the sizing settings, a
+  // Signal from its provider (or the general signal risk if none is picked).
+  function riskPctForSource(source, settings, providerId){
     var sz = (settings && settings.sizing) || SIZING_DEFAULTS;
     if(source === "Own Trade") return sz.own;
-    if(source === "Signal") return sz.signal;
+    if(source === "Signal"){
+      var p = providerById(settings, providerId);
+      return p ? p.risk : sz.signal;
+    }
     return null;
   }
 
@@ -548,7 +650,9 @@
       stop: stop,
       layer: L,
       minLayerStop: 2 * L + LAST_LEG_MIN_STOP,
-      signal: { risk: sz.signal, single: single(sz.signal), three: three(sz.signal) },
+      providers: (settings.providers || []).map(function(p){
+        return { id: p.id, name: p.name, risk: p.risk, single: single(p.risk), three: three(p.risk) };
+      }),
       own: { risk: sz.own, single: single(sz.own), three: three(sz.own) }
     };
   }
@@ -565,7 +669,10 @@
   function derive(trades, settings){
     var base = settings.startingDeposit + settings.depositsWithdrawals;
     var rows = [], byId = {}, ideas = [], ideaById = {};
-    var cumulative = 0, peak = round2(base), prev = null, prevIdea = 0, maxIdea = 0;
+    var cumulative = 0, peak = round2(base), maxIdea = 0;
+    // The last trade (and its idea) per account: legs of one idea are on one
+    // account, even when another account's trade comes in between.
+    var prevBy = {}, prevIdeaBy = {};
     // Deposits/withdrawals count from the start of their date. They move the
     // balance and the peak by the same amount, so a withdrawal never shows
     // up as drawdown and a deposit never as profit.
@@ -583,13 +690,14 @@
     sortChronological(trades).forEach(function(t, i){
       applyFlowsUpTo(t.date);
       var calc = tradeCalc(t, settings);
-      var ideaNo = sameIdea(prev, t, settings) ? prevIdea : maxIdea + 1;
+      var acc = accountIdOf(t, settings), who = whoOf(t, settings);
+      var ideaNo = sameIdea(prevBy[acc], t, settings) ? prevIdeaBy[acc] : maxIdea + 1;
       if(ideaNo > maxIdea) maxIdea = ideaNo;
 
       var idea = ideaById[ideaNo];
       if(!idea){
         // Every trade in an idea shares its date, pair, direction and source.
-        idea = ideaById[ideaNo] = { id: ideaNo, date: t.date, source: t.source, tradeIds: [], closedCount: 0, pl: 0, risk: 0, riskKnown: true };
+        idea = ideaById[ideaNo] = { id: ideaNo, date: t.date, source: t.source, who: who, account: acc, tradeIds: [], closedCount: 0, pl: 0, risk: 0, riskKnown: true };
         ideas.push(idea);
       }
       idea.tradeIds.push(t.id);
@@ -605,11 +713,11 @@
         else idea.risk = round2(idea.risk + calc.risk);
       }
 
-      var row = { n: i + 1, trade: t, calc: calc, idea: ideaNo, balanceAfter: balanceAfter };
+      var row = { n: i + 1, trade: t, calc: calc, idea: ideaNo, balanceAfter: balanceAfter, who: who, account: acc };
       rows.push(row);
       byId[t.id] = row;
-      prev = t;
-      prevIdea = ideaNo;
+      prevBy[acc] = t;
+      prevIdeaBy[acc] = ideaNo;
     });
 
     applyFlowsUpTo(null);
@@ -619,6 +727,7 @@
     var stopLine = round2(peak * (1 - settings.maxDrawdown / 100));
 
     return {
+      providerNames: (settings.providers || []).map(function(p){ return p.name; }),
       rows: rows,          // chronological
       byId: byId,
       ideas: ideas,
@@ -709,17 +818,24 @@
     // P/L, avg is per idea. Wins/losses/BE use the same rule as the
     // Milestones streaks (an idea within $1 of zero is breakeven), and the
     // win rate leaves breakeven ideas out: wins / (wins + losses).
-    var bySource = SOURCES.map(function(name){
-      var list = closedIdeas.filter(function(i){ return i.source === name; })
-                            .map(function(i){ return i.pl; });
+    // One row per provider (and Own Trade), then all signals together.
+    // Rows with no ideas are left out, except Own Trade and All signals.
+    var whoNames = [];
+    closedIdeas.forEach(function(i){ if(i.source === "Signal" && whoNames.indexOf(i.who) === -1) whoNames.push(i.who); });
+    var order = (derived.providerNames || []).concat([NO_PROVIDER]);
+    whoNames.sort(function(a, b){ return order.indexOf(a) - order.indexOf(b); });
+    function whoRow(label, f){
+      var ideasIn = closedIdeas.filter(function(i){ return matchWho(i.source, i.who, f); });
+      var list = ideasIn.map(function(i){ return i.pl; });
       var wins = list.filter(function(v){ return ideaResult(v) === "W"; }).length;
       var losses = list.filter(function(v){ return ideaResult(v) === "L"; }).length;
-      var rList = closedIdeas.filter(function(i){ return i.source === name && i.r !== null && i.r !== undefined; })
-                             .map(function(i){ return i.r; });
-      return { name: name, ideas: list.length, wins: wins, losses: losses, be: list.length - wins - losses,
+      var rList = ideasIn.filter(function(i){ return i.r !== null && i.r !== undefined; }).map(function(i){ return i.r; });
+      return { name: label, total: f === "Signal", ideas: list.length, wins: wins, losses: losses, be: list.length - wins - losses,
         winRate: (wins + losses) ? wins / (wins + losses) : null,
         net: round2(sum(list)), avg: mean(list), avgR: mean(rList) };
-    });
+    }
+    var bySource = whoNames.map(function(n){ return whoRow(n, n); })
+      .concat([whoRow("All signals", "Signal"), whoRow("Own Trade", "Own Trade")]);
 
     // Point 0 is the balance before any trade; then one point per closed
     // trade. When filtered, the curve is the starting balance plus only the
@@ -753,7 +869,7 @@
   // ones included, just to tell whether the week has anything to show.
   function weeklyStats(derived, range, source){
     var rows = derived.rows.filter(function(r){
-      return r.trade.date >= range.start && r.trade.date <= range.end && (!source || r.trade.source === source);
+      return r.trade.date >= range.start && r.trade.date <= range.end && matchWho(r.trade.source, r.who, source);
     });
     var pls = rows.filter(function(r){ return r.calc.pl !== null; }).map(function(r){ return r.calc.pl; });
     var ideas = {};
@@ -913,8 +1029,8 @@
       month: periodTotals(closedRows, "month")
     };
 
-    var recRows = source ? closedRows.filter(function(r){ return r.trade.source === source; }) : closedRows;
-    var recIdeas = derived.ideas.filter(function(i){ return ideaClosed(i) && (!source || i.source === source); });
+    var recRows = source ? closedRows.filter(function(r){ return matchWho(r.trade.source, r.who, source); }) : closedRows;
+    var recIdeas = derived.ideas.filter(function(i){ return ideaClosed(i) && matchWho(i.source, i.who, source); });
     var pls = recIdeas.map(function(i){ return i.pl; });
     var wins = pls.filter(function(v){ return ideaResult(v) === "W"; });
     var losses = pls.filter(function(v){ return ideaResult(v) === "L"; });
@@ -970,6 +1086,12 @@
     sizingPlans: sizingPlans,
     rrPlan: rrPlan,
     normalizeSizing: normalizeSizing,
+    viewSettings: viewSettings,
+    viewTrades: viewTrades,
+    whoOf: whoOf,
+    matchWho: matchWho,
+    whoOptions: whoOptions,
+    accountIdOf: accountIdOf,
     SOURCE_RISK: SOURCE_RISK,
     derive: derive
   };
@@ -1138,7 +1260,59 @@
   var tabNav = document.querySelector("nav.tabs");
   var renderers = {};   // view name -> render function, filled in per view
 
+  // ---------- active account ----------
+  // Every tab shows one account ("" = all accounts added together). The
+  // choice is remembered on this device only.
+  var ACTIVE_KEY = "tj-active-account";
+  var activeAccount = "";
+  try { activeAccount = window.localStorage.getItem(ACTIVE_KEY) || ""; } catch(e){}
+  var elAcct = document.getElementById("acct-switch");
+  function validActive(){
+    if(activeAccount && !accountById(settings, activeAccount)) activeAccount = "";
+    return activeAccount;
+  }
+  function viewS(){ return viewSettings(settings, validActive()); }
+  function deriveView(){ return derive(viewTrades(trades, settings, validActive()), viewS()); }
+  function deriveAccount(id){ return derive(viewTrades(trades, settings, id), viewSettings(settings, id)); }
+  function accountName(id){ var a = accountById(settings, id); return a ? a.name : ""; }
+  function multiAccount(){ return settings.accounts.length > 1; }
+  function renderAcctSwitch(){
+    validActive();
+    elAcct.innerHTML = (multiAccount() ? '<option value="">All accounts</option>' : "") + settings.accounts.map(function(a){
+      return '<option value="' + escapeHtml(a.id) + '">' + escapeHtml(a.name) + "</option>";
+    }).join("");
+    if(!multiAccount() && settings.accounts.length) activeAccount = settings.accounts[0].id;
+    elAcct.value = activeAccount;
+  }
+  function currentView(){
+    var b = tabButtons.filter(function(x){ return x.classList.contains("active"); })[0];
+    return b ? b.dataset.view : "list";
+  }
+  elAcct.addEventListener("change", function(){
+    activeAccount = elAcct.value;
+    try { window.localStorage.setItem(ACTIVE_KEY, activeAccount); } catch(e){}
+    var v = currentView();
+    if(renderers[v]) renderers[v]();
+  });
+
+  // The "Who" filter on every tab: all signals, each provider, Own Trade.
+  function refreshWhoFilters(){
+    [[ffSource, "All"], [dfSource, "All"], [wkSource, "All sources"], [elMsSource, "All sources"]].forEach(function(x){
+      var el = x[0];
+      if(!el) return;
+      var v = el.value;
+      el.innerHTML = '<option value="">' + x[1] + "</option>" + whoOptions(settings).map(function(o){
+        return '<option value="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + "</option>";
+      }).join("");
+      el.value = v;
+      if(el.value !== v) el.value = "";
+    });
+    if(elMsSource) msSource = elMsSource.value;
+  }
+
   function showView(name){
+    renderAcctSwitch();
+    refreshWhoFilters();
     tabButtons.forEach(function(btn){
       var active = btn.dataset.view === name;
       btn.classList.toggle("active", active);
@@ -1372,10 +1546,18 @@
   }
 
   // ---------- segmented buttons ----------
-  function buildSeg(el, options, allowNone){
+  // Options are plain strings, or { value, label } when the stored value
+  // (an id) differs from what's shown.
+  function fillSeg(el, options){
+    var keep = segGet(el);
     el.innerHTML = options.map(function(o){
-      return '<button type="button" data-value="' + escapeHtml(o) + '" aria-pressed="false">' + escapeHtml(o) + "</button>";
+      var v = typeof o === "string" ? o : o.value, l = typeof o === "string" ? o : o.label;
+      return '<button type="button" data-value="' + escapeHtml(v) + '" aria-pressed="false">' + escapeHtml(l) + "</button>";
     }).join("");
+    segSet(el, keep);
+  }
+  function buildSeg(el, options, allowNone){
+    fillSeg(el, options);
     el.addEventListener("click", function(ev){
       var btn = ev.target.closest("button");
       if(!btn) return;
@@ -1434,8 +1616,19 @@
   // True while the Stop Loss box is filled by the app (plan stop); typing a
   // stop turns it off, clearing the box turns it back on.
   var slAuto = true;
-  var account = derive(trades, settings).account;
+  var elAccount = document.getElementById("f-account");
+  var elProvider = document.getElementById("f-provider");
+  var elProviderWrap = document.getElementById("f-provider-wrap");
   var elBias = {};
+  buildSeg(elAccount, [], false);
+  buildSeg(elProvider, [], false);
+  // Account and provider buttons come from Settings, so they're rebuilt
+  // whenever the form is shown.
+  function refreshFormChoices(){
+    fillSeg(elAccount, settings.accounts.map(function(a){ return { value: a.id, label: a.name }; }));
+    fillSeg(elProvider, settings.providers.map(function(p){ return { value: p.id, label: p.name }; }));
+    if(!segGet(elAccount) && settings.accounts.length === 1) segSet(elAccount, settings.accounts[0].id);
+  }
 
   buildSeg(elDirection, DIRECTIONS, false);
   buildSeg(elSession, SESSIONS, false);
@@ -1544,6 +1737,8 @@
       pair: elPair.value,
       direction: segGet(elDirection),
       source: segGet(elSource),
+      account: segGet(elAccount),
+      provider: segGet(elSource) === "Signal" ? segGet(elProvider) : "",
       status: segGet(elStatus),
       bias: bias,
       confirmation: elConfirmation.value.trim(),
@@ -1595,6 +1790,7 @@
 
   function updateLive(){
     var draft = readForm();
+    elProviderWrap.hidden = draft.source !== "Signal";
     updateStop(draft);
     var calc = tradeCalc(draft, settings);
     // Signed pips mean nothing until a direction is picked.
@@ -1618,17 +1814,25 @@
       return '<div class="warn">' + escapeHtml(w) + "</div>";
     }).join("");
 
-    if(draft.source === "" || !(calc.stopDistance > 0)){
-      elSizeHint.textContent = "Size: pick a source and enter entry + stop.";
+    if(!draft.account || draft.source === "" || (draft.source === "Signal" && !draft.provider) || !(calc.stopDistance > 0)){
+      elSizeHint.textContent = "Size: pick the account, the source" + (draft.source === "Signal" ? " and who called it" : "") + ", then enter entry + stop.";
     }else{
-      var riskPct = riskPctForSource(draft.source, settings);
-      var size = sizeFor(account.balance, riskPct, calc.stopDistance, calc.spec.usdPerPip);
-      var plans = sizingPlans(account.balance, settings, calc.spec.usdPerPip);
-      var p3 = draft.source === "Own Trade" ? plans.own.three : plans.signal.three;
+      // Sized from THIS account's balance, never the other account's.
+      var acctD = deriveAccount(draft.account);
+      var bal = acctD.account.balance;
+      var riskPct = riskPctForSource(draft.source, settings, draft.provider);
+      var size = sizeFor(bal, riskPct, calc.stopDistance, calc.spec.usdPerPip);
+      var plans = sizingPlans(bal, settings, calc.spec.usdPerPip);
+      var pp = draft.source === "Own Trade" ? plans.own : plans.providers.filter(function(x){ return x.id === draft.provider; })[0];
+      var p3 = pp ? pp.three : null;
+      var editing = editingTrade();
+      var openHere = acctD.rows.filter(function(r){ return r.calc.isOpen && (!editing || r.trade.id !== editing.id); }).length;
       elSizeHint.innerHTML =
         "1 entry: <strong>" + (size ? fmtLots(size.lots) + " lots · " + escapeHtml(fmtUsd(size.risk)) + " risk" : "—") + "</strong> " +
-        "(" + riskPct + "% of " + escapeHtml(fmtUsd(account.balance)) + " at " + calc.stopDistance.toFixed(1) + " pips)" +
-        (p3 && !p3.tooSmall ? " · 3 entries: " + fmtLots(p3.lots) + " each (Position Sizing has the full plan)" : "");
+        "(" + riskPct + "% of " + escapeHtml(accountName(draft.account)) + "'s " + escapeHtml(fmtUsd(bal)) + " at " + calc.stopDistance.toFixed(1) + " pips)" +
+        (p3 && !p3.tooSmall ? " · 3 entries: " + fmtLots(p3.lots) + " each" : "") +
+        (openHere ? '<div class="open-note">' + openHere + " other trade" + (openHere === 1 ? " is" : "s are") + " already open on " + escapeHtml(accountName(draft.account)) +
+          " — their risk adds to this one.</div>" : "");
     }
 
     // The fixed reward:risk plan: breakeven and take-profit prices from the
@@ -1669,7 +1873,9 @@
     var listed = settings.pairs.some(function(p){ return p.pair === keep; });
     if(!listed && !(editing && editing.pair === keep)) keep = editing ? editing.pair : "";
     refreshPairOptions(keep);
-    account = derive(trades, settings).account;
+    refreshFormChoices();
+    // A new trade starts on the account shown at the top.
+    if(!editing && !segGet(elAccount) && validActive()) segSet(elAccount, validActive());
     updateLive();
   }
   renderers["new"] = renderForm;
@@ -1692,7 +1898,9 @@
     clearInvalid();
     elDate.value = todayStr();
     refreshPairOptions("");
-    [elDirection, elSession, elSource].forEach(function(seg){ segSet(seg, ""); });
+    [elDirection, elSession, elSource, elProvider].forEach(function(seg){ segSet(seg, ""); });
+    refreshFormChoices();
+    segSet(elAccount, validActive() || (settings.accounts.length === 1 ? settings.accounts[0].id : ""));
     segSet(elStatus, "Open");
     BIAS_FRAMES.forEach(function(frame){ segSet(elBias[frame[0]], ""); });
     elCloses.innerHTML = "";
@@ -1710,6 +1918,9 @@
     segSet(elDirection, t.direction);
     segSet(elSession, t.session);
     segSet(elSource, t.source);
+    refreshFormChoices();
+    segSet(elAccount, accountIdOf(t, settings));
+    segSet(elProvider, t.provider);
     segSet(elStatus, tradeCalc(t, settings).isOpen ? "Open" : "Closed");
     BIAS_FRAMES.forEach(function(frame){ segSet(elBias[frame[0]], t.bias[frame[0]]); });
     elConfirmation.value = t.confirmation;
@@ -1753,7 +1964,9 @@
     need(draft.pair !== "", elPair, "Pair");
     need(draft.direction !== "", elDirection, "Direction");
     need(draft.session !== "", elSession, "Session");
+    need(draft.account !== "", elAccount, "Account");
     need(draft.source !== "", elSource, "Source");
+    need(draft.source !== "Signal" || draft.provider !== "", elProvider, "Who called it");
     need(draft.entry !== null, elEntry, "Entry");
     need(draft.status !== "", elStatus, "Status");
 
@@ -1842,7 +2055,6 @@
     }).join("");
   }
   fillFilter(ffSession, SESSIONS);
-  fillFilter(ffSource, SOURCES);
   fillFilter(ffDirection, DIRECTIONS);
   fillFilter(ffResult, RESULTS);
 
@@ -1864,7 +2076,7 @@
   function matchesFilters(row){
     var t = row.trade;
     if(ffSession.value && t.session !== ffSession.value) return false;
-    if(ffSource.value && t.source !== ffSource.value) return false;
+    if(!matchWho(t.source, row.who, ffSource.value)) return false;
     if(ffDirection.value && t.direction !== ffDirection.value) return false;
     if(ffResult.value && resultOf(row.calc) !== ffResult.value) return false;
     if(ffFrom.value && t.date < ffFrom.value) return false;
@@ -1924,7 +2136,8 @@
         '<td class="col-date">' + escapeHtml(t.date) + "</td>" +
         "<td>" + escapeHtml(t.session) + "</td>" +
         '<td class="' + (t.direction === "Buy" ? "dir-buy" : "dir-sell") + '">' + escapeHtml(t.direction) + "</td>" +
-        "<td>" + escapeHtml(t.source) + "</td>" +
+        "<td>" + escapeHtml(r.who) +
+          (multiAccount() && !validActive() ? '<span class="acct-tag">' + escapeHtml(accountName(r.account)) + "</span>" : "") + "</td>" +
         "<td>" + biasChips(t.bias) + "</td>" +
         '<td class="r">' + fmtPrice(t.entry, c.spec) + "</td>" +
         '<td class="r">' + fmtPips(c.slPips) + "</td>" +
@@ -1944,6 +2157,8 @@
 
     var meta =
       "<span>Pair <b>" + escapeHtml(t.pair) + "</b></span>" +
+      "<span>Account <b>" + escapeHtml(accountName(r.account)) + "</b></span>" +
+      "<span>Source <b>" + escapeHtml(t.source) + "</b></span>" +
       "<span>Stop loss <b>" + fmtPrice(t.stopLoss, c.spec) + "</b></span>" +
       (c.risk !== null ? "<span>Risked <b>" + escapeHtml(fmtUsd(c.risk)) + "</b></span>" : "");
 
@@ -1990,7 +2205,7 @@
   }
 
   function renderTable(){
-    var d = derive(trades, settings);
+    var d = deriveView();
     // Newest first; the # column keeps the chronological number from derive().
     var list = d.rows.filter(matchesFilters).reverse();
 
@@ -2050,7 +2265,6 @@
   var dfFrom = document.getElementById("df-from");
   var dfTo = document.getElementById("df-to");
   var dfNote = document.getElementById("df-note");
-  fillFilter(dfSource, SOURCES);
   [dfSource, dfFrom, dfTo].forEach(function(el){ el.addEventListener("change", renderDash); });
   document.getElementById("df-clear").addEventListener("click", function(){
     [dfSource, dfFrom, dfTo].forEach(function(el){ el.value = ""; });
@@ -2062,15 +2276,16 @@
   // match (all its trades share them).
   function filterDerived(d, f){
     if(!f.source && !f.from && !f.to) return d;
-    function ok(source, date){
-      return (!f.source || source === f.source) && (!f.from || date >= f.from) && (!f.to || date <= f.to);
+    function ok(source, who, date){
+      return matchWho(source, who, f.source) && (!f.from || date >= f.from) && (!f.to || date <= f.to);
     }
-    var rows = d.rows.filter(function(r){ return ok(r.trade.source, r.trade.date); });
+    var rows = d.rows.filter(function(r){ return ok(r.trade.source, r.who, r.trade.date); });
     var closedPL = round2(sum(rows.filter(function(r){ return r.calc.pl !== null; }).map(function(r){ return r.calc.pl; })));
     return {
       rows: rows,
       byId: d.byId,
-      ideas: d.ideas.filter(function(i){ return ok(i.source, i.date); }),
+      ideas: d.ideas.filter(function(i){ return ok(i.source, i.who, i.date); }),
+      providerNames: d.providerNames,
       ideaById: d.ideaById,
       account: Object.assign({}, d.account, { closedPL: closedPL }),
       filtered: true
@@ -2188,12 +2403,12 @@
   }
 
   function renderDash(){
-    var full = derive(trades, settings);
+    var full = deriveView();
     var f = { source: dfSource.value, from: dfFrom.value, to: dfTo.value };
     var d = filterDerived(full, f);
     var s = dashboardStats(d);
     var parts = [];
-    if(f.source) parts.push(f.source + " trades only");
+    if(f.source) parts.push((f.source === "Signal" ? "signal" : f.source) + " trades only");
     if(f.from || f.to) parts.push((f.from || "start") + " to " + (f.to || "today"));
     dfNote.hidden = !d.filtered;
     dfNote.textContent = d.filtered ? "Showing " + parts.join(", ") + ". Balance and the stop-trading line are always the whole account." : "";
@@ -2237,9 +2452,9 @@
     groupTable(document.getElementById("dash-session"), "Session", s.bySession);
 
     document.getElementById("dash-source").innerHTML =
-      "<thead><tr><th>Source</th><th>Ideas</th><th>Wins</th><th>Losses</th><th>BE</th><th title='Wins ÷ (wins + losses); breakeven ideas (within $1 of zero) are left out'>Win rate (excl. BE)</th><th>Net P/L</th><th>Avg P/L</th><th>Avg R</th></tr></thead>" +
+      "<thead><tr><th>Who</th><th>Ideas</th><th>Wins</th><th>Losses</th><th>BE</th><th title='Wins ÷ (wins + losses); breakeven ideas (within $1 of zero) are left out'>Win rate (excl. BE)</th><th>Net P/L</th><th>Avg P/L</th><th>Avg R</th></tr></thead>" +
       "<tbody>" + s.bySource.map(function(g){
-        return '<tr data-group="' + escapeHtml(g.name) + '">' +
+        return '<tr data-group="' + escapeHtml(g.name) + '"' + (g.total ? ' class="total-row"' : "") + ">" +
           "<td>" + escapeHtml(g.name) + "</td>" +
           "<td>" + g.ideas + "</td>" +
           "<td>" + g.wins + "</td>" +
@@ -2439,11 +2654,22 @@
       "Take profit at <strong>" + sz.rr + "R</strong> (" + clean(p.stop * sz.rr) + " pips on a " + p.stop + "-pip stop) · stop to breakeven at <strong>" +
       sz.beAt + "R</strong> (" + clean(p.stop * sz.beAt) + " pips). Breakeven win rate at " + sz.rr + "R: <strong>" +
       fmtPct(1 / (1 + sz.rr)) + "</strong> — win more often than that and the plan makes money.";
+    var rows = p.providers.map(function(x){ return [x.name, x]; }).concat([["Own trade", p.own]]);
     document.getElementById("partials-cards").innerHTML =
-      rrCard("Signal — 1 entry", p.signal.single, usd, "") +
-      rrCard("Signal — 3 entries", p.signal.three, usd, "") +
-      rrCard("Own — 1 entry", p.own.single, usd, "") +
-      rrCard("Own — 3 entries", p.own.three, usd, "");
+      '<div class="mini-scroll rr-wrap"><table class="mini-table rr-table">' +
+      "<thead><tr><th>Who</th><th>Risk</th><th>1 entry</th><th>Stop loss (−1R)</th><th>BE at</th><th>Take profit (+" + sz.rr + "R)</th></tr></thead><tbody>" +
+      rows.map(function(r){
+        var plan = r[1].single;
+        if(!plan || plan.tooSmall){
+          return "<tr><td>" + escapeHtml(r[0]) + "</td><td>" + r[1].risk + "%</td><td colspan=\"4\" class=\"neutral\">Below 0.01 lots at this balance</td></tr>";
+        }
+        var reward = round2(plan.lots * p.stop * sz.rr * usd);
+        return "<tr><td>" + escapeHtml(r[0]) + "</td><td>" + r[1].risk + "%</td><td>" + fmtLots(plan.lots) + " lots</td>" +
+          "<td>" + fmtMoney(-plan.risk) + " <span class=\"neutral\">(−" + p.stop + " pips)</span></td>" +
+          "<td>+" + clean(p.stop * sz.beAt) + " pips</td>" +
+          "<td>" + fmtMoney(reward) + " <span class=\"neutral\">(+" + clean(p.stop * sz.rr) + " pips)</span></td></tr>";
+      }).join("") + "</tbody></table></div>" +
+      '<div class="hint field-gap">With 3 layered entries the take profit is measured from the first entry, so the deeper entries pay a little more than ' + sz.rr + "R.</div>";
   }
 
   function planBlock(title, plan, note, tag){
@@ -2466,9 +2692,18 @@
     "</div>";
   }
 
+  // Position Sizing works on one account: the one picked at the top, or the
+  // first account when "All accounts" is showing.
+  function sizingAccount(){ return validActive() || (settings.accounts[0] ? settings.accounts[0].id : ""); }
+
   function renderSizingOutputs(){
-    var d = derive(trades, settings);
+    var accId = sizingAccount();
+    var d = deriveAccount(accId);
     var a = d.account;
+    document.getElementById("size-stand-title").textContent = "Where you stand — " + accountName(accId);
+    var note = document.getElementById("size-acct-note");
+    note.hidden = !!validActive() || !multiAccount();
+    note.textContent = "Showing " + accountName(accId) + ". Pick an account at the top to size for another one.";
     var pair = settings.pairs.length ? settings.pairs[0].pair : "";
     var usd = pairSpec(settings, pair).usdPerPip;
     var p = sizingPlans(a.balance, settings, usd);
@@ -2483,7 +2718,7 @@
       statCard("status", "Status", a.stopped ? "STOP — drawdown limit hit" : "OK to trade")
         .replace('class="stat-card"', 'class="stat-card ' + (a.stopped ? "status-stop" : "status-ok") + '"');
 
-    var layerNote = p.signal.three ?
+    var layerNote = p.own.three ?
       "Layered toward the stop every " + L + " pips; the last entry stays " + (p.stop - 2 * L) + " pips from the stop." :
       "";
     var noLayer = "The " + p.stop + "-pip stop is too tight to layer 3 entries " + L + " pips apart (needs " + p.minLayerStop + "+). Take 1 entry.";
@@ -2494,9 +2729,10 @@
         (plan.three ? planBlock("3 entries", plan.three, layerNote) : '<div class="hint">' + escapeHtml(noLayer) + "</div>"));
     }
 
+    var sub = "Sized from " + escapeHtml(accountName(accId)) + "'s balance (" + escapeHtml(fmtUsd(a.balance)) + ") on " + escapeHtml(pair || "your first pair") + ".";
     elPlanCards.innerHTML =
-      card("signal", "Signal trades", p.signal, "Sized from the current balance (" + escapeHtml(fmtUsd(a.balance)) + ") on " + escapeHtml(pair || "your first pair") + ".") +
-      card("own", "Own trades", p.own, "Same plan stop. Risk is for the whole idea — all entries together.");
+      p.providers.map(function(x){ return card("prov-" + x.id, x.name + " signals", x, sub); }).join("") +
+      card("own", "Own trades", p.own, sub);
 
     renderRR(p, usd);
   }
@@ -2507,6 +2743,7 @@
   }
   var SIZING_MSG = {
     own: "Own-trade risk must be between 0.1% and " + MAX_IDEA_RISK + "% — " + MAX_IDEA_RISK + "% per idea is the hard cap.",
+    provider: "Provider risk must be between 0.1% and " + MAX_IDEA_RISK + "% — " + MAX_IDEA_RISK + "% per idea is the hard cap.",
     signal: "Signal risk must be between 0.1% and " + MAX_IDEA_RISK + "% — " + MAX_IDEA_RISK + "% per idea is the hard cap.",
     rr: "The take-profit target must be between 0.5R and 10R.",
     beAt: "Breakeven must be between 0.25R and 5R.",
@@ -2548,11 +2785,145 @@
     }).join("");
   }
 
+  // ---- accounts + providers editors ----
+  var elAcctRows = document.getElementById("s-accounts");
+  var elAcctNew = document.getElementById("s-acct-new");
+  var elAcctError = document.getElementById("s-acct-error");
+  var elProvRows = document.getElementById("s-providers");
+  var elProvNew = document.getElementById("s-prov-new");
+  var elProvError = document.getElementById("s-prov-error");
+  function showErr(el, msg){ el.textContent = msg; el.hidden = !msg; }
+
+  function accountUse(id){
+    return trades.filter(function(t){ return accountIdOf(t, settings) === id; }).length +
+      (settings.cashFlows || []).filter(function(f){ return f.account === id; }).length;
+  }
+  function providerUse(id){ return trades.filter(function(t){ return t.source === "Signal" && t.provider === id; }).length; }
+
+  function renderAccountRows(){
+    var only = settings.accounts.length === 1;
+    elAcctRows.innerHTML = settings.accounts.map(function(a){
+      var used = accountUse(a.id);
+      return '<div class="pair-row" data-id="' + escapeHtml(a.id) + '">' +
+        '<div class="field"><label>Account</label><input type="text" class="a-name" value="' + escapeHtml(a.name) + '" aria-label="Account name"></div>' +
+        '<div class="field"><label>Starting deposit ($)</label><input type="number" step="any" inputmode="decimal" class="a-dep" value="' + a.startingDeposit + '"></div>' +
+        '<div class="field"><label>Adjustment ($)</label><input type="number" step="any" inputmode="decimal" class="a-adj" value="' + a.adjustment + '"></div>' +
+        '<button type="button" class="p-remove a-remove" aria-label="Remove ' + escapeHtml(a.name) + '"' +
+          (only ? ' disabled title="At least one account is needed"' : used ? ' disabled title="Has trades or deposits — can\'t be removed"' : ' title="Remove this account"') + ">&times;</button>" +
+      "</div>";
+    }).join("");
+  }
+  function renderProviderRows(){
+    elProvRows.innerHTML = settings.providers.map(function(v){
+      var used = providerUse(v.id);
+      return '<div class="pair-row" data-id="' + escapeHtml(v.id) + '">' +
+        '<div class="field"><label>Provider</label><input type="text" class="v-name" value="' + escapeHtml(v.name) + '" aria-label="Provider name"></div>' +
+        '<div class="field"><label>Risk per idea (%)</label><input type="number" step="any" inputmode="decimal" class="v-risk" value="' + v.risk + '"></div>' +
+        '<div class="field"><label>Trades</label><div class="v-used">' + used + "</div></div>" +
+        '<button type="button" class="p-remove v-remove" aria-label="Remove ' + escapeHtml(v.name) + '"' +
+          (used ? ' disabled title="Has trades — can\'t be removed"' : ' title="Remove this provider"') + ">&times;</button>" +
+      "</div>";
+    }).join("") || '<div class="hint">No providers yet — add the people whose signals you take.</div>';
+  }
+  function nameTaken(list, name, exceptId){
+    return list.some(function(x){ return x.id !== exceptId && x.name.toLowerCase() === name.toLowerCase(); });
+  }
+  function afterAccountChange(){
+    saveSettings();
+    renderAcctSwitch();
+    renderAccountRows();
+    renderFlows();
+    renderSizingOutputs();
+  }
+  function afterProviderChange(){
+    saveSettings();
+    refreshWhoFilters();
+    renderProviderRows();
+    renderSizingOutputs();
+  }
+
+  elAcctRows.addEventListener("change", function(ev){
+    var row = ev.target.closest(".pair-row"); if(!row) return;
+    var a = accountById(settings, row.dataset.id); if(!a) return;
+    showErr(elAcctError, "");
+    if(ev.target.classList.contains("a-name")){
+      var name = ev.target.value.trim();
+      if(!name) return showErr(elAcctError, "An account needs a name.");
+      if(nameTaken(settings.accounts, name, a.id)) return showErr(elAcctError, name + " is already an account.");
+      a.name = name;
+    }else{
+      var n = num(ev.target.value);
+      if(n === null) return showErr(elAcctError, "Enter a number (0 is fine).");
+      if(ev.target.classList.contains("a-dep")){
+        if(n < 0) return showErr(elAcctError, "The starting deposit can't be below 0.");
+        a.startingDeposit = n;
+      }else a.adjustment = n;
+    }
+    afterAccountChange();
+  });
+  elAcctRows.addEventListener("click", function(ev){
+    var btn = ev.target.closest(".a-remove"); if(!btn || btn.disabled) return;
+    var id = btn.closest(".pair-row").dataset.id;
+    if(accountUse(id) || settings.accounts.length <= 1) return;
+    settings.accounts = settings.accounts.filter(function(a){ return a.id !== id; });
+    afterAccountChange();
+  });
+  function addAccount(){
+    var name = elAcctNew.value.trim();
+    if(!name) return showErr(elAcctError, "Type the account name first.");
+    if(nameTaken(settings.accounts, name, "")) return showErr(elAcctError, name + " is already an account.");
+    settings.accounts.push({ id: makeId(), name: name, startingDeposit: 0, adjustment: 0 });
+    elAcctNew.value = "";
+    showErr(elAcctError, "");
+    afterAccountChange();
+  }
+  document.getElementById("s-acct-add").addEventListener("click", addAccount);
+  elAcctNew.addEventListener("keydown", function(ev){ if(ev.key === "Enter"){ ev.preventDefault(); addAccount(); } });
+
+  elProvRows.addEventListener("change", function(ev){
+    var row = ev.target.closest(".pair-row"); if(!row) return;
+    var v = providerById(settings, row.dataset.id); if(!v) return;
+    showErr(elProvError, "");
+    if(ev.target.classList.contains("v-name")){
+      var name = ev.target.value.trim();
+      if(!name) return showErr(elProvError, "A provider needs a name.");
+      if(name === "Own Trade" || name === "Signal" || name === NO_PROVIDER || nameTaken(settings.providers, name, v.id)) return showErr(elProvError, name + " is already used.");
+      v.name = name;
+    }else{
+      var n = num(ev.target.value);
+      if(!sizingValid("signal", n)) return showErr(elProvError, SIZING_MSG.provider);
+      v.risk = n;
+    }
+    afterProviderChange();
+  });
+  elProvRows.addEventListener("click", function(ev){
+    var btn = ev.target.closest(".v-remove"); if(!btn || btn.disabled) return;
+    var id = btn.closest(".pair-row").dataset.id;
+    if(providerUse(id)) return;
+    settings.providers = settings.providers.filter(function(v){ return v.id !== id; });
+    afterProviderChange();
+  });
+  function addProvider(){
+    var name = elProvNew.value.trim();
+    if(!name) return showErr(elProvError, "Type the provider's name first.");
+    if(name === "Own Trade" || name === "Signal" || name === NO_PROVIDER || nameTaken(settings.providers, name, "")) return showErr(elProvError, name + " is already used.");
+    settings.providers.push({ id: makeId(), name: name, risk: SIZING_DEFAULTS.signal });
+    elProvNew.value = "";
+    showErr(elProvError, "");
+    afterProviderChange();
+  }
+  document.getElementById("s-prov-add").addEventListener("click", addProvider);
+  elProvNew.addEventListener("keydown", function(ev){ if(ev.key === "Enter"){ ev.preventDefault(); addProvider(); } });
+
   function renderSizing(){
     settingInputs.forEach(function(input){ input.value = settings[input.dataset.setting]; });
     sizingInputs.forEach(function(input){ input.value = settings.sizing[input.dataset.sizing]; });
     sizingError("");
     elPairError.hidden = true;
+    showErr(elAcctError, "");
+    showErr(elProvError, "");
+    renderAccountRows();
+    renderProviderRows();
     renderPairRows();
     renderFlows();
     renderSizingOutputs();
@@ -2560,6 +2931,7 @@
   renderers.sizing = renderSizing;
 
   // ---- deposits / withdrawals ledger ----
+  var elCfAccount = document.getElementById("cf-account");
   var elCfDate = document.getElementById("cf-date");
   var elCfType = document.getElementById("cf-type");
   var elCfAmount = document.getElementById("cf-amount");
@@ -2573,8 +2945,16 @@
     elCfError.hidden = !msg;
   }
 
+  function accountOptions(selected){
+    return settings.accounts.map(function(a){
+      return '<option value="' + escapeHtml(a.id) + '"' + (a.id === selected ? " selected" : "") + ">" + escapeHtml(a.name) + "</option>";
+    }).join("");
+  }
   function renderFlows(){
     if(!elCfDate.value) elCfDate.value = todayStr();
+    var keepAcc = elCfAccount.value || validActive();
+    elCfAccount.innerHTML = accountOptions(keepAcc);
+    if(keepAcc) elCfAccount.value = keepAcc;
     var list = sortedFlows(settings).reverse();
     if(!list.length){
       elCfTable.innerHTML = '<tbody><tr><td class="flow-empty">No deposits or withdrawals logged yet.</td></tr></tbody>';
@@ -2583,11 +2963,12 @@
     var totIn = 0, totOut = 0;
     list.forEach(function(f){ if(f.type === "deposit") totIn += f.amount; else totOut += f.amount; });
     elCfTable.innerHTML =
-      "<thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Note</th><th></th></tr></thead><tbody>" +
+      "<thead><tr><th>Account</th><th>Date</th><th>Type</th><th>Amount</th><th>Note</th><th></th></tr></thead><tbody>" +
       list.map(function(f){
         var signed = flowAmount(f);
         if(!unlockedFlows[f.id]){
           return '<tr data-id="' + escapeHtml(f.id) + '">' +
+            "<td>" + escapeHtml(accountName(f.account)) + "</td>" +
             "<td>" + escapeHtml(fmtDayLabel(f.date)) + "</td>" +
             "<td>" + (f.type === "deposit" ? "Deposit" : "Withdrawal") + "</td>" +
             '<td class="' + (signed < 0 ? "neg" : "pos") + '">' + escapeHtml((signed < 0 ? "−" : "+") + fmtUsd(f.amount)) + "</td>" +
@@ -2596,6 +2977,7 @@
           "</tr>";
         }
         return '<tr data-id="' + escapeHtml(f.id) + '" class="flow-editing">' +
+          '<td><select data-f="account" aria-label="Account">' + accountOptions(f.account) + "</select></td>" +
           '<td><input type="date" data-f="date" value="' + escapeHtml(f.date) + '" aria-label="Date"></td>' +
           '<td><select data-f="type" aria-label="Type"><option value="deposit"' + (f.type === "deposit" ? " selected" : "") + '>Deposit</option><option value="withdrawal"' + (f.type === "withdrawal" ? " selected" : "") + ">Withdrawal</option></select></td>" +
           '<td><input type="number" step="any" min="0" inputmode="decimal" data-f="amount" value="' + f.amount + '" aria-label="Amount"></td>' +
@@ -2603,18 +2985,19 @@
           '<td><button type="button" class="small primary" data-act="lock">Save &amp; lock</button> <button type="button" class="ghost small danger" data-act="delete">Delete</button></td>' +
         "</tr>";
       }).join("") +
-      '</tbody><tfoot><tr><td colspan="2">Total</td><td>' + escapeHtml("+" + fmtUsd(round2(totIn)) + " / −" + fmtUsd(round2(totOut))) + "</td><td colspan=\"2\"></td></tr></tfoot>";
+      '</tbody><tfoot><tr><td colspan="3">Total</td><td>' + escapeHtml("+" + fmtUsd(round2(totIn)) + " / −" + fmtUsd(round2(totOut))) + "</td><td colspan=\"2\"></td></tr></tfoot>";
   }
 
-  function flowFromInputs(date, type, amountStr, note){
+  function flowFromInputs(account, date, type, amountStr, note){
     var amount = num(amountStr);
+    if(!accountById(settings, account)) return { error: "Pick the account the money went into or came out of." };
     if(!date) return { error: "Pick the date of the deposit or withdrawal." };
     if(amount === null || !(amount > 0)) return { error: "Enter an amount above $0." };
-    return { flow: { date: date, type: type, amount: round2(amount), note: str(note).trim() } };
+    return { flow: { account: account, date: date, type: type, amount: round2(amount), note: str(note).trim() } };
   }
 
   document.getElementById("cf-add").addEventListener("click", function(){
-    var r = flowFromInputs(elCfDate.value, elCfType.value, elCfAmount.value, elCfNote.value);
+    var r = flowFromInputs(elCfAccount.value, elCfDate.value, elCfType.value, elCfAmount.value, elCfNote.value);
     if(r.error){ cfError(r.error); return; }
     cfError("");
     settings.cashFlows = (settings.cashFlows || []).concat([normalizeFlow(r.flow)]);
@@ -2643,7 +3026,7 @@
       delete unlockedFlows[id];
     }else if(act === "lock"){
       var get = function(k){ return tr.querySelector('[data-f="' + k + '"]').value; };
-      var r = flowFromInputs(get("date"), get("type"), get("amount"), get("note"));
+      var r = flowFromInputs(get("account"), get("date"), get("type"), get("amount"), get("note"));
       if(r.error){ cfError(r.error); return; }
       settings.cashFlows = settings.cashFlows.map(function(f){
         return f.id === id ? normalizeFlow(Object.assign({}, f, r.flow)) : f;
@@ -2809,7 +3192,7 @@
   }
 
   function renderMilestones(){
-    var d = derive(trades, settings);
+    var d = deriveView();
     var m = milestoneStats(d, msSource);
 
     // Balance progress: from the last unlocked level (or the starting
@@ -2873,10 +3256,10 @@
 
   function renderWeekly(){
     var range = shownWeekRange();
-    var d = derive(trades, settings);
+    var d = deriveView();
     var w = weeklyStats(d, range, wkSource.value);
     var weekRows = d.rows.filter(function(r){
-      return r.trade.date >= range.start && r.trade.date <= range.end && (!wkSource.value || r.trade.source === wkSource.value);
+      return r.trade.date >= range.start && r.trade.date <= range.end && matchWho(r.trade.source, r.who, wkSource.value);
     });
     var rs = [], seen = {};
     weekRows.forEach(function(r){
@@ -2905,10 +3288,11 @@
     var list = document.getElementById("weekly-trades");
     list.hidden = weekRows.length === 0;
     list.innerHTML = weekRows.length ? '<h2 class="panel-title">Trades this week</h2><div class="mini-scroll"><table class="mini-table week-table">' +
-      "<thead><tr><th>#</th><th>Date</th><th>Source</th><th>Dir</th><th>Session</th><th>P/L</th><th>R</th><th>Lesson</th></tr></thead><tbody>" +
+      "<thead><tr><th>#</th><th>Date</th><th>Who</th>" + (multiAccount() && !validActive() ? "<th>Account</th>" : "") + "<th>Dir</th><th>Session</th><th>P/L</th><th>R</th><th>Lesson</th></tr></thead><tbody>" +
       weekRows.map(function(r){
         var t = r.trade, c = r.calc;
-        return "<tr><td>" + r.n + "</td><td>" + escapeHtml(t.date) + "</td><td>" + escapeHtml(t.source) + "</td>" +
+        return "<tr><td>" + r.n + "</td><td>" + escapeHtml(t.date) + "</td><td>" + escapeHtml(r.who) + "</td>" +
+          (multiAccount() && !validActive() ? "<td>" + escapeHtml(accountName(r.account)) + "</td>" : "") +
           '<td class="' + (t.direction === "Buy" ? "dir-buy" : "dir-sell") + '">' + escapeHtml(t.direction) + "</td>" +
           "<td>" + escapeHtml(t.session) + "</td>" +
           "<td>" + (c.isOpen ? '<span class="badge">Open</span>' : fmtMoney(c.pl)) + "</td>" +
@@ -2955,11 +3339,11 @@
   // Everything both exports need, as plain values.
   function weekReport(){
     var range = shownWeekRange();
-    var derived = derive(trades, settings);
+    var derived = deriveView();
     var source = wkSource.value;
     var w = weeklyStats(derived, range, source);
     var rows = derived.rows.filter(function(r){
-      return r.trade.date >= range.start && r.trade.date <= range.end && (!source || r.trade.source === source);
+      return r.trade.date >= range.start && r.trade.date <= range.end && matchWho(r.trade.source, r.who, source);
     });
     var before = derived.rows.filter(function(r){ return r.trade.date < range.start && r.calc.pl !== null; });
     var flowsBefore = sum(sortedFlows(settings).filter(function(f){ return f.date < range.start; }).map(flowAmount));
@@ -2970,7 +3354,7 @@
     return {
       range: range,
       who: (elUser.textContent || "").replace(/^ · /, ""),
-      source: source || "All sources",
+      source: (source === "Signal" ? "All signals" : source || "All sources") + " · " + (validActive() ? accountName(validActive()) : "All accounts"),
       generated: todayStr(),
       summary: [
         ["Trades", w.trades],
@@ -2988,7 +3372,7 @@
       trades: rows.map(function(r){
         var t = r.trade, c = r.calc, b = t.bias;
         return {
-          n: r.n, date: t.date, session: t.session, pair: t.pair, direction: t.direction, source: t.source, r: c.r,
+          n: r.n, date: t.date, session: t.session, pair: t.pair, direction: t.direction, source: r.who, account: accountName(r.account), r: c.r,
           bias: [b.daily, b.h4, b.h1, b.m15].map(function(v){ return BIAS_SHORT[v] || "-"; }).join(" / "),
           entry: t.entry, stop: t.stopLoss, priceDp: c.spec.priceDp, slPips: c.slPips, lots: c.isOpen ? null : c.lots, pl: c.pl,
           idea: r.idea, result: resultOf(c),
@@ -3044,14 +3428,14 @@
       ws1["!cols"] = [{ wch: 36 }, { wch: 24 }];
       X.utils.book_append_sheet(wb, ws1, "Summary");
 
-      var head = ["#", "Date", "Session", "Pair", "Direction", "Source", "Bias D/4H/1H/15M", "Entry", "Stop",
+      var head = ["#", "Date", "Account", "Session", "Pair", "Direction", "Who", "Bias D/4H/1H/15M", "Entry", "Stop",
         "SL pips", "Lots", "P/L ($)", "R", "Idea", "Result", "Confirmation", "Mistake / Lesson"];
       var body = rep.trades.map(function(t){
-        return [t.n, t.date, t.session, t.pair, t.direction, t.source, t.bias, t.entry, t.stop,
+        return [t.n, t.date, t.account, t.session, t.pair, t.direction, t.source, t.bias, t.entry, t.stop,
           t.slPips, t.lots, t.pl, t.r === null ? null : round2(t.r), t.idea, t.result, t.confirmation, t.lesson];
       });
       var ws2 = X.utils.aoa_to_sheet([head].concat(body));
-      ws2["!cols"] = [5, 11, 10, 9, 9, 11, 22, 9, 9, 8, 6, 9, 6, 5, 7, 40, 40].map(function(w){ return { wch: w }; });
+      ws2["!cols"] = [5, 11, 12, 10, 9, 9, 14, 22, 9, 9, 8, 6, 9, 6, 5, 7, 40, 40].map(function(w){ return { wch: w }; });
       X.utils.book_append_sheet(wb, ws2, "Trades");
 
       var closes = [["Trade #", "Date", "Type", "Price", "Lots", "Pips", "P/L ($)"]];

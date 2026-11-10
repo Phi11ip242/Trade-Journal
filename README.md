@@ -6,7 +6,9 @@ Tabs: **Log Trade · Trade Log · Dashboard · Position Sizing · Weekly Review 
 
 - Trade Log, Dashboard, Weekly Review and Milestones can all be filtered by source (Signal / Own Trade); the Trade Log and Dashboard also by date.
 - Every closed trade shows its **R** (P/L ÷ what it risked), and the Dashboard shows average R per idea — the number that tells you whether a 1.5R system is working.
-- Split entries on the same idea are grouped automatically (same day, pair, direction and source, entries within 80 pips).
+- **Accounts:** each broker account (e.g. AvaTrade, Kudo) keeps its own deposit, deposits/withdrawals, balance, drawdown and lot sizes. Switch accounts at the top, or pick "All accounts" to see everything together.
+- **Providers:** every Signal trade records who called it (AJ, Aaron, Thomas, ...), each with their own risk %, so each provider gets their own stats. Add or rename them on Position Sizing → Settings.
+- Split entries on the same idea are grouped automatically (same day, account, pair, direction, source and provider, entries within 80 pips). The same signal taken on two accounts counts as two separate trades.
 - Rulebook and Psychology are edited in the app (Edit button) and saved with your account.
 
 It's four files plus a database schema — no build step:
@@ -83,7 +85,7 @@ You need three free accounts, all under your own name: **GitHub** (stores the co
 
 ## First things to set
 
-1. **Position Sizing → Settings:** your starting deposit, max drawdown, and your pairs (XAUUSD is there already: pip size 0.1, $10 per pip per lot).
+1. **Position Sizing → Settings:** your accounts and their starting deposits, your signal providers and their risk %, max drawdown, and your pairs (XAUUSD is there already: pip size 0.1, $10 per pip per lot).
 2. **Position Sizing → Risk & plan:** Signal risk %, Own trade risk %, plan/max stop, take profit (R) and breakeven (R). 20% per idea is the hard cap.
 3. **Rulebook → Edit:** write the strategy as you learn it. The starter chapters are your own rules (checklist, 1.5R management, risk, loss protocol, signals, news).
 4. **Psychology:** read it once a week and tap **I've read it this week**.

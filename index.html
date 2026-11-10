@@ -55,6 +55,7 @@
   </nav>
 
   <div class="header-actions">
+    <select id="acct-switch" class="acct-switch" aria-label="Account" title="Which account the tabs show"></select>
     <button id="btn-export" class="ghost" type="button" title="Download all trades and settings as a .json backup file">Export JSON</button>
     <button id="btn-import" class="ghost" type="button" title="Load a previously exported .json file (replaces current data)">Import JSON</button>
     <input type="file" id="import-file" accept="application/json,.json" hidden>
@@ -92,8 +93,16 @@
             <div class="seg" id="f-session" role="group" aria-label="Session"></div>
           </div>
           <div class="field field-gap">
+            <span class="label">Account</span>
+            <div class="seg" id="f-account" role="group" aria-label="Account"></div>
+          </div>
+          <div class="field field-gap">
             <span class="label">Source</span>
             <div class="seg" id="f-source" role="group" aria-label="Source"></div>
+          </div>
+          <div class="field field-gap" id="f-provider-wrap" hidden>
+            <span class="label">Who called it</span>
+            <div class="seg" id="f-provider" role="group" aria-label="Who called the signal"></div>
           </div>
         </fieldset>
 
@@ -174,7 +183,7 @@
         <select id="ff-session"></select>
       </div>
       <div class="field">
-        <label for="ff-source">Source</label>
+        <label for="ff-source">Who</label>
         <select id="ff-source"></select>
       </div>
       <div class="field">
@@ -206,7 +215,7 @@
             <th class="col-date">Date</th>
             <th>Session</th>
             <th>Dir</th>
-            <th>Source</th>
+            <th>Who</th>
             <th>Bias</th>
             <th class="r">Entry</th>
             <th class="r">SL pips</th>
@@ -226,7 +235,7 @@
   <section id="view-dash" class="view hidden">
     <div class="filter-bar">
       <div class="field">
-        <label for="df-source">Source</label>
+        <label for="df-source">Who</label>
         <select id="df-source"></select>
       </div>
       <div class="field">
@@ -275,7 +284,7 @@
       </div>
 
       <div class="panel">
-        <h2 class="panel-title">By Source (by idea)</h2>
+        <h2 class="panel-title">By provider (by idea)</h2>
         <div class="mini-scroll">
           <table class="mini-table" id="dash-source"></table>
         </div>
@@ -291,15 +300,15 @@
   <!-- ============ POSITION SIZING + SETTINGS VIEW ============ -->
   <section id="view-sizing" class="view hidden">
     <div class="panel">
-      <h2 class="panel-title">Where you stand</h2>
+      <h2 class="panel-title" id="size-stand-title">Where you stand</h2>
+      <div class="hint" id="size-acct-note" hidden></div>
       <div class="stats-grid" id="size-stand"></div>
     </div>
 
     <div class="panel">
       <h2 class="panel-title">Risk &amp; plan</h2>
-      <div class="hint">Risk is for the <strong>whole idea</strong> — every entry together, if all of them get stopped. Sizes use your current balance and update as it changes. <strong>20% per idea is the hard cap.</strong></div>
+      <div class="hint">Risk is for the <strong>whole idea</strong> — every entry together, if all of them get stopped. Sizes use the account's current balance and update as it changes. Signal risk is set per provider below. <strong>20% per idea is the hard cap.</strong></div>
       <div class="grid field-gap sizing-settings">
-        <div class="field"><label for="sz-signal">Signal risk (%)</label><input type="number" step="any" inputmode="decimal" id="sz-signal" data-sizing="signal"></div>
         <div class="field"><label for="sz-own">Own trade risk (%)</label><input type="number" step="any" inputmode="decimal" id="sz-own" data-sizing="own"></div>
         <div class="field"><label for="s-defaultStop">Plan / max stop (pips)</label><input type="number" step="any" inputmode="decimal" id="s-defaultStop" data-setting="defaultStop"></div>
         <div class="field"><label for="sz-rr">Take profit at (R)</label><input type="number" step="any" inputmode="decimal" id="sz-rr" data-sizing="rr"></div>
@@ -319,17 +328,28 @@
 
     <div class="panel">
       <h2 class="panel-title">Settings</h2>
-      <div class="grid">
+
+      <h2 class="panel-title pairs-title">Accounts</h2>
+      <div class="hint">Each broker account keeps its own money. Starting deposit = what was in it when you started logging here. Adjustment = money in or out before that, if any.</div>
+      <div class="list-rows field-gap" id="s-accounts"></div>
+      <div class="pair-add">
+        <input type="text" id="s-acct-new" placeholder="New account, e.g. Exness" aria-label="New account name">
+        <button type="button" id="s-acct-add">+ Add account</button>
+      </div>
+      <div class="form-error field-gap" id="s-acct-error" hidden></div>
+
+      <h2 class="panel-title field-gap pairs-title">Signal providers</h2>
+      <div class="hint">Who you follow, and the risk % per idea when you take their signals. Every Signal trade is tagged with one of these, so each provider gets their own stats.</div>
+      <div class="list-rows field-gap" id="s-providers"></div>
+      <div class="pair-add">
+        <input type="text" id="s-prov-new" placeholder="New provider, e.g. Thomas" aria-label="New provider name">
+        <button type="button" id="s-prov-add">+ Add provider</button>
+      </div>
+      <div class="form-error field-gap" id="s-prov-error" hidden></div>
+
+      <div class="grid field-gap">
         <div class="field">
-          <label for="s-startingDeposit">Starting deposit ($)</label>
-          <input type="number" step="any" inputmode="decimal" id="s-startingDeposit" data-setting="startingDeposit">
-        </div>
-        <div class="field">
-          <label for="s-depositsWithdrawals">Adjustment before the ledger ($)</label>
-          <input type="number" step="any" inputmode="decimal" id="s-depositsWithdrawals" data-setting="depositsWithdrawals">
-        </div>
-        <div class="field">
-          <label for="s-maxDrawdown">Max drawdown (%)</label>
+          <label for="s-maxDrawdown">Max drawdown per account (%)</label>
           <input type="number" step="any" inputmode="decimal" id="s-maxDrawdown" data-setting="maxDrawdown">
         </div>
       </div>
@@ -337,6 +357,7 @@
       <h2 class="panel-title field-gap pairs-title">Deposits &amp; withdrawals</h2>
       <div class="hint">Money you put in or take out, with the date. It moves your balance but never counts as P/L, ROI or drawdown. Entries lock when saved — unlock one to change or delete it.</div>
       <div class="flow-add field-gap">
+        <select id="cf-account" aria-label="Account"></select>
         <input type="date" id="cf-date" aria-label="Date">
         <select id="cf-type" aria-label="Type"><option value="deposit">Deposit</option><option value="withdrawal">Withdrawal</option></select>
         <input type="number" step="any" min="0" inputmode="decimal" id="cf-amount" placeholder="Amount $" aria-label="Amount in dollars">
@@ -379,7 +400,7 @@
       <div class="ms-records-head">
         <h2 class="panel-title">Records (by idea)</h2>
         <div class="field">
-          <label for="ms-source">Source</label>
+          <label for="ms-source">Who</label>
           <select id="ms-source"></select>
         </div>
       </div>
