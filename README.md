@@ -83,7 +83,7 @@ You need three free accounts, all under your own name: **GitHub** (stores the co
 
 1. **Position Sizing → Settings:** your accounts and their starting deposits, max drawdown, and your pairs (XAUUSD is there already: pip size 0.1, $10 per pip per lot). Risk % per source is under "Risk per setup".
 2. **Position Sizing → Risk & plan:** Signal risk %, Own trade risk %, plan/max stop, take profit (R) and breakeven (R). 20% per idea is the hard cap.
-3. **Rulebook → Edit:** write the strategy as you learn it. The starter chapters are your own rules (checklist, 1.5R management, risk, loss protocol, signals, news).
+3. **Rulebook:** Nick's method and your rules, as in Johnson Journal (changes to it are made in index.html).
 4. **Psychology:** read it once a week and tap **I've read it this week**.
 
 ## Changing things later
