@@ -960,6 +960,20 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .partials-card h4{ margin: 0; font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .4px; }
 @media (max-width: 760px){ .partials-grid{ grid-template-columns: minmax(0, 1fr); } }
 
+/* ---- loss protocol ---- */
+.protocol .proto-head{ font-size: 16px; font-weight: 700; margin: 2px 0 6px; }
+.protocol.proto-normal{ border-left: 3px solid var(--green); }
+.protocol.proto-hold{ border-left: 3px solid var(--accent); }
+.protocol.proto-half{ border-left: 3px solid var(--red); }
+.proto-normal .proto-head{ color: var(--green); }
+.proto-hold .proto-head{ color: var(--accent); }
+.proto-half .proto-head{ color: var(--red); }
+.proto-recent{ margin-top: 8px; font-size: 12.5px; color: var(--text-dim); }
+.proto-rules{ margin-top: 10px; font-size: 13px; }
+.proto-rules summary{ cursor: pointer; color: var(--text-dim); }
+.proto-rules ul{ margin: 6px 0 0 18px; padding: 0; }
+.proto-rules li{ margin: 3px 0; }
+
 /* ---- reward:risk plan readout on the Log Trade form ---- */
 .plan-hint{
   display: flex; flex-wrap: wrap; gap: 6px 18px;
@@ -1005,4 +1019,4 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .list-rows{ display: flex; flex-direction: column; gap: 8px; }
 .rr-table td, .rr-table th{ white-space: nowrap; }
 .flow-add #cf-account{ flex: 0 0 130px; }
-#partials-cards{ display: block; }
+.plan-hint[hidden]{ display: none; }

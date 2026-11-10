@@ -1,8 +1,7 @@
 (function(){
   "use strict";
 
-  // Your Supabase project and the journal's name live in config.js, so
-  // that is the only file you edit when you set the site up. The
+  // Your Supabase project and the journal's name live in config.js. The
   // publishable key is meant to be public: Row Level Security in the
   // database only lets the signed-in owner read or write their own rows.
   var CONFIG = (typeof window !== "undefined" && window.JOURNAL_CONFIG) || {};
@@ -13,34 +12,29 @@
 
   var SESSIONS = ["Asia", "London", "New York"];
   var DIRECTIONS = ["Buy", "Sell"];
-  var SOURCES = ["Signal", "Own Trade"];
+  var SOURCES = ["Premium", "Grind Room", "Institutional", "AJ", "Own Trade"];
+  // Broker accounts. Each keeps its own deposit, deposits/withdrawals,
+  // balance, drawdown and lot sizes. The first one is where trades without
+  // an account (e.g. from a Johnson Journal backup) belong.
   var DEFAULT_ACCOUNTS = [
     { id: "acc-ava", name: "AvaTrade", startingDeposit: 1000, adjustment: 0 },
-    { id: "acc-kudo", name: "Kudo", startingDeposit: 300, adjustment: 0 }
+    { id: "acc-kudo", name: "Kudo", startingDeposit: 0, adjustment: 0 }
   ];
-  // risk = % of the account per idea when following that provider;
-  // stop = their usual stop in pips from the worst entry (0 = the plan stop).
-  var DEFAULT_PROVIDERS = [
-    { id: "prov-aj", name: "AJ", risk: 5, stop: 100 },
-    { id: "prov-aaron", name: "Aaron", risk: 20, stop: 120 },
-    { id: "prov-thomas", name: "Thomas", risk: 20, stop: 100 },
-    { id: "prov-nick", name: "Nick", risk: 20, stop: 100 }
-  ];
-  var NO_PROVIDER = "Signal (no provider)";
   var BIASES = ["Bullish", "Bearish", "Ranging"];
   var BIAS_FRAMES = [["daily", "Daily"], ["h4", "4H"], ["h1", "1H"], ["m15", "15M"]];
-  // Risk per idea by source, % of balance: the most the sizer allows.
-  // 20% per idea is the hard cap, whatever the source.
-  var MAX_IDEA_RISK = 20;
+  // Risk per single trade by source, % of balance: the default the sizer
+  // starts at, and the most it allows.
   var SOURCE_RISK = {
-    "Signal":    { def: 5, max: MAX_IDEA_RISK },
-    "Own Trade": { def: 5, max: MAX_IDEA_RISK }
+    "Premium":       { def: 20, max: 30 },
+    "Grind Room":    { def: 20, max: 30 },
+    "Institutional": { def: 20, max: 30 },
+    "AJ":            { def: 5,  max: 20 },
+    "Own Trade":     { def: 5,  max: 20 }
   };
-  // Any other type stored on a trade (TP6, TP7, ...) is kept and shown too.
-  var CLOSE_TYPES = ["TP", "TP1", "TP2", "TP3", "TP4", "TP5", "Full TP", "Partial", "BE", "SL", "Force Close"];
+  var CLOSE_TYPES = ["SL", "Force Close", "TP1", "TP2", "TP3", "TP4", "TP5", "TP6", "TP7", "TP8", "TP9", "TP10", "Full TP", "BE"];
 
-  // Used when a trade's pair isn't in the Settings pair list, so a calc
-  // never comes out as NaN.
+  // Used when a trade's pair isn't in the Settings pair list (same as the
+  // Excel's IFERROR default), so a calc never comes out as NaN.
   var FALLBACK_PIP_SIZE = 0.1;
   var FALLBACK_USD_PER_PIP = 10;
 
@@ -48,23 +42,37 @@
   // this many pips (of that pair's pip size — 8.00 on gold) are one idea.
   var IDEA_ENTRY_GAP_PIPS = 80;
 
-  // Position sizing (Position Sizing tab). Risk is % of the balance for the
-  // WHOLE idea (all entries together). Trades are planned to a fixed
-  // reward:risk: take profit at `rr` × the stop, stop to breakeven once
-  // price is `beAt` × the stop in profit.
+  // Split-entry risk planner defaults: Premium legs (100-pip stop from the
+  // worst entry, entries ~20 pips apart) and Grind Room legs (Aaron's
+  // 120-pip structure, entries ~10 pips apart).
+  var SPLIT_STOPS_DEFAULT = { premium: [100, 80, 60, 50], grind: [120, 110, 100, 90, 80, 70] };
+  var SPLIT_RISK_LEVELS = [20, 30];   // % of balance: normal max, absolute max
+
+  // Position sizing plans (Position Sizing tab). Risk is % of the balance
+  // for the WHOLE idea (all legs together). Signals are capped at 20%.
   var SIZING_DEFAULTS = {
-    signal: 5,      // Signal risk % per idea
-    own: 5,         // Own Trade risk % per idea
-    rr: 1.5,        // take-profit target, in R (multiples of the stop)
-    beAt: 1,        // move the stop to breakeven at this many R
-    layer: 25       // pips between layered entries (3-entry plan)
+    own: 10,            // Own Trade risk %
+    premium: 20,        // Premium risk %
+    grindLive: 20,      // Grind Room live (Zoom) risk %
+    grindSignal: 20,    // Grind Room signal risk %
+    inst: 20,           // IT / Thomas risk %
+    layer: 25,          // pips between layered entries (Own, Premium, IT): 20–25
+    grindLiveStop: 120, // Grind live stop from the worst entry: usually 120, sometimes 130–150
+    instStop: 100,      // IT stop from the first entry (he uses 30–100)
+    aj: 5,              // AJ (Currency Squad) risk %
+    ajRR: 1.5,          // AJ take profit, in R (multiples of the stop)
+    ajBE: 1             // AJ: stop to breakeven at this many R
   };
-  var SIZING_RISK_KEYS = ["signal", "own"];
+  var SIZING_RISK_KEYS = ["own", "premium", "grindLive", "grindSignal", "inst", "aj"];
   var SIZING_LIMITS = {
-    signal: [0.1, MAX_IDEA_RISK], own: [0.1, MAX_IDEA_RISK],
-    rr: [0.5, 10], beAt: [0.25, 5], layer: [5, 50]
+    own: [0.1, 30], premium: [0.1, 20], grindLive: [0.1, 20], grindSignal: [0.1, 20], inst: [0.1, 20],
+    layer: [20, 25], grindLiveStop: [100, 150], instStop: [10, 100],
+    aj: [0.1, 20], ajRR: [0.5, 10], ajBE: [0.25, 5]
   };
-  var LAST_LEG_MIN_STOP = 30;       // a layered entry must stay at least this far from the stop
+  var OWN_PREM_STOP = 100;          // Own Trade and Premium: 100-pip max stop from the first entry
+  var GRIND_SIGNAL_STOP = 120;      // Grind Room signal: 120 from the first (worst) entry
+  var GRIND_LIVE_LEGS = 8, GRIND_SIGNAL_LEGS = 5, GRIND_LAYER = 10;
+  var LAST_LEG_MIN_STOP = 50;       // a layered entry must stay at least 50 pips from the stop
 
   // Milestones unlock by themselves from the trades — no targets, no
   // deadlines. Amounts in USD.
@@ -119,46 +127,11 @@
     return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9);
   }
 
-  // ---------- starter Rulebook + Psychology ----------
+  // ---------- starter Psychology chapters ----------
   // Edited in the app (Edit button on each tab) and saved with the settings.
   // Body text: "- " bullets, "1. " numbered steps, "## " sub-headings,
   // "> " a note, **bold**, and a blank line between paragraphs.
   var DEFAULT_BOOKS = {
-    rulebook: [
-      { title: "How I trade", body:
-        "Write the strategy here as you learn it. Keep only the latest version of each rule — when a rule changes, edit it in place.\n\n" +
-        "> The rules decide the trade, not the feeling." },
-      { title: "Pre-trade checklist", body:
-        "1. **Bias** decided on the higher timeframes before looking for an entry.\n" +
-        "2. **Setup** — a valid entry by the rules. No setup, no trade.\n" +
-        "3. **Reward:risk** — the target is at least **1.5×** the stop. If it isn't, skip it.\n" +
-        "4. **Stop** beyond structure, no more than the plan stop (Position Sizing).\n" +
-        "5. **Size** checked on the Position Sizing tab before the order goes in.\n" +
-        "6. **News** — no red-folder release about to hit." },
-      { title: "Trade management", body:
-        "- **Take profit at 1.5R** — 1.5 × the stop distance from the entry.\n" +
-        "- **Stop to breakeven at 1R** — once price is one stop-distance in profit. Then leave it: no trailing, no hovering.\n" +
-        "- Set and forget: enter knowing you're OK losing that money, then let the plan run.\n" +
-        "- The Log Trade form shows the breakeven and take-profit prices as soon as entry and stop are in." },
-      { title: "Risk", body:
-        "- **Signals:** 5% of the balance per idea.\n" +
-        "- **Own trades:** 5% per idea while testing.\n" +
-        "- **Hard cap: 20% per idea**, whether it's 1 entry or several.\n" +
-        "- Size from the current balance, never fixed lots. Don't size up after a couple of wins.\n" +
-        "- Max drawdown from the peak (Settings) = stop and review." },
-      { title: "Loss protocol", body:
-        "- An own trade that hits the full stop = done with own trades for the day. Signals are still allowed.\n" +
-        "- After any loss, keep the **same lot size** for the next 2 ideas. If both win, back to the normal risk.\n" +
-        "- A second loss inside those 2 ideas = **half risk** and done for the day. Back to full after 2 winning ideas." },
-      { title: "Signals", body:
-        "- Take the signal as posted: same entry, stop and target.\n" +
-        "- Missed the entry? Skip it — no chasing a signal that has already run.\n" +
-        "- Log every signal you take as **Signal**, so its real results show up on the Dashboard." },
-      { title: "News", body:
-        "- Check forexfactory.com every day for red-folder events.\n" +
-        "- Big movers: interest rates / FOMC, CPI, NFP, GDP, PCE, central-bank speeches.\n" +
-        "- Expect spikes and slippage straight after a release." }
-    ],
     psychology: [
       { title: "Trust the plan", body:
         "- **Judge the day by whether you followed the plan, not by the profit.** Following the plan and losing is a good day. Gambling and winning is not.\n" +
@@ -187,34 +160,40 @@
     return DEFAULT_BOOKS[kind].map(function(c, i){ return { id: kind + "-" + (i + 1), title: c.title, body: c.body }; });
   }
 
+  // A book (Psychology) is a list of chapters: { id, title, body }.
+  function normalizeBook(v){
+    if(!Array.isArray(v)) return null;
+    return v.filter(function(c){ return c && typeof c === "object"; }).map(function(c){
+      return { id: str(c.id) || makeId(), title: str(c.title), body: str(c.body) };
+    });
+  }
+
   // ---------- settings + trade shapes ----------
   function defaultSettings(){
     return {
-      // Each broker account keeps its own money: starting deposit, an
-      // adjustment for money in/out before the ledger, and its own
-      // deposits/withdrawals (cashFlows carry the account id).
-      accounts: DEFAULT_ACCOUNTS.map(function(a){ return Object.assign({}, a); }),
-      // Who called a Signal trade, with the risk % per idea for their signals.
-      providers: DEFAULT_PROVIDERS.map(function(p){ return Object.assign({}, p); }),
-      // Kept for the account views (filled per account by viewSettings).
-      startingDeposit: 0,
+      startingDeposit: 1000,
       depositsWithdrawals: 0,
-      defaultStop: 100,        // pips — the plan / max stop
+      riskOwnPremium: 20,      // % — Own Trade and Premium
+      riskGrindInst: 5,        // % — Grind Room and Institutional
+      defaultStop: 100,        // pips
       maxDrawdown: 30,         // %
+      // Split-entry risk planner: one stop distance (pips) per leg, worst
+      // entry first. Edited on the Position Sizing tab.
+      splitStopsPremium: SPLIT_STOPS_DEFAULT.premium.slice(),
+      splitStopsGrind: SPLIT_STOPS_DEFAULT.grind.slice(),
       pairs: [{ pair: "XAUUSD", pipSize: FALLBACK_PIP_SIZE, usdPerPip: FALLBACK_USD_PER_PIP }],
       sizing: Object.assign({}, SIZING_DEFAULTS),
-      // Rulebook and Psychology chapters, edited in the app.
-      rulebook: defaultBook("rulebook"),
+      accounts: DEFAULT_ACCOUNTS.map(function(a){ return Object.assign({}, a); }),
       psychology: defaultBook("psychology"),
       psychReadAt: ""          // last time the Psychology tab was marked as read
     };
   }
 
-  // Max drawdown must be above 0 and at most 100; the plan stop must be
-  // above 0. The two money fields take any number.
+  // Risk % and max drawdown must be above 0 and at most 100; the default
+  // stop must be above 0. The two money fields take any number.
   function settingValid(key, n){
-    if(key === "maxDrawdown") return n > 0 && n <= 100;
-    if(key === "defaultStop") return n > 0 && n <= 1000;
+    if(key === "riskOwnPremium" || key === "riskGrindInst" || key === "maxDrawdown") return n > 0 && n <= 100;
+    if(key === "defaultStop") return n > 0;
     return true;
   }
 
@@ -230,8 +209,8 @@
     return out;
   }
 
-  var SETTINGS_KEYS = ["accounts", "providers", "startingDeposit", "depositsWithdrawals", "defaultStop", "maxDrawdown",
-    "pairs", "cashFlows", "sizing", "rulebook", "psychology", "psychReadAt"];
+  var SETTINGS_KEYS = ["startingDeposit", "depositsWithdrawals", "riskOwnPremium", "riskGrindInst", "defaultStop", "maxDrawdown",
+    "splitStopsPremium", "splitStopsGrind", "pairs", "cashFlows", "sizing", "accounts", "psychology", "psychReadAt"];
 
   function normalizeSizing(v){
     v = (v && typeof v === "object") ? v : {};
@@ -274,56 +253,51 @@
     });
   }
 
-  // A book (Rulebook / Psychology) is a list of chapters: { id, title, body }.
-  // An empty or broken list falls back to null (and the default is kept).
-  function normalizeBook(v){
-    if(!Array.isArray(v)) return null;
-    return v.filter(function(c){ return c && typeof c === "object"; }).map(function(c){
-      return { id: str(c.id) || makeId(), title: str(c.title), body: str(c.body) };
-    });
+  // A list of stop distances: every value a number above 0, at least one.
+  // Anything else is null (and the default list is kept).
+  function stopList(v){
+    if(!Array.isArray(v) || !v.length) return null;
+    var out = v.map(num);
+    return out.every(function(n){ return n !== null && n > 0; }) ? out : null;
   }
 
   function normalizeSettings(s){
     s = (s && typeof s === "object") ? s : {};
     var d = Object.assign(extraFields(s, SETTINGS_KEYS), defaultSettings());
-    ["startingDeposit", "depositsWithdrawals", "defaultStop", "maxDrawdown"].forEach(function(k){
+    ["startingDeposit", "depositsWithdrawals", "riskOwnPremium", "riskGrindInst", "defaultStop", "maxDrawdown"].forEach(function(k){
       var n = num(s[k]);
       if(n !== null && settingValid(k, n)) d[k] = n;
     });
-    ["rulebook", "psychology"].forEach(function(k){
-      var book = normalizeBook(s[k]);
-      if(book) d[k] = book;
+    ["splitStopsPremium", "splitStopsGrind"].forEach(function(k){
+      var list = stopList(s[k]);
+      if(list) d[k] = list;
     });
-    d.psychReadAt = /^\d{4}-\d{2}-\d{2}$/.test(str(s.psychReadAt)) ? str(s.psychReadAt) : "";
     d.sizing = normalizeSizing(s.sizing);
     d.cashFlows = Array.isArray(s.cashFlows) ? s.cashFlows.map(normalizeFlow).filter(function(f){ return f.date && f.amount > 0; }) : [];
 
-    // Accounts. Settings saved before accounts existed had one deposit for
-    // the whole journal: that becomes a single "Main account" to rename.
+    // Accounts. Settings from before accounts existed (a Johnson Journal
+    // backup) had one deposit for the whole journal: that becomes AvaTrade,
+    // with Kudo added empty.
     var accounts = Array.isArray(s.accounts) ? s.accounts.filter(function(a){ return a && typeof a === "object"; }).map(function(a){
       var dep = num(a.startingDeposit), adj = num(a.adjustment);
       return { id: str(a.id) || makeId(), name: str(a.name).trim() || "Account",
         startingDeposit: dep === null ? 0 : dep, adjustment: adj === null ? 0 : adj };
     }) : [];
-    if(!accounts.length && !Array.isArray(s.accounts) && (num(s.startingDeposit) !== null || Array.isArray(s.cashFlows))){
-      var oldDep = num(s.startingDeposit), oldAdj = num(s.depositsWithdrawals);
-      accounts = [{ id: "acc-1", name: "Main account", startingDeposit: oldDep === null ? 1000 : oldDep, adjustment: oldAdj === null ? 0 : oldAdj }];
+    if(!accounts.length){
+      accounts = DEFAULT_ACCOUNTS.map(function(a){ return Object.assign({}, a); });
+      accounts[0].startingDeposit = d.startingDeposit;
+      accounts[0].adjustment = d.depositsWithdrawals;
     }
-    if(accounts.length) d.accounts = accounts;
-    var accIds = d.accounts.map(function(a){ return a.id; });
+    d.accounts = accounts;
+    var accIds = accounts.map(function(a){ return a.id; });
     d.cashFlows.forEach(function(f){ if(accIds.indexOf(f.account) === -1) f.account = accIds[0]; });
+    // The journal-wide deposit = every account together (what "All accounts" shows).
+    d.startingDeposit = round2(sum(accounts.map(function(a){ return a.startingDeposit; })));
+    d.depositsWithdrawals = round2(sum(accounts.map(function(a){ return a.adjustment; })));
 
-    // Providers.
-    if(Array.isArray(s.providers)){
-      d.providers = s.providers.filter(function(v){ return v && typeof v === "object" && str(v.name).trim(); }).map(function(v){
-        var r = num(v.risk), st = num(v.stop);
-        return { id: str(v.id) || makeId(), name: str(v.name).trim(),
-          risk: r !== null && r >= SIZING_LIMITS.signal[0] && r <= SIZING_LIMITS.signal[1] ? r : SIZING_DEFAULTS.signal,
-          stop: st !== null && st > 0 && st <= 1000 ? st : 0 };
-      });
-    }
-    d.startingDeposit = 0;
-    d.depositsWithdrawals = 0;
+    var book = normalizeBook(s.psychology);
+    if(book) d.psychology = book;
+    d.psychReadAt = /^\d{4}-\d{2}-\d{2}$/.test(str(s.psychReadAt)) ? str(s.psychReadAt) : "";
     if(Array.isArray(s.pairs)){
       var pairs = s.pairs.map(function(p){
         p = p || {};
@@ -343,7 +317,7 @@
   // exactly as it is (mfePrice from before MFE was dropped, overDailyLimit,
   // status). Anything derived (pips, P/L, idea, balance) is recalculated on
   // render and never stored.
-  var TRADE_KEYS = ["id", "createdAt", "updatedAt", "date", "session", "pair", "direction", "source", "account", "provider", "bias",
+  var TRADE_KEYS = ["id", "createdAt", "updatedAt", "date", "session", "pair", "direction", "source", "account", "bias",
     "confirmation", "entry", "stopLoss", "closes", "lesson"];
   var STATUSES = ["Open", "Closed"];
 
@@ -363,7 +337,6 @@
       direction: t.direction === "Sell" ? "Sell" : "Buy",
       source: str(t.source),
       account: str(t.account),
-      provider: t.source === "Signal" ? str(t.provider) : "",
       bias: Object.assign(extraFields(bias, ["daily", "h4", "h1", "m15"]), {
         daily: str(bias.daily),
         h4: str(bias.h4),
@@ -440,28 +413,20 @@
     // Open until they have a close, as before.
     var isOpen = t.status === "Open" || closes.length === 0;
     var slPips = pips(t.direction, t.entry, t.stopLoss, spec.pipSize);
-    var stopDistance = slPips === null ? null : Math.abs(slPips);
-    // What the trade risked if the full position had hit the stop. Only
-    // known once it's closed (the closed lots are the position size) and
-    // only for a stop on the losing side of the entry.
-    var risk = (!isOpen && slPips !== null && slPips < 0 && lots > 0) ? round2(clean(lots) * stopDistance * spec.usdPerPip) : null;
-    var pl = isOpen ? null : round2(sum);
     return {
       spec: spec,
       isOpen: isOpen,
       closes: closes,
       lots: clean(lots),
-      pl: pl,
+      pl: isOpen ? null : round2(sum),
       slPips: slPips,
-      stopDistance: stopDistance,
-      risk: risk,
-      r: (risk !== null && risk > 0) ? clean(pl / risk) : null
+      stopDistance: slPips === null ? null : Math.abs(slPips)
     };
   }
 
-  // ---------- accounts + providers ----------
-  // A trade with no account (logged before accounts existed) or an account
-  // that was removed belongs to the first account.
+  // ---------- accounts ----------
+  // A trade with no account (logged before accounts existed, or from a
+  // Johnson Journal backup) or on a removed account belongs to the first.
   function accountIdOf(t, settings){
     var list = settings.accounts || [];
     for(var i = 0; i < list.length; i++) if(list[i].id === t.account) return t.account;
@@ -470,29 +435,7 @@
   function accountById(settings, id){
     return (settings.accounts || []).filter(function(a){ return a.id === id; })[0] || null;
   }
-  function providerById(settings, id){
-    return (settings.providers || []).filter(function(p){ return p.id === id; })[0] || null;
-  }
-  // Who the trade's idea came from: a provider's name, "Own Trade", or
-  // NO_PROVIDER for a Signal trade nobody is credited with.
-  function whoOf(t, settings){
-    if(t.source === "Own Trade") return "Own Trade";
-    var p = providerById(settings, t.provider);
-    return p ? p.name : NO_PROVIDER;
-  }
-  // The filter used on every tab: "" = everything, "Signal" = every signal
-  // trade, otherwise one provider's name or "Own Trade".
-  function matchWho(source, who, f){
-    if(!f) return true;
-    if(f === "Signal") return source === "Signal";
-    return who === f;
-  }
-  function whoOptions(settings){
-    return [{ value: "Signal", label: "All signals" }]
-      .concat((settings.providers || []).map(function(p){ return { value: p.name, label: p.name }; }))
-      .concat([{ value: NO_PROVIDER, label: NO_PROVIDER }, { value: "Own Trade", label: "Own Trade" }]);
-  }
-  // Settings narrowed to one account ("" = every account added together):
+  // Settings narrowed to one account ("" = all accounts added together):
   // its starting money and its deposits/withdrawals. The rest is shared.
   function viewSettings(settings, accountId){
     var list = (settings.accounts || []).filter(function(a){ return !accountId || a.id === accountId; });
@@ -525,18 +468,19 @@
       prev.direction === t.direction &&
       prev.source === t.source &&
       accountIdOf(prev, settings) === accountIdOf(t, settings) &&
-      prev.provider === t.provider &&
       Math.abs(b - a) < IDEA_ENTRY_GAP_PIPS * pairSpec(settings, t.pair).pipSize;
   }
 
-  // The plan stop distance, in pips from the idea's WORST entry: the plan
-  // stop from Position Sizing, the same for every source.
-  function planStopPips(source, settings, providerId){
-    if(source === "Signal"){
-      var p = providerById(settings, providerId);
-      if(p && p.stop > 0) return p.stop;
-    }
-    return settings.defaultStop;
+  // The plan stop distance for a source, in pips from the idea's WORST entry:
+  // Grind Room / Institutional use the Grind ladder's first stop (120),
+  // Premium the Premium ladder's (100), Own Trade the default stop (100).
+  // Grind Room 120 (Aaron), IT the IT stop setting (max 100), Premium and
+  // Own Trade 100.
+  function planStopPips(source, settings){
+    var sz = settings.sizing || SIZING_DEFAULTS;
+    if(source === "Grind Room") return GRIND_SIGNAL_STOP;
+    if(source === "Institutional") return sz.instStop;
+    return OWN_PREM_STOP;
   }
 
   // The other legs of the idea a draft trade would belong to, found with the
@@ -563,7 +507,7 @@
   function planStop(draft, legs, settings){
     var sign = dirSign(draft.direction);
     var spec = pairSpec(settings, draft.pair);
-    var pipCount = planStopPips(draft.source, settings, draft.provider);
+    var pipCount = planStopPips(draft.source, settings);
     for(var i = legs.length - 1; i >= 0; i--){
       var s = num(legs[i].stopLoss), e = num(legs[i].entry);
       if(s === null || e === null || s === e) continue;
@@ -593,15 +537,13 @@
   }
 
   // The risk % of a whole idea for a source, from the sizing settings.
-  // The risk % of a whole idea: Own Trade from the sizing settings, a
-  // Signal from its provider (or the general signal risk if none is picked).
-  function riskPctForSource(source, settings, providerId){
+  function riskPctForSource(source, settings){
     var sz = (settings && settings.sizing) || SIZING_DEFAULTS;
     if(source === "Own Trade") return sz.own;
-    if(source === "Signal"){
-      var p = providerById(settings, providerId);
-      return p ? p.risk : sz.signal;
-    }
+    if(source === "Premium") return sz.premium;
+    if(source === "Grind Room") return sz.grindSignal;
+    if(source === "Institutional") return sz.inst;
+    if(source === "AJ") return sz.aj;
     return null;
   }
 
@@ -620,48 +562,120 @@
       lots: lots,
       totalLots: round2(lots * stops.length),
       totalStop: total,
-      stopFirst: stops[0],
       risk: risk,
       riskPct: balance > 0 ? risk / balance : null,
       tooSmall: lots < 0.01
     };
   }
 
-  // The fixed reward:risk plan for one position: stop to breakeven at
-  // `beAt` R, take profit at `rr` R. Distances in pips from the entry,
-  // money for `lots` at `usdPerPip`.
-  function rrPlan(stopPips, lots, usdPerPip, rr, beAt){
+  // Partials for Own Trade and Premium: TP distances from the FIRST entry
+  // (deeper entries are further in profit at the same price). 10% of each
+  // entry at TP1–TP3, 20% at TP4, the rest (50%) is managed by hand toward
+  // TP5/TP6 10% each; the last 30% is the runner, managed by hand.
+  // Closes round to 0.01 (at least 0.01 while lots remain).
+  var PARTIAL_LADDER = [
+    { tp: "TP1", pips: 20, pct: 0.10 },
+    { tp: "TP2", pips: 40, pct: 0.10 },
+    { tp: "TP3", pips: 60, pct: 0.10 },
+    { tp: "TP4", pips: 100, pct: 0.20 },
+    { tp: "TP5", pips: 150, pct: 0.10 },
+    { tp: "TP6", pips: 200, pct: 0.10 },
+    { tp: "Runner", pips: null, pct: null }
+  ];
+  function partialPlan(plan, usdPerPip){
+    var lots = plan.lots, left = lots, banked = 0;
+    var offsets = plan.legs.map(function(l){ return l.offset; });
+    function pipsAll(p){ return sum(offsets.map(function(o){ return p + o; })); }
+    return PARTIAL_LADDER.map(function(lv){
+      if(lv.pct === null){
+        // Runner: what's left on every entry, valued at this level.
+        return { tp: lv.tp, pips: lv.pips, manage: true, close: round2(left), total: round2(left * offsets.length),
+          value: lv.pips === null ? null : round2(left * pipsAll(lv.pips) * usdPerPip), banked: round2(banked) };
+      }
+      var c = Math.round(lots * lv.pct * 100) / 100;
+      if(c < 0.01 && left >= 0.01) c = 0.01;
+      c = Math.min(round2(c), round2(left));
+      left = round2(left - c);
+      var got = round2(c * pipsAll(lv.pips) * usdPerPip);
+      banked = round2(banked + got);
+      return { tp: lv.tp, pips: lv.pips, manage: false, close: c, total: round2(c * offsets.length), value: got, banked: banked, left: left };
+    });
+  }
+
+  // ---- loss protocol ----
+  // Personal plan, all sources, counted per IDEA (fully closed ideas only):
+  //  - A loss: keep the SAME lot sizes (sized from the balance before that
+  //    loss) for the next 2 ideas. Both win -> back to normal sizing.
+  //  - A second loss inside those 2 ideas (double loss): HALF risk and done
+  //    for that day. Back to full risk after 2 winning ideas.
+  //  - Own trades: a full stop-loss on an own trade = no more own trades that
+  //    day (signals still allowed).
+  // An idea within ±1% of the balance before it is a scratch (BE) and counts
+  // as neither a win nor a loss.
+  var SCRATCH_PCT = 0.01;
+  var HOLD_IDEAS = 2, HALF_WINS_NEEDED = 2;
+  function lossProtocol(derived, today){
+    var state = "normal", holdLeft = 0, holdBalance = null, halfWins = 0;
+    var doubleLossDay = null, ownStopDay = {}, log = [];
+    derived.ideas.forEach(function(idea){
+      if(idea.closedCount < idea.tradeIds.length) return;   // still open
+      if(idea.source === "Own Trade" && idea.hitSL && idea.pl < 0) ownStopDay[idea.date] = true;
+      var b = idea.balanceBefore > 0 ? idea.balanceBefore : null;
+      var r = b ? idea.pl / b : 0;
+      var res = r <= -SCRATCH_PCT ? "loss" : r >= SCRATCH_PCT ? "win" : "scratch";
+      if(res === "scratch") return;
+      if(state === "normal"){
+        if(res === "loss"){ state = "hold"; holdLeft = HOLD_IDEAS; holdBalance = b; }
+      }else if(state === "hold"){
+        if(res === "win"){ holdLeft--; if(holdLeft <= 0){ state = "normal"; holdBalance = null; } }
+        else { state = "half"; halfWins = 0; holdBalance = null; doubleLossDay = idea.date; }
+      }else if(state === "half"){
+        if(res === "win"){ halfWins++; if(halfWins >= HALF_WINS_NEEDED){ state = "normal"; halfWins = 0; } }
+        else { halfWins = 0; doubleLossDay = idea.date; }
+      }
+      log.push({ id: idea.id, date: idea.date, source: idea.source, pl: idea.pl, res: res, state: state });
+    });
+    var balance = derived.account.balance;
+    var sizingBalance = state === "hold" && holdBalance ? holdBalance : balance;
     return {
-      stop: stopPips,
-      bePips: clean(stopPips * beAt),
-      tpPips: clean(stopPips * rr),
-      risk: riskDollars(lots, stopPips, usdPerPip),
-      reward: riskDollars(lots, stopPips * rr, usdPerPip),
-      rr: rr,
-      beAt: beAt
+      state: state,
+      holdLeft: holdLeft,
+      halfWinsLeft: state === "half" ? HALF_WINS_NEEDED - halfWins : 0,
+      sizingBalance: sizingBalance,
+      riskMult: state === "half" ? 0.5 : 1,
+      heldPct: state === "hold" && balance > 0 ? sizingBalance / balance : 1,
+      doneToday: state === "half" && doubleLossDay === today,
+      ownDoneToday: !!ownStopDay[today],
+      recent: log.slice(-5).reverse()
     };
   }
 
-  // Every plan of the Position Sizing tab for a balance: per source, one
-  // entry at the plan stop, or three entries layered `layer` pips apart
-  // toward the stop (only when the last entry stays far enough from it).
-  function sizingPlans(balance, settings, usdPerPip){
-    var sz = settings.sizing || SIZING_DEFAULTS;
-    var L = sz.layer, stop = settings.defaultStop;
-    function single(risk, st){ st = st || stop; return layerPlan([st], [0], balance, risk, usdPerPip); }
-    function three(risk, st){
-      st = st || stop;
-      return st - 2 * L >= LAST_LEG_MIN_STOP ? layerPlan([st, st - L, st - 2 * L], [0, L, 2 * L], balance, risk, usdPerPip) : null;
+  // Every plan of the Position Sizing tab for a balance.
+  function sizingPlans(balance, settings, usdPerPip, riskMult){
+    var sz = Object.assign({}, settings.sizing || SIZING_DEFAULTS);
+    if(riskMult && riskMult !== 1){
+      SIZING_RISK_KEYS.forEach(function(k){ sz[k] = round2(sz[k] * riskMult); });
     }
+    var L = sz.layer;
+    function single(stop, risk){ return layerPlan([stop], [0], balance, risk, usdPerPip); }
+    function three(stop, risk){
+      return layerPlan([stop, stop - L, stop - 2 * L], [0, L, 2 * L], balance, risk, usdPerPip);
+    }
+    function ladder(stop, legs, risk){
+      var st = [], off = [];
+      for(var i = 0; i < legs; i++){ st.push(stop - i * GRIND_LAYER); off.push(i * GRIND_LAYER); }
+      return layerPlan(st, off, balance, risk, usdPerPip);
+    }
+    var instThree = sz.instStop - 2 * L >= LAST_LEG_MIN_STOP;
     return {
-      stop: stop,
-      layer: L,
-      minLayerStop: 2 * L + LAST_LEG_MIN_STOP,
-      providers: (settings.providers || []).map(function(p){
-        var st = p.stop > 0 ? p.stop : stop;
-        return { id: p.id, name: p.name, risk: p.risk, stop: st, single: single(p.risk, st), three: three(p.risk, st) };
-      }),
-      own: { risk: sz.own, stop: stop, single: single(sz.own), three: three(sz.own) }
+      own: { risk: sz.own, single: single(OWN_PREM_STOP, sz.own), three: three(OWN_PREM_STOP, sz.own) },
+      premium: { risk: sz.premium, single: single(OWN_PREM_STOP, sz.premium), three: three(OWN_PREM_STOP, sz.premium) },
+      aj: { risk: sz.aj, single: single(OWN_PREM_STOP, sz.aj), three: three(OWN_PREM_STOP, sz.aj) },
+      grindLive: { risk: sz.grindLive, stop: sz.grindLiveStop, plan: ladder(sz.grindLiveStop, GRIND_LIVE_LEGS, sz.grindLive) },
+      grindSignal: { risk: sz.grindSignal, stop: GRIND_SIGNAL_STOP, plan: ladder(GRIND_SIGNAL_STOP, GRIND_SIGNAL_LEGS, sz.grindSignal) },
+      inst: { risk: sz.inst, stop: sz.instStop, single: single(sz.instStop, sz.inst),
+        three: instThree ? three(sz.instStop, sz.inst) : null,
+        minThreeStop: 2 * L + LAST_LEG_MIN_STOP }
     };
   }
 
@@ -698,14 +712,15 @@
     sortChronological(trades).forEach(function(t, i){
       applyFlowsUpTo(t.date);
       var calc = tradeCalc(t, settings);
-      var acc = accountIdOf(t, settings), who = whoOf(t, settings);
+      var acc = accountIdOf(t, settings);
       var ideaNo = sameIdea(prevBy[acc], t, settings) ? prevIdeaBy[acc] : maxIdea + 1;
       if(ideaNo > maxIdea) maxIdea = ideaNo;
 
       var idea = ideaById[ideaNo];
       if(!idea){
         // Every trade in an idea shares its date, pair, direction and source.
-        idea = ideaById[ideaNo] = { id: ideaNo, date: t.date, source: t.source, who: who, account: acc, tradeIds: [], closedCount: 0, pl: 0, risk: 0, riskKnown: true };
+        idea = ideaById[ideaNo] = { id: ideaNo, date: t.date, source: t.source, account: acc, tradeIds: [], closedCount: 0, pl: 0,
+          balanceBefore: round2(base + netFlows + cumulative), hitSL: false };
         ideas.push(idea);
       }
       idea.tradeIds.push(t.id);
@@ -717,11 +732,10 @@
         if(balanceAfter > peak) peak = balanceAfter;
         idea.closedCount++;
         idea.pl = round2(idea.pl + calc.pl);
-        if(calc.risk === null) idea.riskKnown = false;
-        else idea.risk = round2(idea.risk + calc.risk);
+        if((t.closes || []).some(function(c){ return c.type === "SL"; })) idea.hitSL = true;
       }
 
-      var row = { n: i + 1, trade: t, calc: calc, idea: ideaNo, balanceAfter: balanceAfter, who: who, account: acc };
+      var row = { n: i + 1, trade: t, calc: calc, idea: ideaNo, balanceAfter: balanceAfter, account: acc };
       rows.push(row);
       byId[t.id] = row;
       prevBy[acc] = t;
@@ -729,13 +743,10 @@
     });
 
     applyFlowsUpTo(null);
-    // An idea's R = its P/L over what all its entries risked together.
-    ideas.forEach(function(i){ i.r = (i.riskKnown && i.risk > 0) ? clean(i.pl / i.risk) : null; });
     var balance = round2(base + netFlows + cumulative);
     var stopLine = round2(peak * (1 - settings.maxDrawdown / 100));
 
     return {
-      providerNames: (settings.providers || []).map(function(p){ return p.name; }),
       rows: rows,          // chronological
       byId: byId,
       ideas: ideas,
@@ -813,45 +824,24 @@
     core.openIdeasClosedTrades = sum(openIdeas.map(function(i){ return i.closedCount; }));
     core.verdict = core.count < MIN_IDEAS_FOR_VERDICT ? "Too few ideas — keep logging" :
       (core.net > 0 ? "Profitable so far" : "Losing so far");
-    // R: each closed idea's P/L in multiples of what it risked (ideas with a
-    // stop on every entry). Average R is the expectancy per idea.
-    var rs = closedIdeas.map(function(i){ return i.r; }).filter(function(v){ return v !== null && v !== undefined; });
-    core.rCount = rs.length;
-    core.avgR = mean(rs);
-    core.totalR = rs.length ? clean(sum(rs)) : null;
-    var rWins = rs.filter(function(v){ return v > 0; });
-    core.avgWinR = mean(rWins);
 
     // Per source, over the same closed ideas: net is the sum of those ideas'
     // P/L, avg is per idea. Wins/losses/BE use the same rule as the
     // Milestones streaks (an idea within $1 of zero is breakeven), and the
     // win rate leaves breakeven ideas out: wins / (wins + losses).
-    // One row per provider (and Own Trade), then all signals together.
-    // Rows with no ideas are left out, except Own Trade and All signals.
-    var whoNames = [];
-    closedIdeas.forEach(function(i){ if(i.source === "Signal" && whoNames.indexOf(i.who) === -1) whoNames.push(i.who); });
-    var order = (derived.providerNames || []).concat([NO_PROVIDER]);
-    whoNames.sort(function(a, b){ return order.indexOf(a) - order.indexOf(b); });
-    function whoRow(label, f){
-      var ideasIn = closedIdeas.filter(function(i){ return matchWho(i.source, i.who, f); });
-      var list = ideasIn.map(function(i){ return i.pl; });
+    var bySource = SOURCES.map(function(name){
+      var list = closedIdeas.filter(function(i){ return i.source === name; })
+                            .map(function(i){ return i.pl; });
       var wins = list.filter(function(v){ return ideaResult(v) === "W"; }).length;
       var losses = list.filter(function(v){ return ideaResult(v) === "L"; }).length;
-      var rList = ideasIn.filter(function(i){ return i.r !== null && i.r !== undefined; }).map(function(i){ return i.r; });
-      return { name: label, total: f === "Signal", ideas: list.length, wins: wins, losses: losses, be: list.length - wins - losses,
+      return { name: name, ideas: list.length, wins: wins, losses: losses, be: list.length - wins - losses,
         winRate: (wins + losses) ? wins / (wins + losses) : null,
-        net: round2(sum(list)), avg: mean(list), avgR: mean(rList) };
-    }
-    var bySource = whoNames.map(function(n){ return whoRow(n, n); })
-      .concat([whoRow("All signals", "Signal"), whoRow("Own Trade", "Own Trade")]);
+        net: round2(sum(list)), avg: mean(list) };
+    });
 
-    // Point 0 is the balance before any trade; then one point per closed
-    // trade. When filtered, the curve is the starting balance plus only the
-    // trades the filter shows.
-    var running = derived.account.base;
+    // Point 0 is the balance before any trade; then one point per closed trade.
     var equity = [{ n: 0, balance: derived.account.base }].concat(closed.map(function(r, i){
-      running = round2(running + r.calc.pl);
-      return { n: i + 1, balance: derived.filtered ? running : r.balanceAfter };
+      return { n: i + 1, balance: r.balanceAfter };
     }));
 
     return {
@@ -863,6 +853,9 @@
   }
 
   // ---------- position sizing ----------
+  var SIZING_STOPS = [30, 50, 70, 100];
+  var LADDER_FROM = 3, LADDER_TO = 10;   // tenths of a lot: 0.3 → 1.0
+
   // Lots + the dollars actually at risk for those (rounded-down) lots.
   // Null when the risk % or the stop isn't a positive number.
   function sizeFor(balance, riskPct, stopPips, usdPerPip){
@@ -871,14 +864,48 @@
     return { lots: lots, risk: riskDollars(lots, stopPips, usdPerPip) };
   }
 
+  // Sizes are worked out for the first pair in the Settings list, at the
+  // risk % picked in the sizer (riskPct).
+  function sizingStats(derived, settings, riskPct){
+    var pair = settings.pairs.length ? settings.pairs[0].pair : "";
+    var usd = pairSpec(settings, pair).usdPerPip;
+    var balance = derived.account.balance;
+    var stop = settings.defaultStop;
+
+    var ladder = [];
+    for(var i = LADDER_FROM; i <= LADDER_TO; i++){
+      var lots = i / 10;
+      var risk = stop > 0 ? round2(lots * stop * usd) : null;
+      var needed = (risk !== null && riskPct > 0) ? round2(risk / (riskPct / 100)) : null;
+      ladder.push({
+        lots: lots,
+        risk: risk,
+        needed: needed,
+        unlocked: needed !== null && balance >= needed,
+        shortfall: needed === null ? null : round2(needed - balance)
+      });
+    }
+
+    return {
+      pair: pair,
+      usdPerPip: usd,
+      stop: stop,
+      size: sizeFor(balance, riskPct, stop, usd),
+      byStop: SIZING_STOPS.map(function(s){
+        return { stop: s, size: sizeFor(balance, riskPct, s, usd) };
+      }),
+      ladder: ladder
+    };
+  }
+
   // ---------- weekly review ----------
+  var MAX_STOP_PIPS = 100;
+
   // Every number uses closed trades only, and ideas only once every trade in
   // them is closed (as on the dashboard). `logged` counts all trades, open
   // ones included, just to tell whether the week has anything to show.
-  function weeklyStats(derived, range, source){
-    var rows = derived.rows.filter(function(r){
-      return r.trade.date >= range.start && r.trade.date <= range.end && matchWho(r.trade.source, r.who, source);
-    });
+  function weeklyStats(derived, range){
+    var rows = derived.rows.filter(function(r){ return r.trade.date >= range.start && r.trade.date <= range.end; });
     var pls = rows.filter(function(r){ return r.calc.pl !== null; }).map(function(r){ return r.calc.pl; });
     var ideas = {};
     rows.forEach(function(r){
@@ -893,6 +920,34 @@
       net: round2(sum(pls)),
       // By idea, over the same fully closed ideas as the dashboard.
       winRate: winLossStats(Object.keys(ideas).map(function(id){ return derived.ideaById[id].pl; })).winRate
+    };
+  }
+
+  // ---------- split-entry risk planner ----------
+  // The risk % of the balance is spread over every leg at the SAME lot size:
+  // lots per leg = balance × risk / (sum of the legs' stop pips × usdPerPip),
+  // rounded DOWN to 0.01. Each leg risks lots × its own stop.
+  function splitPlan(balance, riskPct, stops, usdPerPip){
+    var totalPips = sum(stops);
+    var lots = lotsFor(balance, riskPct, totalPips, usdPerPip);
+    var cumulative = 0;
+    var legs = stops.map(function(stop, i){
+      var risk = riskDollars(lots, stop, usdPerPip);
+      cumulative = round2(cumulative + risk);
+      return { leg: i + 1, stop: stop, risk: risk, cumulative: cumulative };
+    });
+    return {
+      riskPct: riskPct,
+      maxRisk: round2(balance * riskPct / 100),
+      totalPips: totalPips,
+      lots: lots,
+      totalLots: round2(lots * stops.length),
+      legs: legs,
+      total: cumulative,
+      pctOfBalance: balance > 0 ? cumulative / balance : null,
+      // Even the 0.01 minimum on every leg would go over the risk.
+      tooSmall: lots === 0,
+      minRisk: riskDollars(0.01, totalPips, usdPerPip)
     };
   }
 
@@ -1037,8 +1092,8 @@
       month: periodTotals(closedRows, "month")
     };
 
-    var recRows = source ? closedRows.filter(function(r){ return matchWho(r.trade.source, r.who, source); }) : closedRows;
-    var recIdeas = derived.ideas.filter(function(i){ return ideaClosed(i) && matchWho(i.source, i.who, source); });
+    var recRows = source ? closedRows.filter(function(r){ return r.trade.source === source; }) : closedRows;
+    var recIdeas = derived.ideas.filter(function(i){ return ideaClosed(i) && (!source || i.source === source); });
     var pls = recIdeas.map(function(i){ return i.pl; });
     var wins = pls.filter(function(v){ return ideaResult(v) === "W"; });
     var losses = pls.filter(function(v){ return ideaResult(v) === "L"; });
@@ -1068,9 +1123,14 @@
   }
 
   var Calc = {
+    viewSettings: viewSettings,
+    viewTrades: viewTrades,
+    accountIdOf: accountIdOf,
     settingValid: settingValid,
     weeklyStats: weeklyStats,
     sizeFor: sizeFor,
+    sizingStats: sizingStats,
+    splitPlan: splitPlan,
     milestoneStats: milestoneStats,
     MILESTONES: MILESTONES,
     dashboardStats: dashboardStats,
@@ -1092,18 +1152,13 @@
     clampRisk: clampRisk,
     layerPlan: layerPlan,
     sizingPlans: sizingPlans,
-    rrPlan: rrPlan,
+    lossProtocol: lossProtocol,
+    partialPlan: partialPlan,
     normalizeSizing: normalizeSizing,
-    viewSettings: viewSettings,
-    viewTrades: viewTrades,
-    whoOf: whoOf,
-    matchWho: matchWho,
-    whoOptions: whoOptions,
-    accountIdOf: accountIdOf,
     SOURCE_RISK: SOURCE_RISK,
     derive: derive
   };
-  (typeof window !== "undefined" ? window : globalThis).JournalCalc = Calc;
+  (typeof window !== "undefined" ? window : globalThis).CallistoCalc = Calc;
 
   // Everything below needs a browser.
   if(typeof document === "undefined") return;
@@ -1284,6 +1339,9 @@
   function deriveAccount(id){ return derive(viewTrades(trades, settings, id), viewSettings(settings, id)); }
   function accountName(id){ var a = accountById(settings, id); return a ? a.name : ""; }
   function multiAccount(){ return settings.accounts.length > 1; }
+  // Sizing always works on one account: the one picked at the top, or the
+  // first account when "All accounts" is showing.
+  function sizingAccount(){ return validActive() || (settings.accounts[0] ? settings.accounts[0].id : ""); }
   function renderAcctSwitch(){
     validActive();
     elAcct.innerHTML = (multiAccount() ? '<option value="">All accounts</option>' : "") + settings.accounts.map(function(a){
@@ -1303,24 +1361,8 @@
     if(renderers[v]) renderers[v]();
   });
 
-  // The "Who" filter on every tab: all signals, each provider, Own Trade.
-  function refreshWhoFilters(){
-    [[ffSource, "All"], [dfSource, "All"], [wkSource, "All sources"], [elMsSource, "All sources"]].forEach(function(x){
-      var el = x[0];
-      if(!el) return;
-      var v = el.value;
-      el.innerHTML = '<option value="">' + x[1] + "</option>" + whoOptions(settings).map(function(o){
-        return '<option value="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + "</option>";
-      }).join("");
-      el.value = v;
-      if(el.value !== v) el.value = "";
-    });
-    if(elMsSource) msSource = elMsSource.value;
-  }
-
   function showView(name){
     renderAcctSwitch();
-    refreshWhoFilters();
     tabButtons.forEach(function(btn){
       var active = btn.dataset.view === name;
       btn.classList.toggle("active", active);
@@ -1334,8 +1376,27 @@
     btn.addEventListener("click", function(){ showView(btn.dataset.view); });
   });
 
-  // ---------- books: Rulebook + Psychology ----------
-  // Chapters live in settings.rulebook / settings.psychology. Read mode
+  // ---------- rulebook ----------
+  // Static content in index.html; chapters are <details>. The chapter links
+  // open the chapter they jump to.
+  (function(){
+    var chapters = Array.prototype.slice.call(document.querySelectorAll(".rb-chapter"));
+    function setAll(open){ chapters.forEach(function(d){ d.open = open; }); }
+    document.getElementById("rb-open-all").addEventListener("click", function(){ setAll(true); });
+    document.getElementById("rb-close-all").addEventListener("click", function(){ setAll(false); });
+    document.getElementById("rb-toc").addEventListener("click", function(ev){
+      var a = ev.target.closest("a");
+      if(!a) return;
+      ev.preventDefault();
+      var target = document.getElementById(a.getAttribute("href").slice(1));
+      if(!target) return;
+      target.open = true;
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  })();
+
+  // ---------- Psychology (editable chapters) ----------
+  // Chapters live in settings.psychology. Read mode
   // shows them as collapsible chapters; Edit turns each into a title box
   // and a text box, saved as you type.
   function inlineMarkup(text){
@@ -1492,10 +1553,7 @@
     };
   }
 
-  var rulebook = setupBook("rulebook");
   var psychology = setupBook("psychology");
-  renderers.rulebook = rulebook.render;
-  document.getElementById("rb-reset").addEventListener("click", rulebook.reset);
   document.getElementById("ps-reset").addEventListener("click", psychology.reset);
 
   // Psychology: read once a week. The marker shows when it was last read.
@@ -1607,7 +1665,6 @@
   var elSLApplyText = document.getElementById("f-sl-apply-text");
   var elWarnings = document.getElementById("f-warnings");
   var elSizeHint = document.getElementById("f-size-hint");
-  var elPlanHint = document.getElementById("f-plan");
   var elStatus = document.getElementById("f-status");
   var elStatusHint = document.getElementById("f-status-hint");
   var elCloses = document.getElementById("f-closes");
@@ -1624,17 +1681,15 @@
   // True while the Stop Loss box is filled by the app (plan stop); typing a
   // stop turns it off, clearing the box turns it back on.
   var slAuto = true;
+  var formDerived = derive(trades, settings);
   var elAccount = document.getElementById("f-account");
-  var elProvider = document.getElementById("f-provider");
-  var elProviderWrap = document.getElementById("f-provider-wrap");
+  var elPlanHint = document.getElementById("f-plan");
   var elBias = {};
   buildSeg(elAccount, [], false);
-  buildSeg(elProvider, [], false);
-  // Account and provider buttons come from Settings, so they're rebuilt
-  // whenever the form is shown.
-  function refreshFormChoices(){
+  // Account buttons come from Settings, so they're rebuilt whenever the
+  // form is shown.
+  function refreshAccountChoices(){
     fillSeg(elAccount, settings.accounts.map(function(a){ return { value: a.id, label: a.name }; }));
-    fillSeg(elProvider, settings.providers.map(function(p){ return { value: p.id, label: p.name }; }));
     if(!segGet(elAccount) && settings.accounts.length === 1) segSet(elAccount, settings.accounts[0].id);
   }
 
@@ -1674,7 +1729,10 @@
 
   function nextUnusedTP(){
     var used = closeRowEls().map(function(row){ return row.querySelector(".c-type").value; });
-    return used.indexOf("TP") === -1 ? "TP" : "Partial";
+    for(var i = 1; i <= 10; i++){
+      if(used.indexOf("TP" + i) === -1) return "TP" + i;
+    }
+    return "Full TP";
   }
 
   function addCloseRow(c){
@@ -1682,8 +1740,7 @@
     row.className = "close-row";
     row.innerHTML =
       '<select class="c-type" aria-label="Close type">' +
-        CLOSE_TYPES.concat(c && c.type && CLOSE_TYPES.indexOf(c.type) === -1 ? [c.type] : [])
-          .map(function(t){ return "<option>" + escapeHtml(t) + "</option>"; }).join("") +
+        CLOSE_TYPES.map(function(t){ return "<option>" + escapeHtml(t) + "</option>"; }).join("") +
       "</select>" +
       '<input type="number" step="any" inputmode="decimal" class="c-price" placeholder="Price" aria-label="Close price">' +
       '<input type="number" step="any" inputmode="decimal" class="c-lots" placeholder="Lots" aria-label="Close lots">' +
@@ -1698,15 +1755,10 @@
       row.querySelector(".c-lots").value = c.lots === null ? "" : c.lots;
     }
 
-    // SL closes at the stop, BE at entry, TP at the plan's take profit.
-    function fillPrice(){
+    // SL closes at the stop, BE closes at entry.
+    type.addEventListener("change", function(){
       if(type.value === "SL" && elSL.value !== "") price.value = elSL.value;
       else if(type.value === "BE" && elEntry.value !== "") price.value = elEntry.value;
-      else if(type.value === "TP"){ var pp = planPrices(); if(pp) price.value = pp.tp; }
-    }
-    if(!c) fillPrice();
-    type.addEventListener("change", function(){
-      fillPrice();
       updateLive();
     });
     row.querySelector(".c-remove").addEventListener("click", function(){
@@ -1724,18 +1776,6 @@
     row.querySelector(".c-price").focus();
   });
 
-  // Breakeven and take-profit prices for what's in the form, or null.
-  function planPrices(){
-    var draft = readForm();
-    var calc = tradeCalc(draft, settings);
-    if(!draft.direction || draft.entry === null || calc.slPips === null || !(calc.slPips < 0)) return null;
-    var sign = dirSign(draft.direction), d = calc.stopDistance * calc.spec.pipSize, sz = settings.sizing;
-    return {
-      be: Number((draft.entry + sign * d * sz.beAt).toFixed(calc.spec.priceDp)),
-      tp: Number((draft.entry + sign * d * sz.rr).toFixed(calc.spec.priceDp))
-    };
-  }
-
   // ---- read + live readouts ----
   function readForm(){
     var bias = {};
@@ -1747,7 +1787,6 @@
       direction: segGet(elDirection),
       source: segGet(elSource),
       account: segGet(elAccount),
-      provider: segGet(elSource) === "Signal" ? segGet(elProvider) : "",
       status: segGet(elStatus),
       bias: bias,
       confirmation: elConfirmation.value.trim(),
@@ -1794,12 +1833,18 @@
     return legs;
   }
 
-  // The plan stop is also the most a stop may be.
-  function maxStopFor(draft){ return planStopPips(draft.source, settings, draft.provider); }
+  // Grind Room / Institutional plan to 120 pips, the rest to 100.
+  // Grind Room live can run to 150; IT/Own/Premium max 100.
+  function maxStopFor(source){
+    if(source === "Grind Room") return SIZING_LIMITS.grindLiveStop[1];
+    return source === "" ? MAX_STOP_PIPS : Math.max(MAX_STOP_PIPS, planStopPips(source, settings));
+  }
 
   function updateLive(){
     var draft = readForm();
-    elProviderWrap.hidden = draft.source !== "Signal";
+    // Loss protocol and lot sizes come from the trade's own account.
+    var formAcc = draft.account || sizingAccount();
+    formDerived = deriveAccount(formAcc);
     updateStop(draft);
     var calc = tradeCalc(draft, settings);
     // Signed pips mean nothing until a direction is picked.
@@ -1809,52 +1854,50 @@
     else elSLPips.textContent = (hasDir ? fmtPips(calc.slPips) : calc.stopDistance.toFixed(1)) + " pips";
 
     var warnings = [];
-    var maxStop = maxStopFor(draft);
+    var maxStop = maxStopFor(draft.source);
     if(calc.stopDistance !== null && calc.stopDistance > maxStop){
-      warnings.push("Stop is " + calc.stopDistance.toFixed(1) + " pips — your max is " + maxStop + ".");
-    }
-    if(hasDir && calc.slPips !== null && calc.slPips > 0){
-      warnings.push("The stop is on the profit side of the entry — check the direction.");
+      warnings.push("Stop is " + calc.stopDistance.toFixed(1) + " pips — the rule is " + maxStop + " maximum.");
     }
     if(draft.confirmation === ""){
       warnings.push("No confirmation written. No valid confirmation = no trade.");
+    }
+    if(!editingTrade()){
+      var protW = lossProtocol(formDerived, todayStr());
+      if(protW.doneToday) warnings.push("Double loss today — loss protocol says done for the day.");
+      else if(draft.source === "Own Trade" && protW.ownDoneToday) warnings.push("Own trade hit a full stop today — no more own trades today (signals are fine).");
     }
     elWarnings.innerHTML = warnings.map(function(w){
       return '<div class="warn">' + escapeHtml(w) + "</div>";
     }).join("");
 
-    if(!draft.account || draft.source === "" || (draft.source === "Signal" && !draft.provider) || !(calc.stopDistance > 0)){
-      elSizeHint.textContent = "Size: pick the account, the source" + (draft.source === "Signal" ? " and who called it" : "") + ", then enter entry + stop.";
+    if(draft.source === "" || !(calc.stopDistance > 0)){
+      elSizeHint.textContent = "Size: pick a source and enter entry + stop.";
     }else{
-      // Sized from THIS account's balance, never the other account's.
-      var acctD = deriveAccount(draft.account);
-      var bal = acctD.account.balance;
-      var riskPct = riskPctForSource(draft.source, settings, draft.provider);
-      var size = sizeFor(bal, riskPct, calc.stopDistance, calc.spec.usdPerPip);
-      var plans = sizingPlans(bal, settings, calc.spec.usdPerPip);
-      var pp = draft.source === "Own Trade" ? plans.own : plans.providers.filter(function(x){ return x.id === draft.provider; })[0];
-      var p3 = pp ? pp.three : null;
-      var editing = editingTrade();
-      var openHere = acctD.rows.filter(function(r){ return r.calc.isOpen && (!editing || r.trade.id !== editing.id); }).length;
+      var prot = lossProtocol(formDerived, todayStr());
+      var riskPct = round2(riskPctForSource(draft.source, settings) * prot.riskMult);
+      var size = sizeFor(prot.sizingBalance, riskPct, calc.stopDistance, calc.spec.usdPerPip);
+      var plans = sizingPlans(prot.sizingBalance, settings, calc.spec.usdPerPip, prot.riskMult);
+      var layered = draft.source === "Own Trade" ? "3 entries: " + fmtLots(plans.own.three.lots) + " each" :
+        draft.source === "Premium" ? "3 entries: " + fmtLots(plans.premium.three.lots) + " each" :
+        draft.source === "AJ" ? "3 entries: " + fmtLots(plans.aj.three.lots) + " each" :
+        draft.source === "Grind Room" ? "signal 5 legs: " + fmtLots(plans.grindSignal.plan.lots) + " each · live 8 legs: " + fmtLots(plans.grindLive.plan.lots) + " each" :
+        draft.source === "Institutional" && plans.inst.three ? "3 entries: " + fmtLots(plans.inst.three.lots) + " each" : "";
       elSizeHint.innerHTML =
         "1 entry: <strong>" + (size ? fmtLots(size.lots) + " lots · " + escapeHtml(fmtUsd(size.risk)) + " risk" : "—") + "</strong> " +
-        "(" + riskPct + "% of " + escapeHtml(accountName(draft.account)) + "'s " + escapeHtml(fmtUsd(bal)) + " at " + calc.stopDistance.toFixed(1) + " pips)" +
-        (p3 && !p3.tooSmall ? " · 3 entries: " + fmtLots(p3.lots) + " each" : "") +
-        (openHere ? '<div class="open-note">' + openHere + " other trade" + (openHere === 1 ? " is" : "s are") + " already open on " + escapeHtml(accountName(draft.account)) +
-          " — their risk adds to this one.</div>" : "");
+        "(" + riskPct + "% of " + (multiAccount() ? escapeHtml(accountName(formAcc)) + "'s " : "") + escapeHtml(fmtUsd(prot.sizingBalance)) + " at " + calc.stopDistance.toFixed(1) + " pips" +
+        (prot.state === "hold" ? " — same lots as before the loss" : prot.state === "half" ? " — half risk after a double loss" : "") + ")" +
+        (layered ? " · " + escapeHtml(layered) + " (Position Sizing has the full plan)" : "");
     }
 
-    // The fixed reward:risk plan: breakeven and take-profit prices from the
+    // AJ's fixed reward:risk: breakeven and take-profit prices from the
     // entry and the stop distance.
     var sz = settings.sizing;
-    if(hasDir && draft.entry !== null && calc.slPips !== null && calc.slPips < 0){
+    if(draft.source === "AJ" && hasDir && draft.entry !== null && calc.slPips !== null && calc.slPips < 0){
       var sign = dirSign(draft.direction), dist = calc.stopDistance, pip = calc.spec.pipSize;
-      var bePrice = draft.entry + sign * dist * sz.beAt * pip;
-      var tpPrice = draft.entry + sign * dist * sz.rr * pip;
       elPlanHint.hidden = false;
       elPlanHint.innerHTML =
-        '<span>Stop to BE at <b>' + fmtPrice(bePrice, calc.spec) + "</b> (" + sz.beAt + "R · +" + (dist * sz.beAt).toFixed(1) + " pips)</span>" +
-        '<span>Take profit at <b>' + fmtPrice(tpPrice, calc.spec) + "</b> (" + sz.rr + "R · +" + (dist * sz.rr).toFixed(1) + " pips)</span>";
+        "<span>AJ plan · stop to BE at <b>" + fmtPrice(draft.entry + sign * dist * sz.ajBE * pip, calc.spec) + "</b> (" + sz.ajBE + "R · +" + (dist * sz.ajBE).toFixed(1) + " pips)</span>" +
+        "<span>Take profit at <b>" + fmtPrice(draft.entry + sign * dist * sz.ajRR * pip, calc.spec) + "</b> (" + sz.ajRR + "R · +" + (dist * sz.ajRR).toFixed(1) + " pips)</span>";
     }else{
       elPlanHint.hidden = true;
       elPlanHint.innerHTML = "";
@@ -1882,7 +1925,7 @@
     var listed = settings.pairs.some(function(p){ return p.pair === keep; });
     if(!listed && !(editing && editing.pair === keep)) keep = editing ? editing.pair : "";
     refreshPairOptions(keep);
-    refreshFormChoices();
+    refreshAccountChoices();
     // A new trade starts on the account shown at the top.
     if(!editing && !segGet(elAccount) && validActive()) segSet(elAccount, validActive());
     updateLive();
@@ -1907,8 +1950,8 @@
     clearInvalid();
     elDate.value = todayStr();
     refreshPairOptions("");
-    [elDirection, elSession, elSource, elProvider].forEach(function(seg){ segSet(seg, ""); });
-    refreshFormChoices();
+    [elDirection, elSession, elSource].forEach(function(seg){ segSet(seg, ""); });
+    refreshAccountChoices();
     segSet(elAccount, validActive() || (settings.accounts.length === 1 ? settings.accounts[0].id : ""));
     segSet(elStatus, "Open");
     BIAS_FRAMES.forEach(function(frame){ segSet(elBias[frame[0]], ""); });
@@ -1927,9 +1970,8 @@
     segSet(elDirection, t.direction);
     segSet(elSession, t.session);
     segSet(elSource, t.source);
-    refreshFormChoices();
+    refreshAccountChoices();
     segSet(elAccount, accountIdOf(t, settings));
-    segSet(elProvider, t.provider);
     segSet(elStatus, tradeCalc(t, settings).isOpen ? "Open" : "Closed");
     BIAS_FRAMES.forEach(function(frame){ segSet(elBias[frame[0]], t.bias[frame[0]]); });
     elConfirmation.value = t.confirmation;
@@ -1975,7 +2017,6 @@
     need(draft.session !== "", elSession, "Session");
     need(draft.account !== "", elAccount, "Account");
     need(draft.source !== "", elSource, "Source");
-    need(draft.source !== "Signal" || draft.provider !== "", elProvider, "Who called it");
     need(draft.entry !== null, elEntry, "Entry");
     need(draft.status !== "", elStatus, "Status");
 
@@ -2064,6 +2105,7 @@
     }).join("");
   }
   fillFilter(ffSession, SESSIONS);
+  fillFilter(ffSource, SOURCES);
   fillFilter(ffDirection, DIRECTIONS);
   fillFilter(ffResult, RESULTS);
 
@@ -2085,7 +2127,7 @@
   function matchesFilters(row){
     var t = row.trade;
     if(ffSession.value && t.session !== ffSession.value) return false;
-    if(!matchWho(t.source, row.who, ffSource.value)) return false;
+    if(ffSource.value && t.source !== ffSource.value) return false;
     if(ffDirection.value && t.direction !== ffDirection.value) return false;
     if(ffResult.value && resultOf(row.calc) !== ffResult.value) return false;
     if(ffFrom.value && t.date < ffFrom.value) return false;
@@ -2098,7 +2140,7 @@
   var tableBody = document.getElementById("table-body");
   var emptyState = document.getElementById("empty-state");
   var expandedIds = new Set();
-  var TABLE_COLUMNS = 12;
+  var TABLE_COLUMNS = 11;
   var BIAS_CHIPS = [["daily", "D"], ["h4", "4H"], ["h1", "1H"], ["m15", "15"]];
   var BIAS_CLASS = { Bullish: "bull", Bearish: "bear", Ranging: "range" };
 
@@ -2107,13 +2149,6 @@
       var value = bias[c[0]];
       return '<span class="chip ' + (BIAS_CLASS[value] || "") + '" title="' + escapeHtml(c[1] + ": " + (value || "not set")) + '">' + c[1] + "</span>";
     }).join("") + "</span>";
-  }
-
-  // An R multiple, signed and coloured: +1.50R, -1.00R.
-  function fmtR(v){
-    if(v === null || v === undefined || !isFinite(v)) return "—";
-    var cls = v > 0.005 ? "pos" : (v < -0.005 ? "neg" : "neutral");
-    return '<span class="' + cls + '">' + (v > 0 ? "+" : "") + v.toFixed(2) + "R</span>";
   }
 
   function fmtRoi(rate){
@@ -2145,14 +2180,13 @@
         '<td class="col-date">' + escapeHtml(t.date) + "</td>" +
         "<td>" + escapeHtml(t.session) + "</td>" +
         '<td class="' + (t.direction === "Buy" ? "dir-buy" : "dir-sell") + '">' + escapeHtml(t.direction) + "</td>" +
-        "<td>" + escapeHtml(r.who) +
+        "<td>" + escapeHtml(t.source) +
           (multiAccount() && !validActive() ? '<span class="acct-tag">' + escapeHtml(accountName(r.account)) + "</span>" : "") + "</td>" +
         "<td>" + biasChips(t.bias) + "</td>" +
         '<td class="r">' + fmtPrice(t.entry, c.spec) + "</td>" +
         '<td class="r">' + fmtPips(c.slPips) + "</td>" +
         '<td class="r">' + (c.isOpen ? "—" : fmtLots(c.lots)) + "</td>" +
         '<td class="r">' + (c.isOpen ? '<span class="badge">Open</span>' : fmtMoney(c.pl)) + "</td>" +
-        '<td class="r">' + (c.isOpen ? "—" : fmtR(c.r)) + "</td>" +
         '<td class="r">' + r.idea + "</td>" +
       "</tr>" +
       '<tr class="detail-row"' + (open ? "" : " hidden") + ">" +
@@ -2166,10 +2200,8 @@
 
     var meta =
       "<span>Pair <b>" + escapeHtml(t.pair) + "</b></span>" +
-      "<span>Account <b>" + escapeHtml(accountName(r.account)) + "</b></span>" +
-      "<span>Source <b>" + escapeHtml(t.source) + "</b></span>" +
-      "<span>Stop loss <b>" + fmtPrice(t.stopLoss, c.spec) + "</b></span>" +
-      (c.risk !== null ? "<span>Risked <b>" + escapeHtml(fmtUsd(c.risk)) + "</b></span>" : "");
+      (multiAccount() ? "<span>Account <b>" + escapeHtml(accountName(r.account)) + "</b></span>" : "") +
+      "<span>Stop loss <b>" + fmtPrice(t.stopLoss, c.spec) + "</b></span>";
 
     var closes = "";
     if(c.isOpen){
@@ -2270,37 +2302,6 @@
   });
 
   // ---------- dashboard ----------
-  var dfSource = document.getElementById("df-source");
-  var dfFrom = document.getElementById("df-from");
-  var dfTo = document.getElementById("df-to");
-  var dfNote = document.getElementById("df-note");
-  [dfSource, dfFrom, dfTo].forEach(function(el){ el.addEventListener("change", renderDash); });
-  document.getElementById("df-clear").addEventListener("click", function(){
-    [dfSource, dfFrom, dfTo].forEach(function(el){ el.value = ""; });
-    renderDash();
-  });
-
-  // The journal narrowed to a source and/or date range. Trades keep their
-  // real balance after them; ideas count when the idea's source and date
-  // match (all its trades share them).
-  function filterDerived(d, f){
-    if(!f.source && !f.from && !f.to) return d;
-    function ok(source, who, date){
-      return matchWho(source, who, f.source) && (!f.from || date >= f.from) && (!f.to || date <= f.to);
-    }
-    var rows = d.rows.filter(function(r){ return ok(r.trade.source, r.who, r.trade.date); });
-    var closedPL = round2(sum(rows.filter(function(r){ return r.calc.pl !== null; }).map(function(r){ return r.calc.pl; })));
-    return {
-      rows: rows,
-      byId: d.byId,
-      ideas: d.ideas.filter(function(i){ return ok(i.source, i.who, i.date); }),
-      providerNames: d.providerNames,
-      ideaById: d.ideaById,
-      account: Object.assign({}, d.account, { closedPL: closedPL }),
-      filtered: true
-    };
-  }
-
   var dashEmpty = document.getElementById("dash-empty");
   var dashBody = document.getElementById("dash-body");
   var elEquityChart = document.getElementById("equity-chart");
@@ -2412,21 +2413,13 @@
   }
 
   function renderDash(){
-    var full = deriveView();
-    var f = { source: dfSource.value, from: dfFrom.value, to: dfTo.value };
-    var d = filterDerived(full, f);
+    var d = deriveView();
     var s = dashboardStats(d);
-    var parts = [];
-    if(f.source) parts.push((f.source === "Signal" ? "signal" : f.source) + " trades only");
-    if(f.from || f.to) parts.push((f.from || "start") + " to " + (f.to || "today"));
-    dfNote.hidden = !d.filtered;
-    dfNote.textContent = d.filtered ? "Showing " + parts.join(", ") + ". Balance and the stop-trading line are always the whole account." : "";
 
     // Net P/L, balance and the equity curve come from closed trades, so show
     // the dashboard as soon as one trade is closed, even if its idea isn't.
     var none = s.core.closedTrades === 0;
     dashEmpty.hidden = !none;
-    dashEmpty.textContent = d.filtered ? "No closed trades match these filters" : "No closed trades yet";
     dashBody.hidden = none;
     if(none) return;
 
@@ -2439,9 +2432,6 @@
       avgCards("", c) +
       statCard("biggestWin", "Best idea", c.biggestWin === null ? "—" : fmtMoney(c.biggestWin)) +
       statCard("biggestLoss", "Worst idea", c.biggestLoss === null ? "—" : fmtMoney(c.biggestLoss)) +
-      statCard("avgR", "Avg R per idea", fmtR(c.avgR), c.rCount ? "expectancy over " + c.rCount + " ideas" : "needs a stop on every entry") +
-      statCard("totalR", "Total R", fmtR(c.totalR)) +
-      statCard("avgWinR", "Avg winner", fmtR(c.avgWinR), "target is " + settings.sizing.rr + "R") +
       ratioCards("", c);
 
     var coreNote = document.getElementById("dash-core-note");
@@ -2461,9 +2451,9 @@
     groupTable(document.getElementById("dash-session"), "Session", s.bySession);
 
     document.getElementById("dash-source").innerHTML =
-      "<thead><tr><th>Who</th><th>Ideas</th><th>Wins</th><th>Losses</th><th>BE</th><th title='Wins ÷ (wins + losses); breakeven ideas (within $1 of zero) are left out'>Win rate (excl. BE)</th><th>Net P/L</th><th>Avg P/L</th><th>Avg R</th></tr></thead>" +
+      "<thead><tr><th>Source</th><th>Ideas</th><th>Wins</th><th>Losses</th><th>BE</th><th title='Wins ÷ (wins + losses); breakeven ideas (within $1 of zero) are left out'>Win rate (excl. BE)</th><th>Net P/L</th><th>Avg P/L</th></tr></thead>" +
       "<tbody>" + s.bySource.map(function(g){
-        return '<tr data-group="' + escapeHtml(g.name) + '"' + (g.total ? ' class="total-row"' : "") + ">" +
+        return '<tr data-group="' + escapeHtml(g.name) + '">' +
           "<td>" + escapeHtml(g.name) + "</td>" +
           "<td>" + g.ideas + "</td>" +
           "<td>" + g.wins + "</td>" +
@@ -2472,11 +2462,10 @@
           "<td>" + fmtPct(g.winRate) + "</td>" +
           "<td>" + (g.ideas ? fmtMoney(g.net) : "—") + "</td>" +
           "<td>" + (g.ideas ? fmtMoney(round2(g.avg)) : "—") + "</td>" +
-          "<td>" + fmtR(g.avgR) + "</td>" +
         "</tr>";
       }).join("") + "</tbody>";
 
-    renderEquity(s.equity, d.filtered ? null : d.account.stopLine);
+    renderEquity(s.equity, d.account.stopLine);
   }
   renderers.dash = renderDash;
 
@@ -2499,9 +2488,7 @@
     var H = W < 500 ? 220 : 260;
     var N = points.length - 1;
 
-    // stopLine is null when the dashboard is filtered (the curve is then the
-    // start balance plus the filtered trades, not the account).
-    var values = points.map(function(p){ return p.balance; }).concat(stopLine === null ? [] : [stopLine]);
+    var values = points.map(function(p){ return p.balance; }).concat([stopLine]);
     var lo = Math.min.apply(null, values), hi = Math.max.apply(null, values);
     var pad = (hi - lo) * 0.08 || 1;
     var step = niceStep(hi - lo + pad * 2, 4);
@@ -2533,9 +2520,7 @@
     }
     svg += '<text x="' + (mL + pw / 2) + '" y="' + (H - 4) + '" text-anchor="middle">Closed trade #</text>';
 
-    if(stopLine !== null){
-      svg += '<line class="stop-line" x1="' + mL + '" x2="' + (W - mR) + '" y1="' + y(stopLine) + '" y2="' + y(stopLine) + '"/>';
-    }
+    svg += '<line class="stop-line" x1="' + mL + '" x2="' + (W - mR) + '" y1="' + y(stopLine) + '" y2="' + y(stopLine) + '"/>';
 
     svg += '<path class="eq-line" d="' + points.map(function(p, i){
       return (i ? "L" : "M") + x(p.n).toFixed(1) + " " + y(p.balance).toFixed(1);
@@ -2553,8 +2538,8 @@
       "</svg>";
 
     elEquityChart.innerHTML = svg +
-      '<div class="chart-key"><span><i></i>' + (stopLine === null ? "Start balance + filtered trades" : "Balance") + "</span>" +
-      (stopLine === null ? "" : '<span><i class="dashed"></i>Stop-trading line ' + escapeHtml(fmtUsd(stopLine)) + "</span>") + "</div>";
+      '<div class="chart-key"><span><i></i>Balance</span><span><i class="dashed"></i>Stop-trading line ' +
+      escapeHtml(fmtUsd(stopLine)) + "</span></div>";
 
     var crosshair = elEquityChart.querySelector(".crosshair");
     var focus = elEquityChart.querySelector(".eq-focus");
@@ -2627,59 +2612,38 @@
       "</table></div>";
   }
 
-  // The fixed reward:risk plan for one position: what's at risk, where the
-  // stop goes to breakeven and what the take profit pays.
-  function rrCard(title, plan, usd, sub){
-    var sz = settings.sizing;
-    if(!plan || plan.tooSmall){
-      return '<div class="partials-card"><h4>' + escapeHtml(title) + '</h4><div class="hint">' +
-        (plan ? "Below 0.01 lots at this balance." : "Stop too tight to layer.") + "</div></div>";
+  // Partials for ONE position of `lots`: 10% at TP1–TP3, 20% at TP4, then
+  // the rest is managed. Pips are from that position's own entry.
+  function partialsCard(title, lots, usd, sub){
+    if(!(lots >= 0.01)) {
+      return '<div class="partials-card"><h4>' + escapeHtml(title) + '</h4><div class="hint">Below 0.01 lots at this balance.</div></div>';
     }
-    var lots = plan.legs.length > 1 ? plan.totalLots : plan.lots;
-    // With layered entries, each leg sits closer to the stop: the take
-    // profit is placed from the FIRST entry, so deeper legs make more.
-    var totalStop = plan.totalStop;
-    var risk = plan.risk;
-    var tpPips = plan.stopFirst * sz.rr;
-    var rewardPips = sum(plan.legs.map(function(l){ return tpPips + l.offset; }));
-    var reward = round2(plan.lots * rewardPips * usd);
-    var bePips = plan.stopFirst * sz.beAt;
+    var plan = { lots: lots, legs: [{ offset: 0 }] };
+    var rows = partialPlan(plan, usd).map(function(r){
+      if(r.manage){
+        return '<tr class="pt-manage"><td>' + r.tp + "</td><td>" + (r.pips === null ? "—" : r.pips) + "</td>" +
+          "<td>" + (r.close > 0 ? fmtLots(r.close) + " left" : "nothing left") + "</td>" +
+          "<td>manage it</td></tr>";
+      }
+      return "<tr><td>" + r.tp + "</td><td>" + r.pips + "</td>" +
+        "<td>" + (r.close > 0 ? fmtLots(r.close) : "— (none left)") + "</td>" +
+        "<td>" + escapeHtml(fmtUsd(r.banked)) + "</td></tr>";
+    }).join("");
     return '<div class="partials-card">' +
       '<div class="plan-block-head"><h4>' + escapeHtml(title) + '</h4><span class="plan-lots">' + fmtLots(lots) + " lots</span></div>" +
       (sub ? '<div class="hint">' + escapeHtml(sub) + "</div>" : "") +
       '<div class="mini-scroll"><table class="mini-table plan-table">' +
-      "<thead><tr><th>Level</th><th>Pips from 1st entry</th><th>Result</th></tr></thead><tbody>" +
-        "<tr><td>Stop loss</td><td>−" + plan.stopFirst + "</td><td>" + fmtMoney(-risk) + " (−1R)</td></tr>" +
-        "<tr><td>Stop to BE</td><td>+" + clean(bePips) + "</td><td>" + sz.beAt + "R reached → risk-free</td></tr>" +
-        "<tr><td>Take profit</td><td>+" + clean(tpPips) + "</td><td>" + fmtMoney(reward) + " (+" + (risk > 0 ? (reward / risk).toFixed(2) : "—") + "R)</td></tr>" +
-      "</tbody></table></div>" +
-      (plan.legs.length > 1 ? '<div class="hint">Stop measured from the first entry (' + totalStop + " pips across all legs). Deeper entries sit closer to the stop, so the idea pays a little more than " + sz.rr + "R.</div>" : "") +
+      "<thead><tr><th>TP</th><th>Pips</th><th>Close</th><th>Banked</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody></table></div>" +
     "</div>";
   }
 
-  function renderRR(p, usd){
-    var sz = settings.sizing;
-    document.getElementById("rr-intro").innerHTML =
-      "Take profit at <strong>" + sz.rr + "R</strong> (" + clean(p.stop * sz.rr) + " pips on a " + p.stop + "-pip stop) · stop to breakeven at <strong>" +
-      sz.beAt + "R</strong> (" + clean(p.stop * sz.beAt) + " pips). Breakeven win rate at " + sz.rr + "R: <strong>" +
-      fmtPct(1 / (1 + sz.rr)) + "</strong> — win more often than that and the plan makes money.";
-    var rows = p.providers.map(function(x){ return [x.name, x]; }).concat([["Own trade", p.own]]);
+  function renderPartials(p, usd){
     document.getElementById("partials-cards").innerHTML =
-      '<div class="mini-scroll rr-wrap"><table class="mini-table rr-table">' +
-      "<thead><tr><th>Who</th><th>Risk</th><th>1 entry</th><th>Stop loss (−1R)</th><th>BE at</th><th>Take profit (+" + sz.rr + "R)</th></tr></thead><tbody>" +
-      rows.map(function(r){
-        var plan = r[1].single;
-        if(!plan || plan.tooSmall){
-          return "<tr><td>" + escapeHtml(r[0]) + "</td><td>" + r[1].risk + "%</td><td colspan=\"4\" class=\"neutral\">Below 0.01 lots at this balance</td></tr>";
-        }
-        var st = r[1].stop;
-        var reward = round2(plan.lots * st * sz.rr * usd);
-        return "<tr><td>" + escapeHtml(r[0]) + "</td><td>" + r[1].risk + "%</td><td>" + fmtLots(plan.lots) + " lots</td>" +
-          "<td>" + fmtMoney(-plan.risk) + " <span class=\"neutral\">(−" + st + " pips)</span></td>" +
-          "<td>+" + clean(st * sz.beAt) + " pips</td>" +
-          "<td>" + fmtMoney(reward) + " <span class=\"neutral\">(+" + clean(st * sz.rr) + " pips)</span></td></tr>";
-      }).join("") + "</tbody></table></div>" +
-      '<div class="hint field-gap">With 3 layered entries the take profit is measured from the first entry, so the deeper entries pay a little more than ' + sz.rr + "R.</div>";
+      partialsCard("Own — 1 entry", p.own.single.lots, usd, "") +
+      partialsCard("Own — 3 entries, per leg", p.own.three.lots, usd, "Do this on each of the 3 legs.") +
+      partialsCard("Premium — 1 entry", p.premium.single.lots, usd, "") +
+      partialsCard("Premium — 3 entries, per leg", p.premium.three.lots, usd, "Do this on each of the 3 legs.");
   }
 
   function planBlock(title, plan, note, tag){
@@ -2702,22 +2666,21 @@
     "</div>";
   }
 
-  // Position Sizing works on one account: the one picked at the top, or the
-  // first account when "All accounts" is showing.
-  function sizingAccount(){ return validActive() || (settings.accounts[0] ? settings.accounts[0].id : ""); }
-
   function renderSizingOutputs(){
     var accId = sizingAccount();
     var d = deriveAccount(accId);
     var a = d.account;
-    document.getElementById("size-stand-title").textContent = "Where you stand — " + accountName(accId);
-    var note = document.getElementById("size-acct-note");
-    note.hidden = !!validActive() || !multiAccount();
-    note.textContent = "Showing " + accountName(accId) + ". Pick an account at the top to size for another one.";
+    document.getElementById("size-stand-title").textContent = multiAccount() ? "Where you stand — " + accountName(accId) : "Where you stand";
+    var accNote = document.getElementById("size-acct-note");
+    accNote.hidden = !!validActive() || !multiAccount();
+    accNote.textContent = "Showing " + accountName(accId) + ". Pick an account at the top to size for another one.";
     var pair = settings.pairs.length ? settings.pairs[0].pair : "";
     var usd = pairSpec(settings, pair).usdPerPip;
-    var p = sizingPlans(a.balance, settings, usd);
-    var L = p.layer;
+    var prot = lossProtocol(d, todayStr());
+    renderProtocol(prot, a);
+    var p = sizingPlans(prot.sizingBalance, settings, usd, prot.riskMult);
+    var sz = settings.sizing;
+    var L = sz.layer;
 
     document.getElementById("size-stand").innerHTML =
       statCard("closedPL", "Closed P/L", fmtMoney(a.closedPL)) +
@@ -2728,20 +2691,102 @@
       statCard("status", "Status", a.stopped ? "STOP — drawdown limit hit" : "OK to trade")
         .replace('class="stat-card"', 'class="stat-card ' + (a.stopped ? "status-stop" : "status-ok") + '"');
 
-    function card(key, title, plan, sub){
-      var layerNote = "Layered toward the stop every " + L + " pips; the last entry stays " + (plan.stop - 2 * L) + " pips from the stop.";
-      var noLayer = "The " + plan.stop + "-pip stop is too tight to layer 3 entries " + L + " pips apart (needs " + p.minLayerStop + "+). Take 1 entry.";
-      return planCard(key, title, plan.risk, sub,
-        planBlock("1 entry", plan.single, "Stop " + plan.stop + " pips.") +
-        (plan.three ? planBlock("3 entries", plan.three, layerNote) : '<div class="hint">' + escapeHtml(noLayer) + "</div>"));
-    }
+    var layerNote = "Layered toward the stop every " + L + " pips inside a 50-pip zone; the last entry stays " +
+      (OWN_PREM_STOP - 2 * L) + " pips from the stop.";
 
-    var sub = "Sized from " + escapeHtml(accountName(accId)) + "'s balance (" + escapeHtml(fmtUsd(a.balance)) + ") on " + escapeHtml(pair || "your first pair") + ".";
     elPlanCards.innerHTML =
-      p.providers.map(function(x){ return card("prov-" + x.id, x.name + " signals", x, sub); }).join("") +
-      card("own", "Own trades", p.own, sub);
+      planCard("own", "Own trades", p.own.risk,
+        "Max stop 100 pips from the first entry. One entry, or three layered entries.",
+        planBlock("1 entry", p.own.single, "Stop 100 pips.") +
+        planBlock("3 entries", p.own.three, layerNote)) +
 
-    renderRR(p, usd);
+      planCard("premium", "Premium (Nick)", p.premium.risk,
+        "Same as own trades — 100-pip max stop — but up to 20%. Splitting is preferred.",
+        planBlock("3 entries", p.premium.three, layerNote, "preferred") +
+        planBlock("1 entry", p.premium.single, "Stop 100 pips.")) +
+
+      planCard("grindSignal", "Grind Room — signal (Aaron)", p.grindSignal.risk,
+        GRIND_SIGNAL_LEGS + " entries every " + GRIND_LAYER + " pips into the 50-pip zone; stop " + GRIND_SIGNAL_STOP + " pips from the first (worst) entry.",
+        planBlock(GRIND_SIGNAL_LEGS + " entries", p.grindSignal.plan, "")) +
+
+      planCard("grindLive", "Grind Room — live (Zoom)", p.grindLive.risk,
+        GRIND_LIVE_LEGS + " entries every " + GRIND_LAYER + " pips; stop measured from the worst entry — usually 120–130, rarely 150.",
+        planBlock(GRIND_LIVE_LEGS + " entries · " + p.grindLive.stop + "-pip stop", p.grindLive.plan, ""),
+        '<div class="seg plan-seg" role="group" aria-label="Live stop">' + [120, 130, 150].map(function(v){
+          return '<button type="button" data-live-stop="' + v + '" class="' + (p.grindLive.stop === v ? "on" : "") + '">' + v + " pips</button>";
+        }).join("") + "</div>") +
+
+      planCard("inst", "IT / Thomas", p.inst.risk,
+        "Stop varies (30–100 pips) and he uses a 50-pip zone. Set today's stop: a tight stop = 1 entry; from " +
+          p.inst.minThreeStop + " pips you can layer 3 entries " + L + " pips apart.",
+        (p.inst.three ? planBlock("3 entries", p.inst.three, "Layered every " + L + " pips; last entry " + (p.inst.stop - 2 * L) + " pips from the stop.") : "") +
+        planBlock("1 entry", p.inst.single, p.inst.three ? "" : "Stop is too tight to layer — take 1 entry."),
+        '<div class="field plan-inst-stop"><label for="sz-instStop">Today\'s stop from the first entry (pips, max 100)</label>' +
+          '<input type="number" step="any" inputmode="decimal" id="sz-instStop" data-sizing-inline="instStop" value="' + p.inst.stop + '"></div>') +
+
+      planCard("aj", "AJ (Currency Squad)", p.aj.risk,
+        "Max stop 100 pips. Only trades with at least " + sz.ajRR + "R available; take profit at " + sz.ajRR + "R, stop to breakeven at " + sz.ajBE + "R.",
+        planBlock("1 entry", p.aj.single, "Stop 100 pips.") +
+        planBlock("3 entries", p.aj.three, layerNote));
+
+    renderPartials(p, usd);
+    renderAJ(p, usd);
+  }
+
+  // AJ: fixed reward:risk, no partial ladder.
+  function renderAJ(p, usd){
+    var sz = settings.sizing, st = OWN_PREM_STOP;
+    document.getElementById("aj-intro").innerHTML =
+      "Take profit at <strong>" + sz.ajRR + "R</strong> (" + clean(st * sz.ajRR) + " pips on a " + st + "-pip stop) · stop to breakeven at <strong>" +
+      sz.ajBE + "R</strong> (" + clean(st * sz.ajBE) + " pips). Breakeven win rate at " + sz.ajRR + "R: <strong>" + fmtPct(1 / (1 + sz.ajRR)) +
+      "</strong> — win more often than that and it makes money. The Log Trade form shows the BE and TP prices for every AJ trade.";
+    function row(label, plan){
+      if(!plan || plan.tooSmall) return "<tr><td>" + label + '</td><td colspan="4" class="neutral">Below 0.01 lots at this balance</td></tr>';
+      var tpPips = st * sz.ajRR;
+      var reward = round2(plan.lots * sum(plan.legs.map(function(l){ return tpPips + l.offset; })) * usd);
+      return "<tr><td>" + label + "</td><td>" + fmtLots(plan.lots) + (plan.legs.length > 1 ? " each" : " lots") + "</td>" +
+        "<td>" + fmtMoney(-plan.risk) + "</td><td>+" + clean(st * sz.ajBE) + " pips</td>" +
+        "<td>" + fmtMoney(reward) + ' <span class="neutral">(+' + clean(tpPips) + " pips from the 1st entry)</span></td></tr>";
+    }
+    document.getElementById("aj-table").innerHTML = '<table class="mini-table rr-table">' +
+      "<thead><tr><th>AJ plan</th><th>Lots</th><th>Stop loss</th><th>Stop to BE at</th><th>Take profit</th></tr></thead><tbody>" +
+      row("1 entry", p.aj.single) + row("3 entries", p.aj.three) + "</tbody></table>";
+  }
+
+  function renderProtocol(prot, a){
+    var el = document.getElementById("protocol-panel");
+    var head, cls, text;
+    if(prot.state === "hold"){
+      cls = "proto-hold";
+      head = "Recovery — same lots for " + prot.holdLeft + " more idea" + (prot.holdLeft === 1 ? "" : "s");
+      text = "After a loss you keep the lot sizes from before it. Sizes below use " + fmtUsd(prot.sizingBalance) +
+        " (balance before the loss). If " + (prot.holdLeft === 1 ? "this idea wins" : "both win") +
+        ", you're back to normal sizing. Another loss first = double loss.";
+      if(prot.heldPct > 1.25) text += " Heads-up: held sizes are " + Math.round((prot.heldPct - 1) * 100) + "% bigger than your current balance supports.";
+    }else if(prot.state === "half"){
+      cls = "proto-half";
+      head = prot.doneToday ? "Double loss today — done for the day" : "Half risk — " + prot.halfWinsLeft + " winning idea" + (prot.halfWinsLeft === 1 ? "" : "s") + " to go";
+      text = "Capital first. Every risk % below is halved (signals 10%, own 5% by default). " +
+        "Back to full risk after " + HALF_WINS_NEEDED + " winning ideas in a row; a loss resets the count.";
+    }else{
+      cls = "proto-normal";
+      head = "Normal — full risk";
+      text = "Sizes come from your current balance. After a loss you'll keep the same lots for the next " + HOLD_IDEAS + " ideas.";
+    }
+    var own = prot.ownDoneToday ? '<div class="warn">Own trade hit a full stop today — no more own trades today. Signals are fine.</div>' : "";
+    var recent = prot.recent.length ? '<div class="proto-recent">Last counted ideas: ' + prot.recent.map(function(r){
+      return '<span class="' + (r.res === "win" ? "pos" : "neg") + '">#' + r.id + " " + escapeHtml(r.source) + " " + (r.pl >= 0 ? "+" : "−") + escapeHtml(fmtUsd(Math.abs(r.pl))) + "</span>";
+    }).join(" · ") + "</div>" : "";
+    el.className = "panel protocol " + cls;
+    el.innerHTML = '<h2 class="panel-title">Loss protocol</h2>' +
+      '<div class="proto-head">' + escapeHtml(head) + "</div>" +
+      '<div class="hint">' + escapeHtml(text) + "</div>" + own + recent +
+      '<details class="proto-rules"><summary>The rules</summary><ul>' +
+        "<li><strong>Own trades:</strong> a full stop-loss = done with own trades for the day. Signals still allowed.</li>" +
+        "<li><strong>1 loss</strong> (any source): keep the same lot sizes for the next " + HOLD_IDEAS + " ideas. Both win → back to normal sizing from the balance, and the cycle repeats.</li>" +
+        "<li><strong>Double loss</strong> (a loss inside those " + HOLD_IDEAS + " ideas): half risk and done for the day. Back to full after " + HALF_WINS_NEEDED + " winning ideas.</li>" +
+        "<li>Counted per idea once it's fully closed. Within ±1% of the balance = breakeven, doesn't count either way.</li>" +
+      "</ul></details>";
   }
 
   function sizingError(msg){
@@ -2749,12 +2794,16 @@
     elSzError.hidden = !msg;
   }
   var SIZING_MSG = {
-    own: "Own-trade risk must be between 0.1% and " + MAX_IDEA_RISK + "% — " + MAX_IDEA_RISK + "% per idea is the hard cap.",
-    provider: "Provider risk must be between 0.1% and " + MAX_IDEA_RISK + "% — " + MAX_IDEA_RISK + "% per idea is the hard cap.",
-    signal: "Signal risk must be between 0.1% and " + MAX_IDEA_RISK + "% — " + MAX_IDEA_RISK + "% per idea is the hard cap.",
-    rr: "The take-profit target must be between 0.5R and 10R.",
-    beAt: "Breakeven must be between 0.25R and 5R.",
-    layer: "The layer gap must be 5–50 pips."
+    own: "Own-trade risk must be between 0.1% and 30%.",
+    premium: "Signal risk must be between 0.1% and 20%.",
+    grindLive: "Signal risk must be between 0.1% and 20%.",
+    grindSignal: "Signal risk must be between 0.1% and 20%.",
+    inst: "Signal risk must be between 0.1% and 20%.",
+    layer: "The layer gap must be 20–25 pips (3 entries in a 50-pip zone).",
+    instStop: "IT stop must be 10–100 pips.",
+    aj: "AJ risk must be between 0.1% and 20%.",
+    ajRR: "AJ's take profit must be between 0.5R and 10R.",
+    ajBE: "AJ's breakeven point must be between 0.25R and 5R."
   };
   function setSizing(key, value){
     var n = num(value);
@@ -2774,6 +2823,22 @@
       sizingError("");
     });
   });
+  elPlanCards.addEventListener("click", function(ev){
+    var b = ev.target.closest("button[data-live-stop]");
+    if(!b) return;
+    if(setSizing("grindLiveStop", b.dataset.liveStop)) renderSizingOutputs();
+  });
+  // The IT stop box is re-drawn with the cards, so apply it on change.
+  elPlanCards.addEventListener("change", function(ev){
+    var inp = ev.target.closest("[data-sizing-inline]");
+    if(!inp) return;
+    setSizing(inp.dataset.sizingInline, inp.value);
+    renderSizingOutputs();
+  });
+  elPlanCards.addEventListener("keydown", function(ev){
+    if(ev.key === "Enter" && ev.target.closest("[data-sizing-inline]")) ev.target.blur();
+  });
+
   function renderPairRows(){
     var only = settings.pairs.length === 1;
     elPairRows.innerHTML = settings.pairs.map(function(p, i){
@@ -2792,21 +2857,16 @@
     }).join("");
   }
 
-  // ---- accounts + providers editors ----
+  // ---- accounts editor ----
   var elAcctRows = document.getElementById("s-accounts");
   var elAcctNew = document.getElementById("s-acct-new");
   var elAcctError = document.getElementById("s-acct-error");
-  var elProvRows = document.getElementById("s-providers");
-  var elProvNew = document.getElementById("s-prov-new");
-  var elProvError = document.getElementById("s-prov-error");
   function showErr(el, msg){ el.textContent = msg; el.hidden = !msg; }
 
   function accountUse(id){
     return trades.filter(function(t){ return accountIdOf(t, settings) === id; }).length +
       (settings.cashFlows || []).filter(function(f){ return f.account === id; }).length;
   }
-  function providerUse(id){ return trades.filter(function(t){ return t.source === "Signal" && t.provider === id; }).length; }
-
   function renderAccountRows(){
     var only = settings.accounts.length === 1;
     elAcctRows.innerHTML = settings.accounts.map(function(a){
@@ -2820,35 +2880,19 @@
       "</div>";
     }).join("");
   }
-  function renderProviderRows(){
-    elProvRows.innerHTML = settings.providers.map(function(v){
-      var used = providerUse(v.id);
-      return '<div class="pair-row" data-id="' + escapeHtml(v.id) + '">' +
-        '<div class="field"><label>Provider</label><input type="text" class="v-name" value="' + escapeHtml(v.name) + '" aria-label="Provider name"></div>' +
-        '<div class="field"><label>Risk per idea (%)</label><input type="number" step="any" inputmode="decimal" class="v-risk" value="' + v.risk + '"></div>' +
-        '<div class="field"><label>Stop (pips) · ' + used + (used === 1 ? " trade" : " trades") + '</label><input type="number" step="any" inputmode="decimal" class="v-stop" value="' + (v.stop || settings.defaultStop) + '"></div>' +
-        '<button type="button" class="p-remove v-remove" aria-label="Remove ' + escapeHtml(v.name) + '"' +
-          (used ? ' disabled title="Has trades — can\'t be removed"' : ' title="Remove this provider"') + ">&times;</button>" +
-      "</div>";
-    }).join("") || '<div class="hint">No providers yet — add the people whose signals you take.</div>';
-  }
   function nameTaken(list, name, exceptId){
     return list.some(function(x){ return x.id !== exceptId && x.name.toLowerCase() === name.toLowerCase(); });
   }
   function afterAccountChange(){
+    var tot = viewSettings(settings, "");
+    settings.startingDeposit = tot.startingDeposit;
+    settings.depositsWithdrawals = tot.depositsWithdrawals;
     saveSettings();
     renderAcctSwitch();
     renderAccountRows();
     renderFlows();
     renderSizingOutputs();
   }
-  function afterProviderChange(){
-    saveSettings();
-    refreshWhoFilters();
-    renderProviderRows();
-    renderSizingOutputs();
-  }
-
   elAcctRows.addEventListener("change", function(ev){
     var row = ev.target.closest(".pair-row"); if(!row) return;
     var a = accountById(settings, row.dataset.id); if(!a) return;
@@ -2887,54 +2931,13 @@
   document.getElementById("s-acct-add").addEventListener("click", addAccount);
   elAcctNew.addEventListener("keydown", function(ev){ if(ev.key === "Enter"){ ev.preventDefault(); addAccount(); } });
 
-  elProvRows.addEventListener("change", function(ev){
-    var row = ev.target.closest(".pair-row"); if(!row) return;
-    var v = providerById(settings, row.dataset.id); if(!v) return;
-    showErr(elProvError, "");
-    if(ev.target.classList.contains("v-name")){
-      var name = ev.target.value.trim();
-      if(!name) return showErr(elProvError, "A provider needs a name.");
-      if(name === "Own Trade" || name === "Signal" || name === NO_PROVIDER || nameTaken(settings.providers, name, v.id)) return showErr(elProvError, name + " is already used.");
-      v.name = name;
-    }else if(ev.target.classList.contains("v-stop")){
-      var st = num(ev.target.value);
-      if(st === null || !(st > 0) || st > 1000) return showErr(elProvError, "The stop must be above 0 pips.");
-      v.stop = st;
-    }else{
-      var n = num(ev.target.value);
-      if(!sizingValid("signal", n)) return showErr(elProvError, SIZING_MSG.provider);
-      v.risk = n;
-    }
-    afterProviderChange();
-  });
-  elProvRows.addEventListener("click", function(ev){
-    var btn = ev.target.closest(".v-remove"); if(!btn || btn.disabled) return;
-    var id = btn.closest(".pair-row").dataset.id;
-    if(providerUse(id)) return;
-    settings.providers = settings.providers.filter(function(v){ return v.id !== id; });
-    afterProviderChange();
-  });
-  function addProvider(){
-    var name = elProvNew.value.trim();
-    if(!name) return showErr(elProvError, "Type the provider's name first.");
-    if(name === "Own Trade" || name === "Signal" || name === NO_PROVIDER || nameTaken(settings.providers, name, "")) return showErr(elProvError, name + " is already used.");
-    settings.providers.push({ id: makeId(), name: name, risk: SIZING_DEFAULTS.signal, stop: settings.defaultStop });
-    elProvNew.value = "";
-    showErr(elProvError, "");
-    afterProviderChange();
-  }
-  document.getElementById("s-prov-add").addEventListener("click", addProvider);
-  elProvNew.addEventListener("keydown", function(ev){ if(ev.key === "Enter"){ ev.preventDefault(); addProvider(); } });
-
   function renderSizing(){
     settingInputs.forEach(function(input){ input.value = settings[input.dataset.setting]; });
     sizingInputs.forEach(function(input){ input.value = settings.sizing[input.dataset.sizing]; });
     sizingError("");
     elPairError.hidden = true;
     showErr(elAcctError, "");
-    showErr(elProvError, "");
     renderAccountRows();
-    renderProviderRows();
     renderPairRows();
     renderFlows();
     renderSizingOutputs();
@@ -2963,7 +2966,7 @@
   }
   function renderFlows(){
     if(!elCfDate.value) elCfDate.value = todayStr();
-    var keepAcc = elCfAccount.value || validActive();
+    var keepAcc = elCfAccount.value || sizingAccount();
     elCfAccount.innerHTML = accountOptions(keepAcc);
     if(keepAcc) elCfAccount.value = keepAcc;
     var list = sortedFlows(settings).reverse();
@@ -3253,11 +3256,6 @@
   var btnWkNext = document.getElementById("wk-next");
   var btnWkPdf = document.getElementById("wk-pdf");
   var btnWkXlsx = document.getElementById("wk-xlsx");
-  var wkSource = document.getElementById("wk-source");
-  wkSource.innerHTML = '<option value="">All sources</option>' + SOURCES.map(function(o){
-    return '<option value="' + escapeHtml(o) + '">' + escapeHtml(o) + "</option>";
-  }).join("");
-  wkSource.addEventListener("change", function(){ renderWeekly(); });
 
   function shownWeekRange(){
     var d = new Date();
@@ -3267,18 +3265,7 @@
 
   function renderWeekly(){
     var range = shownWeekRange();
-    var d = deriveView();
-    var w = weeklyStats(d, range, wkSource.value);
-    var weekRows = d.rows.filter(function(r){
-      return r.trade.date >= range.start && r.trade.date <= range.end && matchWho(r.trade.source, r.who, wkSource.value);
-    });
-    var rs = [], seen = {};
-    weekRows.forEach(function(r){
-      var idea = d.ideaById[r.idea];
-      if(seen[r.idea] || !ideaClosed(idea)) return;
-      seen[r.idea] = true;
-      if(idea.r !== null && idea.r !== undefined) rs.push(idea.r);
-    });
+    var w = weeklyStats(deriveView(), range);
 
     document.getElementById("week-range-label").textContent =
       (weekOffset === 0 ? "This week · " : "") + range.start + " to " + range.end;
@@ -3288,28 +3275,9 @@
       statCard("wkTrades", "Trades", String(w.trades)) +
       statCard("wkIdeas", "Ideas", String(w.ideas)) +
       statCard("wkNet", "Net P/L", w.closed ? fmtMoney(w.net) : "—") +
-      statCard("wkWinRate", WEEK_WIN_RATE_LABEL, fmtPct(w.winRate)) +
-      statCard("wkR", "Total R", fmtR(rs.length ? clean(sum(rs)) : null), rs.length ? "over " + rs.length + " ideas" : "");
+      statCard("wkWinRate", WEEK_WIN_RATE_LABEL, fmtPct(w.winRate));
 
-    var empty = document.getElementById("weekly-empty");
-    empty.hidden = w.logged !== 0;
-    empty.textContent = wkSource.value ? "No " + wkSource.value + " trades this week" : "No trades this week";
-
-    // The week's trades, newest last, so the review reads like a diary.
-    var list = document.getElementById("weekly-trades");
-    list.hidden = weekRows.length === 0;
-    list.innerHTML = weekRows.length ? '<h2 class="panel-title">Trades this week</h2><div class="mini-scroll"><table class="mini-table week-table">' +
-      "<thead><tr><th>#</th><th>Date</th><th>Who</th>" + (multiAccount() && !validActive() ? "<th>Account</th>" : "") + "<th>Dir</th><th>Session</th><th>P/L</th><th>R</th><th>Lesson</th></tr></thead><tbody>" +
-      weekRows.map(function(r){
-        var t = r.trade, c = r.calc;
-        return "<tr><td>" + r.n + "</td><td>" + escapeHtml(t.date) + "</td><td>" + escapeHtml(r.who) + "</td>" +
-          (multiAccount() && !validActive() ? "<td>" + escapeHtml(accountName(r.account)) + "</td>" : "") +
-          '<td class="' + (t.direction === "Buy" ? "dir-buy" : "dir-sell") + '">' + escapeHtml(t.direction) + "</td>" +
-          "<td>" + escapeHtml(t.session) + "</td>" +
-          "<td>" + (c.isOpen ? '<span class="badge">Open</span>' : fmtMoney(c.pl)) + "</td>" +
-          "<td>" + (c.isOpen ? "—" : fmtR(c.r)) + "</td>" +
-          '<td class="week-lesson">' + (t.lesson ? escapeHtml(t.lesson) : '<span class="neutral">—</span>') + "</td></tr>";
-      }).join("") + "</tbody></table></div>" : "";
+    document.getElementById("weekly-empty").hidden = w.logged !== 0;
   }
   renderers.weekly = renderWeekly;
 
@@ -3351,21 +3319,17 @@
   function weekReport(){
     var range = shownWeekRange();
     var derived = deriveView();
-    var source = wkSource.value;
-    var w = weeklyStats(derived, range, source);
-    var rows = derived.rows.filter(function(r){
-      return r.trade.date >= range.start && r.trade.date <= range.end && matchWho(r.trade.source, r.who, source);
-    });
+    var w = weeklyStats(derived, range);
+    var rows = derived.rows.filter(function(r){ return r.trade.date >= range.start && r.trade.date <= range.end; });
     var before = derived.rows.filter(function(r){ return r.trade.date < range.start && r.calc.pl !== null; });
-    var flowsBefore = sum(sortedFlows(settings).filter(function(f){ return f.date < range.start; }).map(flowAmount));
+    var flowsBefore = sum(sortedFlows(viewS()).filter(function(f){ return f.date < range.start; }).map(flowAmount));
     var startBalance = round2(derived.account.base + flowsBefore + sum(before.map(function(r){ return r.calc.pl; })));
     var closed = rows.filter(function(r){ return r.calc.pl !== null; });
     var pls = closed.map(function(r){ return r.calc.pl; });
 
     return {
       range: range,
-      who: (elUser.textContent || "").replace(/^ · /, ""),
-      source: (source === "Signal" ? "All signals" : source || "All sources") + " · " + (validActive() ? accountName(validActive()) : "All accounts"),
+      who: (elUser.textContent || "").replace(/^ · /, "") + (multiAccount() ? " · " + (validActive() ? accountName(validActive()) : "All accounts") : ""),
       generated: todayStr(),
       summary: [
         ["Trades", w.trades],
@@ -3378,12 +3342,12 @@
         ["Best trade ($)", pls.length ? Math.max.apply(null, pls) : null],
         ["Worst trade ($)", pls.length ? Math.min.apply(null, pls) : null],
         ["Balance at start ($)", startBalance],
-        [source ? "Balance at end, " + source + " trades only ($)" : "Balance at end ($)", round2(startBalance + (w.closed ? w.net : 0))]
+        ["Balance at end ($)", round2(startBalance + (w.closed ? w.net : 0))]
       ],
       trades: rows.map(function(r){
         var t = r.trade, c = r.calc, b = t.bias;
         return {
-          n: r.n, date: t.date, session: t.session, pair: t.pair, direction: t.direction, source: r.who, account: accountName(r.account), r: c.r,
+          n: r.n, date: t.date, session: t.session, pair: t.pair, direction: t.direction, source: t.source,
           bias: [b.daily, b.h4, b.h1, b.m15].map(function(v){ return BIAS_SHORT[v] || "-"; }).join(" / "),
           entry: t.entry, stop: t.stopLoss, priceDp: c.spec.priceDp, slPips: c.slPips, lots: c.isOpen ? null : c.lots, pl: c.pl,
           idea: r.idea, result: resultOf(c),
@@ -3395,9 +3359,7 @@
   }
 
   function fileSlug(){ return APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "trade-journal"; }
-  function weekFileName(rep, ext){
-    return fileSlug() + "-week-" + rep.range.start + (rep.source !== "All sources" ? "-" + rep.source.toLowerCase().replace(/\s+/g, "-") : "") + "." + ext;
-  }
+  function weekFileName(rep, ext){ return fileSlug() + "-week-" + rep.range.start + "." + ext; }
 
   function exportFailed(err){
     console.error("Weekly export failed", err);
@@ -3424,7 +3386,6 @@
       var summary = [
         [APP_NAME + " — weekly summary"],
         ["Week", rep.range.start + " to " + rep.range.end],
-        ["Source", rep.source],
         ["Account", rep.who],
         ["Generated", rep.generated],
         []
@@ -3439,14 +3400,14 @@
       ws1["!cols"] = [{ wch: 36 }, { wch: 24 }];
       X.utils.book_append_sheet(wb, ws1, "Summary");
 
-      var head = ["#", "Date", "Account", "Session", "Pair", "Direction", "Who", "Bias D/4H/1H/15M", "Entry", "Stop",
-        "SL pips", "Lots", "P/L ($)", "R", "Idea", "Result", "Confirmation", "Mistake / Lesson"];
+      var head = ["#", "Date", "Session", "Pair", "Direction", "Source", "Bias D/4H/1H/15M", "Entry", "Stop",
+        "SL pips", "Lots", "P/L ($)", "Idea", "Result", "Confirmation", "Mistake / Lesson"];
       var body = rep.trades.map(function(t){
-        return [t.n, t.date, t.account, t.session, t.pair, t.direction, t.source, t.bias, t.entry, t.stop,
-          t.slPips, t.lots, t.pl, t.r === null ? null : round2(t.r), t.idea, t.result, t.confirmation, t.lesson];
+        return [t.n, t.date, t.session, t.pair, t.direction, t.source, t.bias, t.entry, t.stop,
+          t.slPips, t.lots, t.pl, t.idea, t.result, t.confirmation, t.lesson];
       });
       var ws2 = X.utils.aoa_to_sheet([head].concat(body));
-      ws2["!cols"] = [5, 11, 12, 10, 9, 9, 14, 22, 9, 9, 8, 6, 9, 6, 5, 7, 40, 40].map(function(w){ return { wch: w }; });
+      ws2["!cols"] = [5, 11, 10, 9, 9, 13, 22, 9, 9, 8, 6, 9, 5, 7, 40, 40].map(function(w){ return { wch: w }; });
       X.utils.book_append_sheet(wb, ws2, "Trades");
 
       var closes = [["Trade #", "Date", "Type", "Price", "Lots", "Pips", "P/L ($)"]];
@@ -3478,9 +3439,9 @@
     var rep = weekReport();
     return loadLibs(LIB_URLS.pdf).then(function(){
       var doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-      var HEAD = [20, 20, 24], INK = [255, 255, 255], GREEN = [22, 140, 80], RED = [200, 40, 55];
+      var GOLD = [20, 20, 24], INK = [255, 255, 255], GREEN = [22, 140, 80], RED = [200, 40, 55];
       var M = 36;
-      var headStyles = { fillColor: HEAD, textColor: INK, fontStyle: "bold" };
+      var headStyles = { fillColor: GOLD, textColor: INK, fontStyle: "bold" };
       function plColor(data, col){
         if(data.section !== "body" || data.column.index !== col) return;
         var raw = data.row.raw[col];
@@ -3492,7 +3453,7 @@
       doc.text(pdfText(APP_NAME + " - Weekly Summary"), M, 40);
       doc.setFontSize(10);
       doc.setTextColor(90);
-      doc.text(pdfText("Week " + rep.range.start + " to " + rep.range.end + "   |   " + rep.source +
+      doc.text(pdfText("Week " + rep.range.start + " to " + rep.range.end +
         (rep.who ? "   |   " + rep.who : "") + "   |   generated " + rep.generated), M, 56);
       doc.setTextColor(0);
 
@@ -3514,11 +3475,11 @@
       doc.autoTable({
         startY: y, margin: { left: M, right: M }, theme: "striped",
         head: [["#", "Date", "Session", "Pair", "Dir", "Source", "Bias D/4H/1H/15M", "Entry", "Stop",
-          "SL pips", "Lots", "P/L", "R", "Idea", "Result"]],
+          "SL pips", "Lots", "P/L", "Idea", "Result"]],
         body: rep.trades.map(function(t){
           return [t.n, t.date, pdfText(t.session), pdfText(t.pair), t.direction, pdfText(t.source), t.bias,
             pdfNum(t.entry, t.priceDp), pdfNum(t.stop, t.priceDp), pdfNum(t.slPips, 1), pdfNum(t.lots, 2), pdfUsd(t.pl),
-            t.r === null ? "-" : (t.r > 0 ? "+" : "") + t.r.toFixed(2) + "R", t.idea, t.result];
+            t.idea, t.result];
         }),
         headStyles: headStyles, styles: { fontSize: 8, cellPadding: 3 },
         didParseCell: function(data){ plColor(data, 11); }
@@ -3558,9 +3519,10 @@
   btnWkXlsx.addEventListener("click", function(){ withBusy(btnWkXlsx, "Preparing…", exportWeekXlsx); });
 
   // ---------- export / import ----------
-  // Backups made by this journal carry this id and version.
-  var EXPORT_APP = "trade-journal";
-  var EXPORT_VERSION = 1;
+  // Backup files keep this id from when the app was called Callisto Journal,
+  // so every backup made before the rename still imports.
+  var EXPORT_APP = "callisto-journal";
+  var EXPORT_VERSION = 3;
 
   document.getElementById("btn-export").addEventListener("click", function(){
     var payload = {
@@ -3584,8 +3546,8 @@
   // Returns an error message, or "" if the file is a version 3 backup.
   function importProblem(data){
     var isObject = data && typeof data === "object" && !Array.isArray(data);
-    if(isObject && data.app === "callisto-journal"){
-      return "That backup is from your other journal (Johnson Journal). This journal starts clean and only imports its own backups.";
+    if(isObject && data.version === 2 && data.app === undefined){
+      return "This backup is from the old version 2 of this journal. This version uses a different trade model and can only import its own version " + EXPORT_VERSION + " backups.";
     }
     var ok = isObject &&
       data.app === EXPORT_APP &&
@@ -3593,7 +3555,7 @@
       data.settings && typeof data.settings === "object" && !Array.isArray(data.settings) &&
       Array.isArray(data.trades) &&
       data.trades.every(function(t){ return t && typeof t === "object" && !Array.isArray(t); });
-    return ok ? "" : "That file doesn't look like a backup from this journal.";
+    return ok ? "" : "That file doesn't look like a journal backup (Johnson Journal or this journal, version " + EXPORT_VERSION + ").";
   }
 
   function importText(text){
@@ -3722,14 +3684,12 @@
 
   // Not connected to Supabase yet: say so on the sign-in box and stop here.
   if(!sb){
-    resetForm();
-    showView("list");
     authScreen.hidden = false;
     authForm.hidden = true;
     authLoading.hidden = false;
     authLoading.innerHTML = CONFIGURED ?
       "Couldn't load the database library. Check your connection and reload the page." :
-      "<strong>Almost there.</strong> Open <code>config.js</code> and paste in your Supabase project URL and publishable key (README step 3), then reload.";
+      "<strong>Almost there.</strong> Open <code>config.js</code> and paste in your Supabase project URL and publishable key, then reload.";
     return;
   }
 

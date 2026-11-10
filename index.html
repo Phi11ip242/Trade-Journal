@@ -1,37 +1,41 @@
 <!doctype html>
 <!--
-  TRADE JOURNAL
-  ==============
+  TRADE JOURNAL (built on Johnson Journal v3)
+  ============================================
   Four files: index.html, styles.css, app.js and config.js. No build step —
   host them as a static site (Render, GitHub Pages, Netlify).
 
   config.js is the only file you edit: your Supabase project URL, its
-  publishable key, and the journal's name. See README.md for the full setup.
+  publishable key, and the journal's name. See README.md.
 
   WHERE YOUR DATA LIVES
   ======================
   In your own Supabase project:
     table "trades"    one row per trade; the trade exactly as you typed it
-                      is in the "data" column
-    table "settings"  one row: deposit, sizing, pairs, deposits/withdrawals,
-                      and your Rulebook and Psychology chapters
-  Pips, P/L, R, idea numbers, balances and stats are never stored — they are
+                      is in the "data" column (incl. its account)
+    table "settings"  one row: accounts and their deposits, risk %, stops,
+                      max drawdown, pairs, deposits/withdrawals, Psychology
+  Pips, P/L, idea numbers, balances and stats are never stored — they are
   recalculated from the trades every time the page draws.
 
   You sign in with your own email and password. Row Level Security lets a
   signed-in user read and write only their own rows, and public sign-ups are
   switched off, so the page being public doesn't expose your journal.
 
-  "Export JSON" (top right) downloads everything as one backup file — keep
-  one somewhere safe, e.g. at each weekly review.
+  BACK UP NOW AND THEN
+  =====================
+  "Export JSON" downloads every trade and all settings as one .json file.
+  "Import JSON" loads such a file and REPLACES all trades and settings (it
+  asks first). Johnson Journal backups import directly: their trades go on
+  the first account (AvaTrade).
 -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Trade Journal</title>
-<link rel="stylesheet" href="styles.css">
 <script src="config.js"></script>
+<link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js" defer></script>
 <script src="app.js" defer></script>
 </head>
@@ -99,10 +103,6 @@
           <div class="field field-gap">
             <span class="label">Source</span>
             <div class="seg" id="f-source" role="group" aria-label="Source"></div>
-          </div>
-          <div class="field field-gap" id="f-provider-wrap" hidden>
-            <span class="label">Who called it</span>
-            <div class="seg" id="f-provider" role="group" aria-label="Who called the signal"></div>
           </div>
         </fieldset>
 
@@ -183,7 +183,7 @@
         <select id="ff-session"></select>
       </div>
       <div class="field">
-        <label for="ff-source">Who</label>
+        <label for="ff-source">Source</label>
         <select id="ff-source"></select>
       </div>
       <div class="field">
@@ -215,13 +215,12 @@
             <th class="col-date">Date</th>
             <th>Session</th>
             <th>Dir</th>
-            <th>Who</th>
+            <th>Source</th>
             <th>Bias</th>
             <th class="r">Entry</th>
             <th class="r">SL pips</th>
             <th class="r">Lots</th>
             <th class="r">P/L</th>
-            <th class="r">R</th>
             <th class="r">Idea</th>
           </tr>
         </thead>
@@ -233,24 +232,6 @@
 
   <!-- ============ DASHBOARD VIEW ============ -->
   <section id="view-dash" class="view hidden">
-    <div class="filter-bar">
-      <div class="field">
-        <label for="df-source">Who</label>
-        <select id="df-source"></select>
-      </div>
-      <div class="field">
-        <label for="df-from">From</label>
-        <input type="date" id="df-from">
-      </div>
-      <div class="field">
-        <label for="df-to">To</label>
-        <input type="date" id="df-to">
-      </div>
-      <div class="field filter-clear">
-        <button type="button" class="ghost" id="df-clear">Clear Filters</button>
-      </div>
-    </div>
-    <div class="hint filter-note" id="df-note" hidden></div>
     <div class="panel empty-state" id="dash-empty" hidden>No closed trades yet</div>
 
     <div id="dash-body">
@@ -284,7 +265,7 @@
       </div>
 
       <div class="panel">
-        <h2 class="panel-title">By provider (by idea)</h2>
+        <h2 class="panel-title">By Source (by idea)</h2>
         <div class="mini-scroll">
           <table class="mini-table" id="dash-source"></table>
         </div>
@@ -305,15 +286,19 @@
       <div class="stats-grid" id="size-stand"></div>
     </div>
 
+    <div class="panel protocol" id="protocol-panel"></div>
+
     <div class="panel">
-      <h2 class="panel-title">Risk &amp; plan</h2>
-      <div class="hint">Risk is for the <strong>whole idea</strong> — every entry together, if all of them get stopped. Sizes use the account's current balance and update as it changes. Signal risk is set per provider below. <strong>20% per idea is the hard cap.</strong></div>
+      <h2 class="panel-title">Risk per setup</h2>
+      <div class="hint">Risk is for the <strong>whole idea</strong> — every entry together, if all of them get stopped. Sizes use your current balance and update as it changes. Signals are capped at 20%.</div>
       <div class="grid field-gap sizing-settings">
-        <div class="field"><label for="sz-own">Own trade risk (%)</label><input type="number" step="any" inputmode="decimal" id="sz-own" data-sizing="own"></div>
-        <div class="field"><label for="s-defaultStop">Plan / max stop (pips)</label><input type="number" step="any" inputmode="decimal" id="s-defaultStop" data-setting="defaultStop"></div>
-        <div class="field"><label for="sz-rr">Take profit at (R)</label><input type="number" step="any" inputmode="decimal" id="sz-rr" data-sizing="rr"></div>
-        <div class="field"><label for="sz-beAt">Stop to BE at (R)</label><input type="number" step="any" inputmode="decimal" id="sz-beAt" data-sizing="beAt"></div>
-        <div class="field"><label for="sz-layer">Layer gap (pips)</label><input type="number" step="any" inputmode="decimal" id="sz-layer" data-sizing="layer"></div>
+        <div class="field"><label for="sz-own">Own trades (%)</label><input type="number" step="any" inputmode="decimal" id="sz-own" data-sizing="own"></div>
+        <div class="field"><label for="sz-premium">Premium (%)</label><input type="number" step="any" inputmode="decimal" id="sz-premium" data-sizing="premium"></div>
+        <div class="field"><label for="sz-grindLive">Grind Room live (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindLive" data-sizing="grindLive"></div>
+        <div class="field"><label for="sz-grindSignal">Grind Room signal (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindSignal" data-sizing="grindSignal"></div>
+        <div class="field"><label for="sz-inst">IT / Thomas (%)</label><input type="number" step="any" inputmode="decimal" id="sz-inst" data-sizing="inst"></div>
+        <div class="field"><label for="sz-aj">AJ (%)</label><input type="number" step="any" inputmode="decimal" id="sz-aj" data-sizing="aj"></div>
+        <div class="field"><label for="sz-layer">Layer gap (pips, 20–25)</label><input type="number" step="any" inputmode="decimal" id="sz-layer" data-sizing="layer"></div>
       </div>
       <div class="form-error field-gap" id="sz-error" hidden></div>
     </div>
@@ -321,31 +306,32 @@
     <div class="plan-grid" id="plan-cards"></div>
 
     <div class="panel">
-      <h2 class="panel-title">Trade management — reward : risk</h2>
-      <div class="hint" id="rr-intro"></div>
+      <h2 class="panel-title">Partials — Own &amp; Premium</h2>
+      <div class="hint">10% at TP1, TP2 and TP3, 20% at TP4, 10% at TP5 and TP6, then the last ~30% is the runner you manage. Move the SL to breakeven after TP1. For 3 entries the table is for <strong>one leg</strong> — do the same on each leg. Pips are from that leg's entry.</div>
       <div class="partials-grid field-gap" id="partials-cards"></div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">AJ — reward : risk</h2>
+      <div class="hint" id="aj-intro"></div>
+      <div class="grid field-gap sizing-settings">
+        <div class="field"><label for="sz-ajRR">Take profit at (R)</label><input type="number" step="any" inputmode="decimal" id="sz-ajRR" data-sizing="ajRR"></div>
+        <div class="field"><label for="sz-ajBE">Stop to BE at (R)</label><input type="number" step="any" inputmode="decimal" id="sz-ajBE" data-sizing="ajBE"></div>
+      </div>
+      <div class="mini-scroll field-gap" id="aj-table"></div>
     </div>
 
     <div class="panel">
       <h2 class="panel-title">Settings</h2>
 
       <h2 class="panel-title pairs-title">Accounts</h2>
-      <div class="hint">Each broker account keeps its own money. Starting deposit = what was in it when you started logging here. Adjustment = money in or out before that, if any.</div>
-      <div class="list-rows field-gap" id="s-accounts"></div>
+      <div class="hint">Each broker account keeps its own money. Starting deposit = what was in it when you started logging. Adjustment = money in or out before the ledger below, if any.</div>
+      <div class="pair-rows field-gap" id="s-accounts"></div>
       <div class="pair-add">
         <input type="text" id="s-acct-new" placeholder="New account, e.g. Exness" aria-label="New account name">
         <button type="button" id="s-acct-add">+ Add account</button>
       </div>
       <div class="form-error field-gap" id="s-acct-error" hidden></div>
-
-      <h2 class="panel-title field-gap pairs-title">Signal providers</h2>
-      <div class="hint">Who you follow: the risk % per idea when you take their signals, and their usual stop (it fills the stop on Log Trade and sizes the lots). Every Signal trade is tagged with one of these, so each provider gets their own stats.</div>
-      <div class="list-rows field-gap" id="s-providers"></div>
-      <div class="pair-add">
-        <input type="text" id="s-prov-new" placeholder="New provider, e.g. Thomas" aria-label="New provider name">
-        <button type="button" id="s-prov-add">+ Add provider</button>
-      </div>
-      <div class="form-error field-gap" id="s-prov-error" hidden></div>
 
       <div class="grid field-gap">
         <div class="field">
@@ -400,7 +386,7 @@
       <div class="ms-records-head">
         <h2 class="panel-title">Records (by idea)</h2>
         <div class="field">
-          <label for="ms-source">Who</label>
+          <label for="ms-source">Source</label>
           <select id="ms-source"></select>
         </div>
       </div>
@@ -410,27 +396,312 @@
   </section>
 
   <!-- ============ RULEBOOK VIEW ============ -->
-  <!-- Chapters are saved with your settings and edited in the app. -->
+  <!-- The trading rulebook: CE material plus the decisions made on it.
+       Latest rules only — when a rule changes, edit it in place. -->
   <section id="view-rulebook" class="view hidden">
-    <div class="book" id="book-rulebook">
-      <div class="panel rb-intro book-head">
-        <div class="book-title-row">
-          <h2 class="panel-title">The Rulebook</h2>
-          <button type="button" class="small book-edit">Edit</button>
+    <div class="panel rb-intro">
+      <h2 class="panel-title">The Rulebook</h2>
+      <p>How we trade and what we trade. Price action only: <strong>SMC and ICT combined, no indicators required</strong>. Indicators are optional confluence, never part of an entry.</p>
+      <blockquote>“Making money trading is about putting money in your pocket, not catching the most sniper entries.” — Nick</blockquote>
+      <nav class="rb-toc" id="rb-toc" aria-label="Rulebook chapters">
+        <a href="#rb-checklist">Checklist</a>
+        <a href="#rb-timeframes">Timeframes</a>
+        <a href="#rb-structure">Structure</a>
+        <a href="#rb-liquidity">Liquidity</a>
+        <a href="#rb-ob">Order blocks</a>
+        <a href="#rb-fvg">FVGs</a>
+        <a href="#rb-confirm">Confirmations</a>
+        <a href="#rb-candles">Candles</a>
+        <a href="#rb-sessions">Sessions</a>
+        <a href="#rb-management">SL, TP &amp; partials</a>
+        <a href="#rb-risk">Risk</a>
+        <a href="#rb-psychology">Psychology</a>
+        <a href="#rb-news">News</a>
+        <a href="#rb-optional">Optional confluence</a>
+      </nav>
+      <div class="rb-tools">
+        <button type="button" class="ghost small" id="rb-open-all">Open all</button>
+        <button type="button" class="ghost small" id="rb-close-all">Close all</button>
+      </div>
+    </div>
+
+    <details class="panel rb-chapter" id="rb-checklist" open>
+      <summary>1 · Pre-trade checklist</summary>
+      <ol class="rb-steps">
+        <li><strong>Bias.</strong> Top-down Daily → 4H → 1H → 15M. Mark each bullish or bearish. At least <strong>3 timeframes aligned</strong>.</li>
+        <li><strong>POIs.</strong> On the 15M and higher (15M / 1H / 4H / Daily — the higher, the stronger) mark points of interest near price: order blocks, FVGs, untested session highs/lows. Pick 2 — one to buy, one to sell — and play both sides. <strong>Fresh POIs only</strong>: once a POI has been tapped and rejected it is spent — wait for a new one to form.</li>
+        <li><strong>Tap.</strong> Has price tapped a POI? If not, wait. No tap, no trade.</li>
+        <li><strong>Confirm.</strong> Drop to 1M / 3M / 5M and wait for a valid confirmation in the trade's direction (chapter 7). No confirmation, no trade.</li>
+        <li><strong>Execute.</strong> Stop beyond the structure, plan stop size, TPs set (chapter 10). Size for the full stop on every leg.</li>
+      </ol>
+      <ul>
+        <li><strong>Roles:</strong> the higher timeframe gives the direction, the middle timeframe checks the story still holds, the small timeframe gives the entry. All three agree → take it. They don't → don't.</li>
+        <li>Prefer trades in the direction of the bias. While waiting for the bias POI, a counter-trend trade into it (e.g. buys up into the sell zone) is fine — take heavier, quicker partials.</li>
+        <li><strong>No fresh POI, no confirmation → sit on your hands.</strong> Re-entries can take hours to form; when one does, that's the A+ setup.</li>
+      </ul>
+      <p class="rb-note">Higher probability when: liquidity was swept first, the move away had displacement (FVGs), and the higher timeframe agrees.</p>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-timeframes">
+      <summary>2 · Timeframes &amp; multi-timeframe analysis</summary>
+      <ul>
+        <li>Top-down, higher timeframe to lower: <strong>Weekly → Daily → 4H → 1H → 15M → 5M → 1M</strong> (1M optional). Higher timeframes are trusted over lower ones.</li>
+        <li><strong>Bias:</strong> Daily, 4H, 1H, 15M. <strong>POIs:</strong> 15M and higher — the higher the timeframe, the stronger the POI. <strong>Execution:</strong> 1M, 3M, 5M.</li>
+        <li>The <strong>15M is the bridge</strong>: bias and POIs, not pro-trend entries. A 15M CHoCH confirms an intraday bias flip (and is the preferred confirmation for counter-trend trades); a 1H/4H CHoCH flips the higher-timeframe bias.</li>
+        <li>Minimum <strong>3 timeframes aligned</strong> before a trade; more alignment is extra confluence.</li>
+        <li>Paired confirmation timeframes: <strong>Daily → 1H · 4H → 15M · 1H → 5M</strong>.</li>
+        <li>Macro = 1H / 4H / Daily / Weekly. Micro = 1M / 5M / 15M. Don't get lost in micro retracements.</li>
+      </ul>
+      <p class="rb-note">Example (sell): Daily bearish CHoCH + bearish OB → 4H taps its bearish OB and breaks a higher low (bearish CHoCH) → 1H rejects from an FVG into that OB → 15M bearish CHoCH, then a BOS with a body close → sell the retest of the BOS.</p>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-structure">
+      <summary>3 · Market structure</summary>
+      <ul>
+        <li>Uptrend = higher highs &amp; higher lows. Downtrend = lower highs &amp; lower lows. A retracement is the small move against the trend before it continues.</li>
+        <li>Map swings with <strong>wicks</strong>; confirm breaks only with a <strong>body candle close (BCC)</strong>. A wick through is weak — expect a deeper pullback or invalidation.</li>
+        <li><strong>BOS</strong> (break of structure) = break in the trend's direction — continuation.</li>
+        <li><strong>CHoCH</strong> (change of character) = break against the trend — first sign of a reversal. Bullish CHoCH: in a downtrend, a BCC above the most recent high. Bearish: in an uptrend, a BCC below the most recent low.</li>
+        <li>A valid CHoCH has at least one of: liquidity taken before the break, a strong displacement candle, or it happens at a premium/discount extreme. Ignore weak breaks with tiny candles, breaks inside a tight range, breaks with no prior trend, breaks of a random wick.</li>
+        <li><strong>Structure is king</strong> — in trends <em>and</em> ranges. In a range, still read the structure for direction instead of buying the bottom and selling the top.</li>
+        <li><strong>Weak CHoCH</strong> (wick only, no body close) = not enough strength → expect a deeper pullback, and look for trades <em>in the pullback's direction</em> on the lower timeframes.</li>
+        <li><strong>Stack the timeframes:</strong> e.g. Daily bullish CHoCH (body close) + 4H weak bearish CHoCH (deeper pullback up expected) + 15M strong bullish = buys have the edge.</li>
+        <li><strong>Premium / discount:</strong> split the range at 0.5 (swing low to swing high in an uptrend, lower high to lower low in a downtrend). Above 0.5 = premium → look for sells, avoid longs. Below 0.5 = discount → look for buys, avoid shorts.</li>
+      </ul>
+      <h3 class="rb-sub">Trading a range</h3>
+      <ul>
+        <li>The market ranges most of the time — ranges are still tradeable.</li>
+        <li>Trade in the direction of the structure until price reaches the <strong>untaken liquidity</strong>: Asian high/low, London high/low, New York high/low, NY lunch high/low. Take the real partials there.</li>
+        <li>Once that liquidity is tapped and a reversal shows, counter-trend trades are allowed — managed aggressively (bigger, earlier partials) until structure itself turns.</li>
+        <li>Pro-trend trades in a range: let them run further.</li>
+        <li><strong>Moves inside a range:</strong> once price has tapped one extreme of the range (range high/low) and starts moving away with volume, use lower-timeframe FVGs (3M/5M) to ride it toward the other end. Not before an extreme has been tapped. Low volume = take heavier partials.</li>
+        <li><strong>Don't chase breakouts at the edges.</strong> In a range, pushes past the top/bottom usually fail. Flip it: the push past the edge is the <strong>sweep</strong>, and the snap back inside is the cue to trade toward the other side.</li>
+        <li><strong>A sweep needs the snap-back.</strong> If price pushes past the level and stays out, it isn't a sweep — it may be a real breakout and the range may be ending. Step back, re-analyse, don't force another trade.</li>
+        <li><strong>Use session liquidity as the zones</strong> (Asian / London / NY highs and lows — the KZP [TFO] indicator marks them). Give the zone ~100 pips of breathing room, wait for price to step into it, then use any of the three confirmations (CHoCH, iFVG, engulfing). A HTF POI at the edge (e.g. a 1H FVG) adds weight.</li>
+        <li>Don't trade the chop in the middle (equal highs/lows bouncing up and down) — wait until liquidity is swept. If the move has already run far from the sweep (~100+ pips) before a confirmation shows, it's missed: no entry.</li>
+        <li>Ranges show up more in the slower periods (summer, and the end of the year).</li>
+      </ul>
+    </details>
+
+
+    <details class="panel rb-chapter" id="rb-liquidity">
+      <summary>4 · Liquidity</summary>
+      <p>Liquidity = resting buy and sell orders (mostly stop losses) at price levels. Price moves to collect them.</p>
+      <div class="rb-box">
+        <h3>Why we don't trade support &amp; resistance</h3>
+        <p>Most courses teach support (a floor) and resistance (a ceiling). We don't trade them: where to draw them is subjective — bodies, wicks, how much room — and the levels most traders see as support/resistance are exactly where their stops sit. Price goes there to collect those stops. So we read the same levels as <strong>liquidity</strong>, and use <strong>structure</strong> for direction.</p>
+      </div>
+      <ol>
+        <li><strong>Structural highs/lows</strong> — the most recent HH &amp; HL (uptrend) or LH &amp; LL (downtrend); stops sit beyond them.</li>
+        <li><strong>Swing highs/lows</strong> — sharp reversals that made a CHoCH; reversal traders' stops sit beyond them.</li>
+        <li><strong>Equal highs/lows</strong> (liquidity pools) — look like resistance/support to new traders; usually built to trap them.</li>
+        <li><strong>Trendline liquidity</strong> — multiple touches; scalpers' stops sit just past the line; price usually comes back for them.</li>
+        <li><strong>Session range</strong> — stops above each session's high and below its low (Asia range especially; London/NY often take one side). The NY lunch high/low counts too.</li>
+      </ol>
+      <ul>
+        <li><strong>Sweep</strong> = a wick beyond the level with the body closing back inside. A body close through is a break, not a sweep.</li>
+        <li>Use liquidity two ways: as <strong>targets</strong> for TPs and partials, and as <strong>extra confirmation</strong> once it has been swept.</li>
+        <li><strong>Hourly, 4H and daily highs/lows</strong> are liquidity too, and areas where price can reverse.</li>
+        <li><strong>Inducement</strong> = a "fake" high/low built just before a POI to trap stops; it fuels the move into the real order block.</li>
+      </ul>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-ob">
+      <summary>5 · Order blocks</summary>
+      <ul>
+        <li>Where banks/institutions buy or sell. To buy cheap they push price down first; to sell high they push it up first.</li>
+        <li><strong>Bullish OB</strong> = the last candle that made the lowest point before an impulse up that breaks previous highs. <strong>Bearish OB</strong> = the last candle that made the highest point before an impulse down that breaks previous lows. Drawn wick to wick.</li>
+        <li><strong>Not valid until it has broken structure:</strong> a bearish OB only counts once the move out of it has made a new lower low (a bullish OB, a new higher high). Until then, don't use it.</li>
+        <li>Trade it on the <strong>retest</strong>, with a lower-timeframe confirmation.</li>
+        <li><strong>High-probability criteria</strong> (need at least <strong>2 of 4</strong>; more = better):
+          <ol>
+            <li>Liquidity sweep before the OB formed.</li>
+            <li>FVG in the impulse leg out of the OB (displacement = real volume).</li>
+            <li>Inducement before price returns to the OB.</li>
+            <li>Higher-timeframe alignment — HTF bullish → LTF bullish OBs; HTF bearish → LTF bearish OBs.</li>
+          </ol>
+        </li>
+        <li><strong>Fails</strong> on a body candle close through it. A wick through may only be a sweep before it holds.</li>
+      </ul>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-fvg">
+      <summary>6 · Fair value gaps &amp; inverse FVGs</summary>
+      <ul>
+        <li>A gap left when price moves too fast for all orders to fill — unfilled limits that price returns to collect.</li>
+        <li><strong>Bullish FVG</strong>: top wick of candle 1 and bottom wick of candle 3 don't touch. <strong>Bearish FVG</strong>: bottom wick of candle 1 and top wick of candle 3 don't touch. Any timeframe.</li>
+        <li><strong>Only draw it once candle 3 has closed.</strong> While candle 3 is still forming the gap can disappear.</li>
+        <li>An FVG's job is <strong>continuation of the trend</strong>. With several in a row, use the <strong>most recent</strong> one.</li>
+        <li>A <strong>wick tap</strong> into the FVG activates it. Use it with a confirmation (CHoCH or engulfing), not on its own.</li>
+        <li><strong>Fails</strong> when a candle body closes through it → it becomes an <strong>iFVG</strong>, which can be retested to trade the other way.</li>
+        <li>Use FVGs as areas to look for entries and as <strong>targets</strong> — gaps get filled at some point.</li>
+        <li><strong>No FVGs = no volume = range → wait.</strong> When FVGs start printing on the 15M and higher, volume is stepping in and the trend is starting — pay attention.</li>
+        <li>An untested higher-timeframe FVG (e.g. 4H) is a target for price and a POI for the opposite trade.</li>
+        <li><strong>The trend is the reason, the FVG is the timing.</strong> Trade an FVG only in the trend's direction — bullish FVGs in an uptrend, bearish FVGs in a downtrend, never against it. Not every FVG fills, and not every fill continues — so the trend has to be clear first.</li>
+        <li>Only in a trend — or, in a range, only after price has tapped a range extreme and starts moving away with volume (see Market structure → Trading a range). Don't trade FVGs in the middle of a range. Don't take every FVG; look for one beside liquidity, after a sweep, inside a HTF zone.</li>
+      </ul>
+      <h3 class="rb-sub">Fast moves — don't wait for the deep pullback</h3>
+      <ul>
+        <li>In an aggressive move price only gives shallow pullbacks. Use the <strong>lower-timeframe FVGs (3M / 5M / 15M)</strong> left behind as entry areas instead of waiting for the big discount.</li>
+        <li>Use the <strong>most recent</strong> one. If price body-closes through an earlier one, the move is failing — expect a deeper pullback.</li>
+        <li>After the tap, drop to the 1M: wait for a body close past the most recent lower high (buys) / higher low (sells), enter on the retest, stop beyond the swing. No retest = no trade — missing a move is fine, chasing it isn't.</li>
+        <li>The aim is a portion of the move (20–100 pips), not the top or bottom.</li>
+        <li>When the pullbacks start getting bigger or price stops making new highs/lows, the trend is tiring — protect the profit.</li>
+      </ul>
+      <p class="rb-note">FVG entry model: mark a HTF FVG → wait for the tap → drop to the paired timeframe → CHoCH with a body close → enter on the retest.</p>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-confirm">
+      <summary>7 · Confirmations (the entry trigger)</summary>
+      <p>A confluence says <em>where</em> and <em>which direction</em> (2+ concepts agreeing). A confirmation says <em>now</em>. Every trade needs both.</p>
+      <div class="rb-box">
+        <h3>POI first, confirmation second — always in that order</h3>
+        <p>Don't just set a limit at a POI: price can blast straight through it. Mark the zone (e.g. ~100 pips around session liquidity like the Asian or NY PM high), wait for price to reach it / sweep the liquidity, <em>then</em> hunt for a confirmation on the 1M/3M/5M. A confirmation at a random spot is still a bad trade.</p>
+        <p><strong>Strength order (strongest → most aggressive):</strong></p>
+        <ol>
+          <li><strong>CHoCH</strong> — follows structure, the safest. Body close only: if the CHoCH closed with a wick, the market isn't ready — wait for a deeper pullback or a body close, then enter on the retest.</li>
+          <li><strong>iFVG</strong> — an earlier sign of the switch, can form while structure is still the other way. Valid, but price returns to the entry more often.</li>
+          <li><strong>Engulfing</strong> — the fastest, relies only on volume in one candle; expect drawdown or chop before the move.</li>
+        </ol>
+        <p><strong>Stacking is strongest:</strong> e.g. an engulfing candle that creates the CHoCH right at your level.</p>
+      </div>
+      <div class="rb-cards">
+        <div class="rb-card">
+          <h3>Pro-trend (standard)</h3>
+          <ol><li>CHoCH in the trend's direction with a body close.</li><li>Retest of the CHoCH level → valid entry.</li><li>Engulfing candle on the retest → A+ (stronger confirmation).</li></ol>
+          <p class="rb-note">Both are used: the first leg can come on the retest, or on the engulfing.</p>
         </div>
-        <p>How I trade and what I trade. Latest rules only — when a rule changes, edit it in place.</p>
-        <nav class="rb-toc" aria-label="Rulebook chapters"></nav>
-        <div class="rb-tools book-tools">
-          <button type="button" class="ghost small book-open-all">Open all</button>
-          <button type="button" class="ghost small book-close-all">Close all</button>
-          <button type="button" class="ghost small" id="rb-reset" title="Replace every chapter with the starter version">Reset to starter</button>
+        <div class="rb-card">
+          <h3>Counter-trend</h3>
+          <ol><li>CHoCH against the trend with a body close — preferably on the <strong>5M or 15M</strong> (higher timeframe = stronger sign of a reversal).</li><li>Retest of the CHoCH → enter, or wait for an engulfing on the retest (A+).</li></ol>
+          <p class="rb-note">On the 1M/3M a CHoCH alone is weaker — there, add the BOS (body close) + retest before entering. Manage counter-trend trades aggressively.</p>
+        </div>
+        <div class="rb-card">
+          <h3>iFVG</h3>
+          <ol><li>FVG fails (body close through) → iFVG.</li><li>Retest of the iFVG → enter (a limit at the iFVG is fine once the body close is in).</li></ol>
+          <p class="rb-note">SL above/below the structure high/low that created the gap. An engulfing after the retest makes it stronger. Take partials and go risk-free — iFVG trades often come back to the entry.</p>
+        </div>
+        <div class="rb-card">
+          <h3>Internal BOS</h3>
+          <p>A break of internal structure in the trade's direction with a body close, then the retest → enter.</p>
+        </div>
+        <div class="rb-card">
+          <h3>Aggressive (AGG)</h3>
+          <p>Engulfing at the POI on its own, no retest. Pro-trend: with strong higher-timeframe confluence. Counter-trend: only at tapped liquidity (Asian / London / NY high or low), on a 3M/5M engulfing or CHoCH, managed aggressively.</p>
         </div>
       </div>
-      <div class="book-body"></div>
-    </div>
+      <p class="rb-note">More entry models get added here as we use them.</p>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-candles">
+      <summary>8 · Candles</summary>
+      <p>Structure, POIs and liquidity are the base; candles are the cherry on top — the exact point of entry.</p>
+      <ul>
+        <li><strong>Engulfing</strong> — the body must close past the previous candle's wick (below its low for bearish, above its high for bullish).</li>
+        <li><strong>Morning / evening star</strong> — 3 candles: trend candle, small middle candle (either colour, little to no body, close to a doji/dragonfly doji), then a candle closing past 50% of candle 1's body. Best at a POI or liquidity level.</li>
+        <li><strong>Doji</strong> — open ≈ close, indecision; wait for the break either way. <strong>Dragonfly</strong> (long lower wick) = bullish at lows; <strong>gravestone</strong> (long upper wick) = bearish at highs.</li>
+        <li><strong>Hammer</strong> — long lower wick, no upper wick → bullish reversal. <strong>Shooting star</strong> — long upper wick, no lower wick → bearish reversal.</li>
+        <li><strong>Tweezers</strong> — two almost identical candles of opposite colour; tops (bull then bear) at the end of uptrends, bottoms (bear then bull) at the end of downtrends.</li>
+      </ul>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-sessions">
+      <summary>9 · Sessions &amp; kill zones</summary>
+      <ul>
+        <li>Asia, London and New York are defined by the <strong>session indicator</strong> (New York time, adjusts for clock changes on its own).</li>
+        <li>London often ranges; New York brings the volume and the expansion — that is where FVG entries set up.</li>
+        <li>Untested session highs and lows are POIs and liquidity. Mark the Asia range; London and New York often take one side of it.</li>
+      </ul>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-management">
+      <summary>10 · Stop loss, take profit &amp; partials</summary>
+      <ul>
+        <li><strong>Stop</strong> just beyond the structure the confirmation came from (the sweep wick or the CHoCH swing, on 15M/1H structure). Planned in pips: <strong>100</strong> for own trades and Premium, <strong>120</strong> for Grind Room signals and live trades. On split entries, measured from the worst entry, one stop for the whole basket.</li>
+        <li><strong>Split entries:</strong> first leg on the confirmation, then add a leg every <strong>20 pips</strong> of drawdown, all sized for the full stop.</li>
+        <li><strong>TPs:</strong> TP1 20 · TP2 40 · TP3 60 · TP4 100 pips · TP5 the higher-timeframe liquidity. Liquidity pools and FVGs make good targets.</li>
+        <li><strong>Partials:</strong> 10% at TP1, TP2 and TP3, 20% at TP4, the rest runs. Smaller partials when the market is clearly with you; bigger when it looks like turning, volume dies or a reversal shows. Counter-trend trades: bigger, earlier partials.</li>
+        <li><strong>Breakeven:</strong> stop to entry after TP1 (20 pips), not before — 10 pips in profit is not a reason to go BE. Then leave it. No trailing or hovering.</li>
+        <li>Set and forget: enter knowing you're OK losing the money, then let the plan run.</li>
+      </ul>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-risk">
+      <summary>11 · Risk management</summary>
+      <ul>
+        <li><strong>Per trade:</strong> 1% = safe, 3–5% = caution, never more than <strong>5%</strong> of the account on one trade. Don't use your whole margin.</li>
+        <li>Don't change lot size intraday on the same stop — two wins, size up, one loss = net down despite winning more. Until the account has doubled, stick to the risk parameters.</li>
+        <li>Win big, lose small. Ideal: win 5% of the account, lose 2%.</li>
+        <li>No limit on the number of trades — a valid, well-executed setup gets taken. Overtrading means trading <em>without</em> a valid setup.</li>
+        <li><strong>Daily stop:</strong> hit the <strong>30% drawdown</strong> limit = done for the day. No more trading until the next day.</li>
+      </ul>
+      <div class="rb-box">
+        <h3>Current phase — scaling</h3>
+        <p>For now risk is higher to scale faster: <strong>20% max per idea</strong> on Callisto signals (Premium, Grind Room, Institutional), own trades about 5% (a guide). Once income averages 5k–10k a month, step down: to 5% and below, then 2%, then 1% and below.</p>
+      </div>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-psychology">
+      <summary>12 · Psychology &amp; discipline</summary>
+      <p>The method is the easy part. Execution decides the results — and that is psychology. Read this chapter once a week.</p>
+      <h3 class="rb-sub">Trust the plan</h3>
+      <ul>
+        <li>“Everyone wants the model to pay for their lifestyle, but not everyone trusts the model with their life.” — Thomas. Closing early on a pullback, skipping the next valid setup after two losses, hunting a new strategy after a losing week: that's trading your feelings, not the model.</li>
+        <li><strong>All models lose. Losses are data.</strong> Following the plan only when it feels comfortable can't give you its results.</li>
+        <li>Trusting the model does <em>not</em> mean throwing size at it. Same entries, same risk, same stops, same management — every time. Boring, repetitive, unemotional.</li>
+        <li>Confidence is built from evidence, through reps. Not trusting the plan means not enough reps yet — not a reason to quit. Your journal is the evidence.</li>
+        <li><strong>Judge the day by whether you followed the plan, not by the profit.</strong> Following the plan and losing is a good day. Gambling and winning is not.</li>
+        <li>You're not using your time to make money, you're using money to make money. Waiting 2–3 hours for a re-entry is part of the job.</li>
+        <li>The salary test: if you'd only be paid after 12 months for following the plan 100% every day, would you do it? Trading is exactly that.</li>
+        <li>The goal isn't more trades — it's good ones you can trust. If the plan makes you skip setups you used to take, it's working.</li>
+      </ul>
+      <h3 class="rb-sub">The traps</h3>
+      <ul>
+        <li><strong>Revenge trading / chasing losses.</strong> “One more trade will make my losses back” is how one loss becomes three. After a loss, the next trade still needs a full setup.</li>
+        <li><strong>Covering a trade.</strong> Never open the opposite trade to hedge a position you're scared of. Trust the trade or close it — never cover it.</li>
+        <li><strong>FOMO / late entries.</strong> A missed signal is a missed signal. Stay out unless a fresh, valid confirmation forms for a re-entry.</li>
+        <li><strong>Profit chasing.</strong> Jumping in early on a weak confirmation to get a “better” entry. No valid confirmation, no trade.</li>
+        <li><strong>Fearing out.</strong> Closing a valid trade early because it pulls back. The stop is the plan — let it do its job.</li>
+        <li><strong>Breakeven too early.</strong> Moving to BE before TP1 gets you tapped right before the move. Especially after a loss, when fear is loudest.</li>
+        <li><strong>Fiddling with the stop.</strong> Once it's at BE, leave it — no trailing, no hovering.</li>
+        <li><strong>Panic closes.</strong> Force-closing in drawdown or near margin — usually a sign the position was too big. Size so you can sit through the full stop.</li>
+        <li><strong>Sizing up after wins.</strong> Two wins, feeling confident, bigger lots — one loss and you're net down. Keep the risk the same.</li>
+        <li><strong>Greed and denial.</strong> “Press button, print money” — and the opposite: refusing to close a loser because you don't want to make the loss real.</li>
+        <li><strong>Deadlines.</strong> Money targets with a timeline make you chase. Goals are milestones, not deadlines.</li>
+      </ul>
+      <h3 class="rb-sub">Habits</h3>
+      <ul>
+        <li>Check the lot size before every entry.</li>
+        <li>Stop loss in with the order — never “I'll add it in a second”.</li>
+        <li>Enter knowing you're OK losing that money, then set and forget.</li>
+        <li>On a basket, when the worst leg comes back to entry, put its TP at entry so a wick takes it out at BE.</li>
+        <li>Write the plan and the emotion in the journal for every trade — that's where the next lesson comes from.</li>
+      </ul>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-news">
+      <summary>13 · Fundamentals &amp; news</summary>
+      <ul>
+        <li>Check <strong>forexfactory.com</strong> every day for red-folder events.</li>
+        <li>Big movers: interest rates / FOMC, CPI, NFP, employment, GDP, PCE, central-bank speeches (Fed, ECB, IMF).</li>
+        <li>For USD: higher rates, higher employment, higher GDP, higher NFP → USD up → usually gold down. Hawkish tone = USD strength; dovish = weakness.</li>
+        <li>Sudden moves hit all USD pairs straight after a release — expect spikes and slippage.</li>
+      </ul>
+    </details>
+
+    <details class="panel rb-chapter" id="rb-optional">
+      <summary>14 · Optional confluence</summary>
+      <p>Extra tools to test. <strong>Never</strong> a confirmation or an entry requirement.</p>
+      <ul>
+        <li><strong>Moving averages</strong> — act like soft support/resistance; 200 = long-term trend, 50 = short-term. SMA is steadier (swing), EMA reacts faster (scalping).</li>
+        <li><strong>RSI (14)</strong> — use divergence (price higher high, RSI lower high = momentum fading), mostly on 15M–30M. Lagging and useless on its own.</li>
+        <li><strong>Fibonacci</strong> — the 0.5 split for premium/discount.</li>
+      </ul>
+    </details>
   </section>
 
   <!-- ============ PSYCHOLOGY VIEW ============ -->
+  <!-- Chapters are saved with your settings and edited in the app. -->
   <section id="view-psychology" class="view hidden">
     <div class="book" id="book-psychology">
       <div class="panel rb-intro book-head">
@@ -461,7 +732,6 @@
         <button type="button" class="ghost small" id="wk-prev" aria-label="Previous week">&lsaquo;</button>
         <div class="week-range" id="week-range-label"></div>
         <button type="button" class="ghost small" id="wk-next" aria-label="Next week">&rsaquo;</button>
-        <select id="wk-source" class="wk-source" aria-label="Source"></select>
         <div class="week-export">
           <button type="button" class="ghost small" id="wk-pdf">Download PDF</button>
           <button type="button" class="ghost small" id="wk-xlsx">Download Excel</button>
@@ -471,7 +741,6 @@
     </div>
 
     <div class="panel empty-state" id="weekly-empty" hidden>No trades this week</div>
-    <div class="panel" id="weekly-trades" hidden></div>
 
   </section>
 
