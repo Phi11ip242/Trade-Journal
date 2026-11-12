@@ -1018,6 +1018,215 @@ window.BOOTCAMPS = {
           "<strong>Management — AJ:</strong> the trade's SL/TP first, then official updates, own discretion close to inactive; BE at 1:1, then \"close when happy\" near the target. <strong>Rulebook:</strong> fixed partial plan (10/10/10/20% at TP1–TP4, rest runs) and BE after TP1. Different exit styles — the journal's partials fields handle both.",
           "<strong>Open positions — AJ:</strong> 2–3 at once during the bootcamp, and count gold, silver, EURUSD and GBPUSD as one dollar opinion. <strong>Rulebook:</strong> no cap. Relevant to AvaTrade, where Callisto baskets and AJ gold trades can overlap — both are dollar trades on gold."
         ]
+      },
+      {
+        num: 11,
+        title: "Journaling & Review",
+        tagline: "The mirror your trading needs. Memory is a story; the journal is the data, and the two disagree constantly — always in memory's favour. Shortest module, highest-leverage habit.",
+        lessons: [
+          {
+            code: "L11.1",
+            title: "What to record on every trade",
+            html:
+              "<p>MetaTrader history already has the objective half (times, prices, volume, result). The journal adds what the platform can't see:</p>" +
+              "<ul>" +
+              "<li><strong>The setup</strong> — which signal or idea, instrument, direction, and a <strong>screenshot at entry with the levels visible</strong>. Not optional: in review it's the difference between remembering and seeing.</li>" +
+              "<li><strong>The numbers in R</strong> — planned risk, planned target, outcome in R (not just dollars).</li>" +
+              "<li><strong>Execution quality</strong> — sized correctly, SL and TP at entry, updates followed? Yes, or what deviated. This field is the whole point.</li>" +
+              "<li><strong>State</strong> — one honest word on how you felt entering and managing: calm, chasing, hesitant, bored.</li>" +
+              "</ul>" +
+              "<p>Format matters less than existence — whatever you'll actually keep up wins.</p>"
+          },
+          {
+            code: "L11.2",
+            title: "The weekly review (15 minutes)",
+            html:
+              "<p>Same time each week, ideally the weekend:</p>" +
+              "<ol>" +
+              "<li><strong>Total the week in R</strong> — one number.</li>" +
+              "<li>Reread each trade's execution field and grade it <strong>A</strong> (followed the plan completely, whatever the outcome) or <strong>B</strong> (deviated: wrong size, late entry, missing stop, early close, moved stop).</li>" +
+              "<li>Count the B trades and name each deviation. That's the whole diagnosis.</li>" +
+              "<li>Write <strong>one sentence</strong> for next week, aimed at the most common deviation.</li>" +
+              "</ol>" +
+              '<div class="rb-box"><p>The review doesn\'t judge whether trades won. A losing week of all A trades is variance — nothing to fix. A winning week of B trades is a loan from luck, and it will be collected.</p></div>'
+          },
+          {
+            code: "L11.3",
+            title: "Finding your patterns",
+            html:
+              "<p>After three or four weeks the journal becomes a dataset. Classic patterns: fine in London, poor in dead-hours boredom trades; moved stops clustering on one instrument (usually gold — its speed causes the most fear); B trades on days the state says tired or annoyed; chased entries right after a missed winner.</p>" +
+              "<p>Find them by sorting: group by <strong>session, instrument, A vs B, state</strong>, and compare the R total of each bucket. One bucket usually pays for another. The repair is rarely dramatic — usually <strong>stop trading the bucket that bleeds</strong>.</p>"
+          },
+          {
+            code: "L11.4",
+            title: "Why it's the fastest fix",
+            html:
+              "<p>Beginners lose through execution, sizing, stops and psychology — not analysis, which the signals already supply. So nearly every real problem lives in the gap between the plan and what you did, and the journal is the only thing that photographs that gap. Memory protects your self-image; the journal protects your account. After a losing week, pages of A trades are the receipt that the process held.</p>"
+          },
+          {
+            code: "L11.5",
+            title: "Their journal tool",
+            html:
+              "<p>Currency Squad has a journal in the portal (video tutorial there): post a chart screenshot per timeframe, enter the risk you placed, and it reads entry, symbol, timeframe, stop and result from the screenshots. On close it asks where your stop ended up (so trailed stops, reduced losses and breakevens are recorded truthfully). It reports win % overall and per instrument; results by day, month, session and time of entry; R milestone stats (how often trades reached 1R and beyond); separate scoring per account; and a <strong>paper trading</strong> category (post the idea before, the result after). It doesn't grade you — A/B and the state word stay your job.</p>"
+          }
+        ],
+        mistakes: [
+          "<strong>Journaling only losses.</strong> Winning B trades are the most dangerous entries in the book.",
+          "<strong>Recording everything, reviewing nothing.</strong> An unreviewed journal is a scrapbook; the 15 weekly minutes are where the value is.",
+          "<strong>Grading by outcome instead of execution.</strong> The market grades outcomes; you grade process.",
+          "<strong>Quitting after missing a week.</strong> A journal with holes beats a memory with none."
+        ],
+        quiz: [
+          { q: "One trade followed the plan perfectly and lost 1R; another broke the sizing rules and won 2R. Grade them.", a: "The first is an A (plan followed — the loss is variance). The second is a B (it deviated — the win was luck, and that habit will cost later)." },
+          { q: "Why is the entry screenshot non-negotiable?", a: "In review it lets you see what the chart actually showed at entry, instead of what memory reconstructs afterwards." },
+          { q: "+6R in London trades, −5R in trades tagged bored outside your window. The repair?", a: "Stop trading outside your window. Cutting the bleeding bucket costs nothing and needs no new skill." },
+          { q: "What single number opens the weekly review, and why that unit?", a: "The week's total in R — comparable across weeks and account sizes, and free of the dollar emotions." }
+        ],
+        task: "Set up your journal today (theirs, or a spreadsheet with the four areas from L11.1). Enter your Module 10 practice trade in full: screenshot, planned R, outcome, execution grade and one state word. Then put a recurring 15-minute weekly review in your calendar for the weekend, and treat the first one as an appointment you can't miss.",
+        vsRulebook: [
+          "<strong>This journal vs theirs:</strong> your journal already logs the setup, entries, stop, TPs, result and account per trade, and has the Weekly Review tab. What AJ adds that it doesn't have yet: an <strong>A/B execution grade</strong>, a one-word <strong>state</strong>, results <strong>in R</strong>, and R totals by session / instrument / grade / state. I can add those to Log Trade and the Weekly Review if you want them.",
+          "<strong>Review — AJ:</strong> weekly, judged on process (A vs B), not on whether trades won; one sentence for next week. <strong>Johnson Journal habit:</strong> weekly review with the PDF/Excel export and the loss protocol, judged mostly on results. Decide whether to add the A/B count to the weekly report.",
+          "<strong>Paper trades:</strong> their journal has a paper-trading category; yours doesn't. Useful for logging AJ signals on Kudo while you're not trading that account yet."
+        ]
+      },
+      {
+        num: 12,
+        title: "Psychology",
+        tagline: "The opponent is in the chair. The gap between knowing and doing is psychology. Not about becoming emotionless — about a process that holds when emotions arrive, because they will.",
+        lessons: [
+          {
+            code: "L12.1",
+            title: "The four beginner killers",
+            html:
+              "<ul>" +
+              "<li><strong>Revenge trading</strong> — a loss feels personal and the urge is to win it back now, usually bigger. The loss was 1R of planned cost; bigger means the drawdown table works against you at double speed. The fastest route from a normal losing day to a destroyed account — which is why the daily limit removes you before the feeling gets a vote.</li>" +
+              "<li><strong>Overtrading</strong> — feels productive, like working hard. Every trade outside the plan is a fee to the spread and a withdrawal from attention. The journal exposes it: bloated trade count, pile of B grades, bored or restless state column. The market pays for waiting well and charges for activity.</li>" +
+              "<li><strong>FOMO</strong> — the surge when price runs without you. A missed trade costs nothing; five instruments produce setups every week, forever. The only trades you can truly miss are the ones a blown account is no longer around to take.</li>" +
+              "<li><strong>Fear of pulling the trigger</strong> — the hand hovers while the entry closes, usually after a losing streak. Same disease: single outcomes given emotional weight the maths never gave them. The repair is mechanical: when risk is truly small and the procedure is rehearsed, the trade is a routine action with a known worst case, and routine actions don't need courage.</li>" +
+              "</ul>"
+          },
+          {
+            code: "L12.2",
+            title: "The problem is almost never your entries",
+            html:
+              "<p>Struggling beginners blame entries and switch strategies — and the results follow them, because the thing producing the results came along too. With sound risk-reward maths, entries only need to be adequate (L9.3). What turns adequate into disaster is execution: oversizing, moved stops, revenge sequences, chased entries — all visible as B grades, none fixed by a new strategy. Good news: you don't need to out-analyse the market, only to out-discipline yourself, and discipline is trainable.</p>"
+          },
+          {
+            code: "L12.3",
+            title: "Building a routine",
+            html:
+              "<p>Willpower drains and markets are always open; routine survives because it removes the decisions where feelings vote. Assembled from the course:</p>" +
+              "<ul>" +
+              "<li><strong>Weekly (Module 8)</strong> — calendar check: high-impact events in your time, noted before the week opens.</li>" +
+              "<li><strong>Daily, before your window</strong> — 30 seconds of higher-timeframe context on the watchlist, today's news, and where you stand against your daily/weekly limits.</li>" +
+              "<li><strong>Per signal (Module 10)</strong> — read, calculate, verify, place with SL and TP, journal the entry.</li>" +
+              "<li><strong>Daily at close</strong> — journal trades, one state word, <strong>platforms shut at a defined time</strong>. A trading day needs an end.</li>" +
+              "<li><strong>Weekly (Module 11)</strong> — the 15-minute review, in the calendar, non-negotiable.</li>" +
+              "</ul>" +
+              "<p>About 30 minutes a day around your window. On bad days the routine doesn't ask how you feel — just what's next on the list.</p>"
+          },
+          {
+            code: "L12.4",
+            title: "After a losing day, and after a winning day",
+            html:
+              "<p><strong>Losing day:</strong> if the limit was hit, you're done. Either way, journal honestly, grade, and check: were they A trades? A losing day of A trades needs nothing but a shrug — change absolutely nothing. If they were B trades, the deviations are the lesson, not the loss, and tomorrow's one sentence comes from them.</p>" +
+              "<p><strong>Winning day:</strong> run the identical audit — winning days hide the sneakiest damage. A green day of B trades (oversized positions that worked, a moved stop that got away with it) is the market paying you to learn habits it will charge for later. Watch for the winner's temptations: sizing up because you're hot, and confidence that makes the next chased entry feel like skill.</p>" +
+              '<div class="rb-box"><p>Same response to both days: journal, grade, close the platforms at the defined time. <strong>The account grows in the boring middle, not at the emotional edges.</strong></p></div>'
+          }
+        ],
+        mistakes: [
+          "<strong>Treating psychology as someone else's problem.</strong> The safeguards are for everyone — that's why they're rules, not suggestions.",
+          "<strong>Fixing feelings with strategy changes.</strong> A new approach carries the same trader. Grade execution before blaming entries.",
+          "<strong>Trading to feel something.</strong> Boredom is the quietest killer. If the routine says nothing is there, nothing is there.",
+          "<strong>Abandoning the routine on good weeks.</strong> The routine is what stops good weeks from creating bad ones."
+        ],
+        quiz: [
+          { q: "What single mistaken belief sits under revenge trading, FOMO and trigger fear?", a: "That a single trade's outcome matters a lot — giving one result emotional weight the maths never gave it. Over many trades at small risk, no single trade matters much." },
+          { q: "A losing day where every trade was graded A. What changes tomorrow?", a: "Nothing. It's variance the maths already allows for; changing a sound process because of a red day is how sound processes get destroyed." },
+          { q: "Why is a winning day of B trades the market paying you to learn bad habits?", a: "The deviations (oversizing, moved stops) got rewarded this time, which teaches you to repeat them — and they'll be charged back later with interest." },
+          { q: "Why does routine beat willpower for discipline?", a: "Willpower drains and the market is always open; a routine removes the decisions where feelings get a vote, so it holds on bad days." }
+        ],
+        task: "Write your one-page daily routine in your own timezone: weekly calendar check slot, daily pre-window check, the per-signal procedure, your platform closing time, and the weekly review appointment. Add a section called \"My tells\" with one honest sentence for each of the four killers on how it shows up in you, using journal evidence where you have it. Keep it next to your Module 9 risk plan — together they're your operating manual.",
+        vsRulebook: [
+          "<strong>Your Psychology tab</strong> already has chapters (Trust the plan, The traps, Habits) from your own journal lessons. AJ's four killers and the routine could go in there as extra chapters — say if you want them added (you can also add them yourself with Edit).",
+          "<strong>Number of trades — AJ:</strong> overtrading = trades outside the plan; caps on open positions and a defined platform-closing time. <strong>Rulebook:</strong> no limit on the number of trades; overtrading means trading without a valid setup. Similar idea, but AJ adds an end time to the day.",
+          "<strong>Judging a day — AJ:</strong> by A/B execution, never by P/L. <strong>Johnson Journal loss protocol:</strong> reacts to drawdown (results). Both can run side by side: the protocol stops you, the grade tells you why."
+        ]
+      },
+      {
+        num: 13,
+        title: "What Comes Next",
+        tagline: "The road past the bootcamp: prop firms, an honest readiness check, and the concept everything depends on — the edge.",
+        lessons: [
+          {
+            code: "L13.1",
+            title: "Prop firms and evaluations",
+            html:
+              "<p>A prop firm lets you trade its capital for a share of profits (commonly around 80% to the trader), after you pass a paid <strong>evaluation</strong> on a demo account. Typical shape (varies by firm):</p>" +
+              "<ul>" +
+              "<li>A fee per attempt — under $100 to several hundred, scaling with account size.</li>" +
+              "<li>One or two phases with a <strong>profit target</strong> — commonly 8–10% for phase 1, about 5% for phase 2.</li>" +
+              "<li><strong>Max daily loss</strong> often ~5% and <strong>max overall drawdown</strong> often ~10%. Touch either, even for a second, and it's failed — fee gone.</li>" +
+              "<li>Fine print: minimum trading days, news and weekend holding rules, consistency rules. The fine print fails more people than the targets — read all of it before paying.</li>" +
+              "</ul>" +
+              "<p>Pass → funded account with the same loss rules permanently, profit splits paid on a schedule. The bootcamp's daily limit and news-flat rule are exactly what firms enforce in software.</p>"
+          },
+          {
+            code: "L13.2",
+            title: "Realistic pass rates",
+            html:
+              "<p>Evaluations are designed so most attempts fail; published and disclosed figures suggest only a minority pass, and those who actually get a payout are fewer still — commonly estimated at <strong>one in ten or fewer</strong>. Treat any precise number with suspicion (including flattering ones in firm marketing); the shape isn't in dispute: the fee model works for the firms because failure is the normal outcome.</p>" +
+              "<p>Why prepared traders still fail: the target and the loss limits pull against each other by design — reaching 8% quickly tempts oversizing, and oversizing meets the 5% daily rule; the pressure amplifies every Module 12 killer. <strong>An evaluation is a discipline exam with some analysis in it.</strong></p>"
+          },
+          {
+            code: "L13.3",
+            title: "When to attempt one — and when not",
+            html:
+              "<p>Only when every line is true, <strong>evidenced by your journal</strong>:</p>" +
+              "<ul>" +
+              "<li>At least <strong>three consecutive months of live trading</strong>, journaled, with overwhelmingly A-graded execution.</li>" +
+              "<li><strong>Zero</strong> moved stops and <strong>zero</strong> revenge sequences in those months.</li>" +
+              "<li>Daily and weekly limits respected every time they were hit.</li>" +
+              "<li>You can state your own numbers: average R per trade, longest losing streak, worst week.</li>" +
+              "<li>The fee is money you can lose without pain — tuition with a real chance of no refund.</li>" +
+              "</ul>" +
+              "<p><strong>Don't</strong> attempt one to escape a small account, while in drawdown, or because someone online passed. It'll still exist in three months.</p>"
+          },
+          {
+            code: "L13.4",
+            title: "The edge",
+            html:
+              "<p>An <strong>edge</strong> is a tested, repeatable process that, across a large sample of trades, wins more R than it loses — not a feeling, hot streak or secret indicator; a process with evidence. Module 9 showed the arithmetic; an edge is that arithmetic demonstrated in real results and kept honest by the journal.</p>" +
+              "<p>Following signals with proper sizing is <strong>borrowing</strong> someone's edge while you build foundations. The foundations (execution, sizing, risk, journaling) are the platform an edge is built on, not the edge itself. Building your own means reading markets well enough to produce the analysis, testing it, and proving it in your own data — months of work.</p>"
+          },
+          {
+            code: "L13.5",
+            title: "Where to go from here (their recommendation)",
+            html:
+              "<p>Their route: keep executing signals with discipline, keep the journal running, and join the community and mentorship — live sessions, breakdowns of wins and losses, chart reviews, the <strong>Edge Bootcamp</strong> (a two-phase strategy programme), and for mentorship members 1:1 time with Joshua. The end of the module is a pitch for that, with a \"Book a call with Joshua\" button (or DM @moneyybagjoshua on Instagram).</p>" +
+              "<p>Listed as inside the community: daily market updates, live trading sessions, strategy live sessions, student chart analysis, journaling guidance, the full 2-phase Edge Bootcamp, trade breakdowns, backtesting sessions, live Q&amp;A, lot size and risk help, 24-hour support. Their own note: nothing in trading is guaranteed, and it works for members who show up.</p>"
+          }
+        ],
+        mistakes: [
+          "<strong>Buying an evaluation as a graduation gift.</strong> Finishing the course starts the evidence period; the journal decides when you're ready.",
+          "<strong>Firm shopping instead of skill building.</strong> The constraint is your execution record, not which firm.",
+          "<strong>Skipping the fine print.</strong> News, weekend and consistency rules fail prepared traders daily.",
+          "<strong>Stopping the journal after the bootcamp.</strong> It's the instrument that runs your career from here."
+        ],
+        quiz: [
+          { q: "What does a prop firm evaluation actually test, and what's the evidence from how they're built?", a: "Discipline more than analysis: the tight daily-loss and drawdown rules instantly fail oversizing, moved stops and revenge trading, while the profit target tempts exactly those." },
+          { q: "Why do the profit target and the daily loss limit pull against each other?", a: "Chasing the target quickly tempts bigger size, and bigger size is what breaches the daily loss limit." },
+          { q: "Three items from the readiness checklist?", a: "Any three of: 3+ months of live, journaled trading with mostly A grades; zero moved stops and zero revenge sequences; limits respected every time; knowing your average R, longest losing streak and worst week; a fee you can lose without pain." },
+          { q: "The honest way to hold pass-rate claims?", a: "Treat any precise figure with suspicion — from firms and critics alike — but accept the shape: most attempts fail, a minority pass, and fewer still get paid." },
+          { q: "What is an edge, and how do you know you have one?", a: "A tested, repeatable process that wins more R than it loses over a large sample. You know from your own journal data over many trades — not from a feeling or a streak." }
+        ],
+        task: "Write an honest self-assessment against the L13.3 checklist, line by line, citing your journal where evidence exists and writing \"no evidence yet\" where it doesn't. Then set one dated milestone for the next 90 days that is entirely within your control — process, not profit (e.g. 90 days of journaled trades at a target A-grade rate, every weekly review done).",
+        vsRulebook: [
+          "<strong>Long-term plan — AJ:</strong> borrow their edge through signals, build your own (Edge Bootcamp / mentorship), possibly a prop firm once the journal proves readiness. <strong>Rulebook:</strong> scale your own accounts at higher risk now, then step risk down (5% → 2% → 1%) once income averages 5k–10k a month. Different roads; worth deciding which one you're on, or how they combine.",
+          "<strong>Prop firm rules vs current risk:</strong> typical evaluations allow ~5% daily loss and ~10% total drawdown. The Rulebook's 20% per Callisto idea and 30% daily stop wouldn't survive one trade there. If prop firms are a goal, that needs a separate, lower-risk plan.",
+          "<strong>Readiness:</strong> AJ wants 3 months of live, journaled, mostly-A trading first. Your journal already has the history (Callisto since you started); adding the A/B grade (Module 11) would let it answer that checklist directly.",
+          "<strong>Note:</strong> the end of this module is a sales pitch for their paid community and 1:1 mentorship. The Edge Bootcamp you have access to is part of that."
+        ]
       }
     ]
   },
