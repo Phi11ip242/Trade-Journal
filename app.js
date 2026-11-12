@@ -1655,7 +1655,7 @@
             }).join("") + "</div>";
         }
         if(m.vsRulebook && m.vsRulebook.length){
-          h += '<div class="rb-box bc-vs"><h3>Compared with the Rulebook</h3><ul>' +
+          h += '<div class="rb-box bc-vs"><h3>Differences from the Rulebook — to decide</h3><p class="bc-vs-note">AJ and Callisto are different strategies. These are the points where they differ, side by side — not a verdict on which is right.</p><ul>' +
             m.vsRulebook.map(function(x){ return "<li>" + x + "</li>"; }).join("") + "</ul></div>";
         }
         if(m.task){

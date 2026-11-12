@@ -1058,3 +1058,4 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .bc-table.bc-num td{ font-size: 12.5px; padding: 7px 6px; }
 .bc-table.bc-num td:first-child{ white-space: normal; min-width: 110px; }
 .bc-table.bc-num td:nth-child(n+3){ white-space: nowrap; }
+.bc-vs-note{ color: var(--text-dim); font-size: 12.5px !important; margin: -2px 0 8px !important; }

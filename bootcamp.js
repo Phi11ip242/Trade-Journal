@@ -745,6 +745,279 @@ window.BOOTCAMPS = {
           "<strong>Timeframes:</strong> the course's favourites (M5, M15, H1, H4, D) cover the Rulebook's bias chain; for Callisto confirmations you'd also add 1M/3M.",
           "<strong>Sessions:</strong> keep the Rulebook's session indicator on your TradingView layout — it counts as tooling, not an entry indicator."
         ]
+      },
+      {
+        num: 8,
+        title: "Sessions & Timing",
+        tagline: "When the market is actually awake. There are hours when the instruments move with purpose and hours when they drift and chew up impatient traders with spread.",
+        lessons: [
+          {
+            code: "L8.1",
+            title: "The four sessions",
+            html:
+              "<p>Forex trades 24 hours from Monday morning in Asia to Friday evening in New York. Approximate times (they shift an hour when the UK/US clocks change; South Africa doesn't, so SA times move instead):</p>" +
+              '<div class="table-wrap"><table class="bc-table bc-plain"><thead><tr><th>Session</th><th>UTC</th><th>SA time</th><th>Character</th></tr></thead><tbody>' +
+              "<tr><td>Sydney</td><td>22:00–07:00</td><td>00:00–09:00</td><td>Quiet open of the trading day, thin volume.</td></tr>" +
+              "<tr><td>Tokyo</td><td>00:00–09:00</td><td>02:00–11:00</td><td>Asian session; steady but modest moves in these instruments.</td></tr>" +
+              "<tr><td>London</td><td>08:00–17:00</td><td>10:00–19:00</td><td>The heavyweight — largest forex volume, real directional moves begin.</td></tr>" +
+              "<tr><td>New York</td><td>13:00–22:00</td><td>15:00–00:00</td><td>Second heavyweight; US data lands here, morning overlaps London.</td></tr>" +
+              "</tbody></table></div>" +
+              '<div class="rb-box"><p><strong>London–New York overlap ≈ 13:00–17:00 UTC (15:00–19:00 SA time)</strong> — the deepest, most active stretch of the day, and where most of their signals come.</p></div>'
+          },
+          {
+            code: "L8.2",
+            title: "When each instrument moves",
+            html:
+              '<div class="table-wrap"><table class="bc-table bc-plain"><thead><tr><th>Instrument</th><th>When it really moves</th></tr></thead><tbody>' +
+              "<tr><td>EURUSD</td><td>London open onward, peaking in the overlap. Asian hours usually drift.</td></tr>" +
+              "<tr><td>GBPUSD</td><td>Same shape, often sharper at London open, jumpy around UK data.</td></tr>" +
+              "<tr><td>XAUUSD</td><td>Active in London, most explosive around US data and the New York morning.</td></tr>" +
+              "<tr><td>XAGUSD</td><td>Follows gold's clock with thinner liquidity — same hours, rougher edges.</td></tr>" +
+              "<tr><td>NAS100</td><td>US clock — action around the New York stock market open; takes a daily break. Exact CFD hours are broker-specific.</td></tr>" +
+              "</tbody></table></div>" +
+              "<p>One window — <strong>London afternoon into the New York morning</strong> — covers the prime hours of all five. Know your window and stop expecting miracles outside it.</p>"
+          },
+          {
+            code: "L8.3",
+            title: "Why spreads widen",
+            html:
+              "<p>Spread reflects liquidity. Three predictable widening events:</p>" +
+              "<ul>" +
+              "<li><strong>Rollover</strong> around 22:00 UTC (00:00 SA) — liquidity briefly evaporates; spreads can multiply for a few minutes.</li>" +
+              "<li><strong>Seconds around major news</strong> — providers step back.</li>" +
+              "<li><strong>Late Friday</strong> into the weekly close.</li>" +
+              "</ul>" +
+              "<p>Nobody is cheating you — it's just the worst moment to enter or exit. Unless a stop forces it, don't transact inside these windows.</p>"
+          },
+          {
+            code: "L8.4",
+            title: "Rollover, swap and holding overnight",
+            html:
+              "<p>Swap is applied to any position held through rollover; depends on instrument, direction and rate differential — usually small, sometimes a credit.</p>" +
+              "<ul>" +
+              "<li><strong>Triple swap</strong> one night a week — most commonly <strong>Wednesday</strong> for forex and metals — to cover the weekend. A triple fee showing on Thursday morning is that.</li>" +
+              "<li>Exact rates are in the MetaTrader symbol specification. For short signal trades swap is a rounding error; for multi-night holds, check before entry.</li>" +
+              "</ul>"
+          },
+          {
+            code: "L8.5",
+            title: "High-impact news — be flat",
+            html:
+              "<p>The heavyweights: <strong>US Non-Farm Payrolls</strong> (first Friday of the month), <strong>US inflation (CPI)</strong>, <strong>central bank rate decisions</strong> (especially the Fed) and the press conferences after. GBPUSD adds UK inflation and Bank of England decisions.</p>" +
+              "<p>At release, price can travel a day's range in seconds, spreads blow out and execution goes bad → <strong>slippage</strong>: orders fill worse than requested, <em>stops included</em>. A stop is an instruction to close at the best available price once your level trades; in a spike that can be well beyond it. Module 4's maths assumes your stop fills where you put it — news is where that bends.</p>" +
+              '<div class="rb-box"><p><strong>The rule: beginners are flat around high-impact news.</strong> No open position on the affected instruments, no entries in the final minutes before, and ideally close or reduce ahead of the biggest releases. Watching NFP while holding nothing costs zero and teaches plenty.</p></div>'
+          },
+          {
+            code: "L8.6",
+            title: "The economic calendar habit",
+            html:
+              "<p>Every Sunday or Monday (two minutes): open a calendar (Forex Factory or TradingView's), filter to <strong>high-impact USD and GBP</strong> events, convert to your time, and note them where you plan the week. Red folder icons = the releases to be flat for. Then Wednesday's Fed decision is an appointment you scheduled around, not a surprise.</p>"
+          }
+        ],
+        mistakes: [
+          "<strong>Trading the dead hours out of boredom.</strong> Late New York into early Asia = wide spreads and drift. No signal, no session, no trade.",
+          "<strong>Blaming the broker for rollover spreads or triple swap.</strong> Both are scheduled and in the specification.",
+          "<strong>Holding into NFP to see what happens.</strong> What happens is slippage in whichever direction hurts.",
+          "<strong>Checking the calendar after entering.</strong> It's pre-flight, not post-mortem."
+        ],
+        quiz: [
+          { q: "Which stretch of the day is the most liquid and active, and why?", a: "The London–New York overlap, about 13:00–17:00 UTC (15:00–19:00 SA time): the two biggest centres are open at once, and US data lands then." },
+          { q: "You're charged triple swap on a Thursday morning. What happened?", a: "You held through Wednesday night's rollover, which charges three days to cover the weekend. Scheduled, not a broker error." },
+          { q: "Why can a stop fill worse than you set it during news?", a: "A stop becomes an order to close at the best available price once your level trades. In a spike, price jumps and spreads widen, so the best price can be well past your level — slippage." },
+          { q: "What does flat mean, and when must beginners be flat?", a: "No open position on the affected instruments. Around high-impact releases (NFP, CPI, Fed and other central bank decisions): no entries in the final minutes before, ideally close or reduce ahead of the biggest ones." }
+        ],
+        task: "Build your week's timing sheet: convert the four sessions and the London–New York overlap to your local time. Open an economic calendar, filter to high-impact USD and GBP events for this week, and list each with its local time and which of the five instruments it can move. Finish with one sentence naming your own best daily trading window. Update it weekly.",
+        vsRulebook: [
+          "<strong>News — AJ:</strong> be flat around high-impact news (no open position, no late entries, close or reduce before the biggest). <strong>Rulebook:</strong> check Forex Factory daily and expect spikes and slippage; no stay-flat rule. Decide whether the flat rule applies to AJ trades only, or to everything.",
+          "<strong>Trading window — AJ:</strong> London afternoon into New York morning (about 15:00–19:00 SA time) covers all five instruments. <strong>Rulebook:</strong> London often ranges, New York brings the volume and the expansion where FVG entries set up. Close in practice; worth agreeing one window for both.",
+          "<strong>Rollover (00:00 SA time) — AJ:</strong> don't enter or exit in the rollover minutes or late Friday. <strong>Rulebook:</strong> doesn't mention it.",
+          "<strong>Swap — AJ:</strong> triple swap Wednesday night; check the rate before holding several nights. Relevant to Callisto baskets that stay open overnight."
+        ]
+      },
+      {
+        num: 9,
+        title: "Risk Management",
+        tagline: "The skill that keeps you in the game. Module 4 controlled risk on one trade; this is the system across a hundred trades — where careers are actually decided.",
+        lessons: [
+          {
+            code: "L9.1",
+            title: "Fixed percentage per trade",
+            html:
+              "<p>Risk a fixed small % of the <strong>current</strong> balance on every trade — <strong>1% for beginners</strong>. Losing streaks of 5, 7, even 10 are a certainty over time, from ordinary variance.</p>" +
+              "<ul>" +
+              "<li>At <strong>1%</strong>, seven straight losses leaves about <strong>93%</strong> of the account — irritating, survivable.</li>" +
+              "<li>At <strong>10%</strong>, the same streak leaves about <strong>48%</strong> — and the psychology of half an account does the rest.</li>" +
+              "</ul>" +
+              "<p>Fixed-fractional risk self-adjusts: as the balance falls, the dollar risk shrinks, slowing the bleed exactly when needed.</p>"
+          },
+          {
+            code: "L9.2",
+            title: "Thinking in R",
+            html:
+              "<p><strong>R</strong> = the amount risked on a trade. Risk $10, lose it = −1R; make $20 = +2R. R makes results comparable across time and account size (2R is 2R on $300 or $30,000) and takes the sting out of money: a loss becomes −1R, the planned cost of finding out. A 30-pip risk targeting 60 pips is a 2R setup whatever the balance. The course and community speak in R from here on.</p>"
+          },
+          {
+            code: "L9.3",
+            title: "Risk to reward and win rate",
+            html:
+              "<ul>" +
+              "<li>100 trades, <strong>40% win rate</strong>, +2R wins, −1R losses: 80R − 60R = <strong>+20R</strong>, while losing more often than winning.</li>" +
+              "<li>100 trades, <strong>70% win rate</strong>, risking 3R to make 1R: 70R − 90R = <strong>−20R</strong>, while winning most trades.</li>" +
+              "</ul>" +
+              "<p>Win rate alone tells you nothing; what matters is <strong>win rate paired with reward size</strong>. Chasing being right aims at the wrong target. Losing streaks happen inside perfectly sound approaches — the maths has room for them, your emotions need the same room.</p>"
+          },
+          {
+            code: "L9.4",
+            title: "Where a stop belongs",
+            html:
+              "<p>Not a pain threshold or a round number: <strong>at the price where the trade's reason no longer exists</strong> (e.g. beyond the support zone a buy depends on).</p>" +
+              "<ul>" +
+              "<li>Stop distance is a property of the setup, found on the chart; <strong>size flexes around it, never the reverse</strong>. Shrinking a stop to afford a bigger lot puts the exit where the idea is still alive — ordinary wobble becomes needless losses.</li>" +
+              "<li>A signal's stop is structural — it encodes where their analysis is invalidated. Taking the signal with its stop, sized by your formula, is inheriting that analysis correctly.</li>" +
+              "</ul>"
+          },
+          {
+            code: "L9.5",
+            title: "Drawdown and recovery",
+            html:
+              '<div class="table-wrap"><table class="bc-table bc-plain"><thead><tr><th>Loss from peak</th><th>Gain needed to recover</th></tr></thead><tbody>' +
+              "<tr><td>5%</td><td>5.3%</td></tr><tr><td>10%</td><td>11.1%</td></tr><tr><td>20%</td><td>25%</td></tr>" +
+              "<tr><td>30%</td><td>42.9%</td></tr><tr><td>50%</td><td>100%</td></tr><tr><td>75%</td><td>300%</td></tr>" +
+              "</tbody></table></div>" +
+              "<p>Recovery is earned from a smaller base. Down 10% is a normal season; down 50% needs a doubling, and chasing that is how 50 becomes 75. At 1% risk, even the 20% row takes a losing run so long the journal would flag a real problem far earlier.</p>"
+          },
+          {
+            code: "L9.6",
+            title: "Daily and weekly loss limits",
+            html:
+              '<div class="rb-box"><p><strong>Beginner limits: 3R per day, 6R per week.</strong> Hit the daily limit → done until tomorrow, platforms closed, no \"just watching\". Hit the weekly → done until Monday, weekend in the journal instead of the platform.</p></div>' +
+              "<p>Trade four after three losses isn't doomed — <em>you</em> after three losses aren't the person who should evaluate it. The limit removes that person automatically, so it has to be written down in advance; a limit negotiated in the moment always loses. Prop firms enforce exactly this in software (Module 13).</p>"
+          },
+          {
+            code: "L9.7",
+            title: "Never widen a stop",
+            html:
+              "<p>Dragging a stop further away \"just this once\": the idea is already dead, the trade is held together by hope, and the maths breaks silently — the position was sized for the original stop, so the eventual loss is bigger than 1R (and it usually hits). One moved stop can cost 3R, 5R or the account, and the times it works teach the lesson that kills you later.</p>" +
+              '<div class="rb-box"><p><strong>Stops move toward profit or not at all.</strong> Tightening, or moving to entry on a winner, reduces risk and is fine. Widening isn\'t managing a trade — it\'s refusing a fact.</p></div>'
+          }
+        ],
+        mistakes: [
+          "<strong>Increasing risk to recover losses.</strong> Recovery at normal size is arithmetic; at revenge size it's a countdown.",
+          "<strong>Judging an approach on ten trades.</strong> The maths needs samples; streaks are noise. The journal is the judge, not last week's feelings.",
+          "<strong>Setting limits and renegotiating them live.</strong> A limit you can talk yourself out of is a wish.",
+          "<strong>Tightening stops to fit a desired lot size.</strong> The stop comes from structure; size flexes, the stop doesn't."
+        ],
+        quiz: [
+          { q: "100 trades, 40% win rate, winners +2R, losers −1R. Net result?", a: "+20R: 40 × 2R = 80R, minus 60 × 1R = 60R." },
+          { q: "An account falls 30% from its peak. What gain gets it back, and why not 30%?", a: "About 42.9%. The recovery is earned on the smaller remaining balance (70% of the peak), so it needs a bigger percentage." },
+          { q: "The one direction a stop may move, and why?", a: "Toward profit (tighter, or to entry). That only reduces risk. Widening keeps a dead idea alive and makes the loss bigger than the 1R the trade was sized for." },
+          { q: "Three losses before lunch hit your 3R daily limit, then a great-looking setup appears. What do you do?", a: "Nothing — you're done for the day. The limit exists because the person who just lost three trades shouldn't be judging the fourth; the limit was set in advance so it can't be negotiated." },
+          { q: "A 40-pip stop gives a smaller lot than you wanted. Why is tightening to 20 pips the wrong fix?", a: "The stop sits where the idea is invalidated; at 20 pips it's inside the zone where the idea is still alive, so normal noise stops you out. Take the smaller size, or skip." }
+        ],
+        task: "Write your personal risk plan on one page: your risk per trade in %, daily loss limit in R, weekly loss limit in R, the maximum number of positions you'll hold at once, and one sentence on exactly what you do for the rest of the day when a limit is hit. Date it and sign it. It outranks your opinions from now on, and Module 10 assumes it exists.",
+        vsRulebook: [
+          "<strong>Risk per trade — AJ course:</strong> 1% for beginners. <strong>Journal's AJ setting:</strong> 5% (what AJ said they trade live). <strong>Rulebook:</strong> up to 5% on own trades, up to 20% per idea on Callisto in the current scaling phase. This is the biggest decision — your risk plan (the task above) is the place to settle it per source.",
+          "<strong>Daily stop — AJ:</strong> 3R a day, 6R a week, counted in R. <strong>Rulebook:</strong> done for the day at 30% drawdown; the journal's loss protocol uses max drawdown from peak. Note: at 20% per Callisto idea, 3R would be 60%, so the two rules don't translate one-to-one.",
+          "<strong>Stop distance — AJ:</strong> the stop comes from the chart for each trade and the size flexes around it. <strong>Rulebook:</strong> stop beyond the structure, but planned at fixed sizes (100 pips own/Premium, 120 Grind Room). The journal's AJ preset also assumes a fixed 100-pip stop — see Module 10's note.",
+          "<strong>Moving stops:</strong> both say never widen. <strong>Breakeven — AJ:</strong> to entry at 1:1 (Module 10's live signal). <strong>Rulebook:</strong> to entry after TP1 (20 pips), not before.",
+          "<strong>Max positions — AJ:</strong> asks you to set a number (Module 10 suggests 2–3 during the bootcamp). <strong>Rulebook:</strong> no cap on trades; a Callisto basket can be up to 8 legs. Decide how a basket counts against that cap."
+        ]
+      },
+      {
+        num: 10,
+        title: "Following a Signal",
+        tagline: "The outcome the bootcamp exists for: a signal arrives on your phone, and within a few minutes it's a correctly sized, correctly placed trade on your own account — or a correct decision not to take it.",
+        lessons: [
+          {
+            code: "L10.1",
+            title: "Anatomy of a signal",
+            html:
+              "<p>Five components: <strong>instrument</strong>, <strong>direction</strong>, <strong>entry</strong> (market now, or a price for a pending order), <strong>stop loss</strong> (where the idea is invalidated) and <strong>take profit</strong> (one target, or TP1/TP2 for partials).</p>" +
+              "<p>Deliberately missing: <strong>a lot size</strong>. Size depends on your balance and risk plan, which only you know. A signal is analysis plus levels; the risk is always yours to assign.</p>" +
+              '<div class="rb-box"><p><strong>Real example from their channel:</strong> XAUUSD market buy · entry 4054 · SL 4049 · target 4067. That\'s a $5 stop (50 pips) and $13 target (130 pips) = <strong>2.6R</strong>. Updates followed: \"price hit 1:1 — reduce risk to breakeven (entry)\", then \"1.5× our risk\", then \"close when happy, 2.9× is the target\", then \"closing here\".</p></div>'
+          },
+          {
+            code: "L10.2",
+            title: "Translating a signal into your size",
+            html:
+              "<p>Sell XAUUSD, entry 2,410.00, SL 2,415.00, TP 2,400.00; $1,000 account at 1%:</p>" +
+              "<ol>" +
+              "<li>Stop distance: 2,415 − 2,410 = $5.00 = <strong>50 pips</strong>.</li>" +
+              "<li>Money at risk: 1% of $1,000 = <strong>$10</strong>.</li>" +
+              "<li>Lot size: 10 ÷ (50 × 10) = <strong>0.02</strong>.</li>" +
+              "<li>Gold shortcut check: 0.02 lots = $2 per $1 of stop × $5 = $10. ✓</li>" +
+              "<li>MetaTrader: sell 0.02 XAUUSD, SL 2,415.00, TP 2,400.00, entered on the order screen.</li>" +
+              "</ol>" +
+              "<p>Under two minutes once practised. Also read the ratio off: $10 risk vs $20 reward = a <strong>2R</strong> setup. Reading R before taking a signal is the start of evaluating rather than just executing.</p>"
+          },
+          {
+            code: "L10.3",
+            title: "Price already moved past the entry",
+            html:
+              "<p>The signal's maths was computed at its entry; every pip since changes it.</p>" +
+              "<ul>" +
+              "<li><strong>Moved toward the stop</strong> (you can enter cheaper): cautiously fine — smaller stop, bigger reward. Re-size for the new stop and go if the reason still holds.</li>" +
+              "<li><strong>Moved a little toward the target</strong> (about a quarter of the way or less): acceptable with recalculation — wider stop from here, smaller reward. Recompute size and R before deciding.</li>" +
+              "<li><strong>Moved substantially toward or past the target:</strong> the trade is gone. Let it go.</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>A missed trade costs nothing.</strong> No minus in the journal, no drawdown, no recovery maths. Chasing one is buying someone else\'s exit (FOMO — Module 12).</p></div>'
+          },
+          {
+            code: "L10.4",
+            title: "Running and unsure",
+            html:
+              "<p>Order of authority, fixed in advance:</p>" +
+              "<ol>" +
+              "<li>The trade's own <strong>SL and TP</strong> — already handling every scenario silently.</li>" +
+              "<li><strong>Official signal updates</strong> (move stop to entry, close half at TP1…) — execute with the Module 3 mechanics.</li>" +
+              "<li>Your own discretion — for a beginner, close to inactive.</li>" +
+              "</ol>" +
+              "<p>Uncertainty isn't an instruction. No update and price wobbling = the plan is in the market; the right action is almost always nothing. Closing early to stop the suspense, then watching it hit target without you, is a psychology event — journal it either way.</p>"
+          },
+          {
+            code: "L10.5",
+            title: "Don't copy someone's lot size",
+            html:
+              "<p>Someone posts 0.50 lots. On a $25,000 account, 0.50 on a 50-pip gold stop risks $250 = 1%. The same 0.50 on $1,000 risks $250 = <strong>25%</strong> of everything — four ordinary losses and the account is gone. Lot sizes are meaningless without the balance behind them; the only comparable number is <strong>R</strong>.</p>"
+          },
+          {
+            code: "L10.6",
+            title: "Several signals open at once",
+            html:
+              "<ul>" +
+              "<li><strong>Cap:</strong> during the bootcamp, no more than <strong>2–3 positions open at once</strong>. Three at 1% each is a full 3R daily limit riding at once. A new signal at your cap is a skip.</li>" +
+              "<li><strong>Correlation:</strong> gold and silver often move together, and both often move against the US dollar, as EURUSD and GBPUSD do. Four dollar-sensitive positions are one big opinion about the dollar in four costumes, and one US release hits them all. Count positions, then count actual opinions — the second number is your real exposure.</li>" +
+              "</ul>"
+          },
+          {
+            code: "L10.7",
+            title: "The limits of signals",
+            html:
+              "<p>You inherit analysis without owning the reasoning, entries will sometimes differ from theirs, losing streaks arrive and test you because the decisions weren't yours, and a signal can never know your balance, open positions or state of mind.</p>" +
+              "<p>Their stated goal: <strong>signals are scaffolding, not the building</strong> — a live apprenticeship. Study each signal's chart, structural stop and ratio through Modules 6 and 9, and eventually check their analysis against your own before taking it.</p>"
+          }
+        ],
+        mistakes: [
+          "<strong>Executing before calculating.</strong> The two minutes of sizing is the trade; the clicking is the receipt.",
+          "<strong>Chasing a signal that has run.</strong> A missed trade costs nothing; a chased one starts at the worst price in the story.",
+          "<strong>Skipping the stop because an update will probably come.</strong> SL at entry, every trade, whoever's analysis it is.",
+          "<strong>Stacking correlated signals at full size each.</strong> Count opinions, not just positions.",
+          "<strong>Closing early out of suspense.</strong> No update, no plan reason, no action."
+        ],
+        quiz: [
+          { q: "Buy GBPUSD, entry 1.2700, SL 1.2670, TP 1.2760; $600 at 1%. Lot size, and the trade in R?", a: "30-pip stop: $6 ÷ (30 × $10 = 300) = 0.02 lots, risking $6. Target 60 pips = 2R ($12)." },
+          { q: "Why do signals never include a lot size?", a: "Size depends on your own balance and risk plan, which the signal can't know. The only comparable number between traders is R." },
+          { q: "You open a buy signal late and price is most of the way to TP1. Correct action?", a: "Let it go. The remaining reward is small against a now-wider stop — a missed trade costs nothing." },
+          { q: "Buys on EURUSD, GBPUSD and gold, each at 1%. Why might that be closer to one 3% trade?", a: "All three are bets against the US dollar. One US release can move them all together, so it's one opinion at 3%, not three independent 1% trades." },
+          { q: "Signal open, price chopping near entry, no update. Correct action?", a: "Nothing. The SL and TP are already in the market; uncertainty isn't an instruction. Wait for the plan or an official update." }
+        ],
+        task: "On demo, timed: sell XAUUSD at market, SL $4.00 above your entry, TP $8.00 below. Size it by hand for your demo balance at 1%, check it with the calculator, place the order with SL and TP at entry, and screenshot the open position showing both levels. Write down your time from reading the signal to placed order. Repeat on fresh demo trades until the whole procedure takes under three minutes without rushing.",
+        vsRulebook: [
+          "<strong>AJ stops and targets vary per signal.</strong> The live example had a $5 (50-pip) stop and a 2.6R target, later 2.9R. The journal's AJ preset assumes a fixed 100-pip stop with TP at 1.5R and BE at 1R. Decide whether to log AJ trades with each signal's own SL and TP (and keep the preset only as a fallback) — I can change the journal once you've decided.",
+          "<strong>Late entries — AJ:</strong> a written framework (toward the stop: re-size; a quarter toward target: recompute; further: skip). <strong>Rulebook:</strong> Callisto signals are entered in planned split legs as price moves, which is a different way of handling price away from the entry.",
+          "<strong>Management — AJ:</strong> the trade's SL/TP first, then official updates, own discretion close to inactive; BE at 1:1, then \"close when happy\" near the target. <strong>Rulebook:</strong> fixed partial plan (10/10/10/20% at TP1–TP4, rest runs) and BE after TP1. Different exit styles — the journal's partials fields handle both.",
+          "<strong>Open positions — AJ:</strong> 2–3 at once during the bootcamp, and count gold, silver, EURUSD and GBPUSD as one dollar opinion. <strong>Rulebook:</strong> no cap. Relevant to AvaTrade, where Callisto baskets and AJ gold trades can overlap — both are dollar trades on gold."
+        ]
       }
     ]
   },
