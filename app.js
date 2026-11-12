@@ -1648,6 +1648,12 @@
           h += '<h3 class="rb-sub">Common mistakes at this stage</h3><ul>' +
             m.mistakes.map(function(x){ return "<li>" + x + "</li>"; }).join("") + "</ul>";
         }
+        if(m.quiz && m.quiz.length){
+          h += '<h3 class="rb-sub">Quiz</h3><div class="bc-quiz">' +
+            m.quiz.map(function(x, qi){
+              return '<details class="bc-q"><summary>' + (qi + 1) + ". " + escapeHtml(x.q) + '</summary><p>' + escapeHtml(x.a) + "</p></details>";
+            }).join("") + "</div>";
+        }
         if(m.vsRulebook && m.vsRulebook.length){
           h += '<div class="rb-box bc-vs"><h3>Compared with the Rulebook</h3><ul>' +
             m.vsRulebook.map(function(x){ return "<li>" + x + "</li>"; }).join("") + "</ul></div>";
