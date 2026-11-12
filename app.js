@@ -185,7 +185,8 @@
       sizing: Object.assign({}, SIZING_DEFAULTS),
       accounts: DEFAULT_ACCOUNTS.map(function(a){ return Object.assign({}, a); }),
       psychology: defaultBook("psychology"),
-      psychReadAt: ""          // last time the Psychology tab was marked as read
+      psychReadAt: "",         // last time the Psychology tab was marked as read
+      bootcamp: { notes: {}, done: {} }   // bootcamp answers + done dates, by module ("bb-1")
     };
   }
 
@@ -210,7 +211,7 @@
   }
 
   var SETTINGS_KEYS = ["startingDeposit", "depositsWithdrawals", "riskOwnPremium", "riskGrindInst", "defaultStop", "maxDrawdown",
-    "splitStopsPremium", "splitStopsGrind", "pairs", "cashFlows", "sizing", "accounts", "psychology", "psychReadAt"];
+    "splitStopsPremium", "splitStopsGrind", "pairs", "cashFlows", "sizing", "accounts", "psychology", "psychReadAt", "bootcamp"];
 
   function normalizeSizing(v){
     v = (v && typeof v === "object") ? v : {};
@@ -298,6 +299,16 @@
     var book = normalizeBook(s.psychology);
     if(book) d.psychology = book;
     d.psychReadAt = /^\d{4}-\d{2}-\d{2}$/.test(str(s.psychReadAt)) ? str(s.psychReadAt) : "";
+    d.bootcamp = { notes: {}, done: {} };
+    var bc = (s.bootcamp && typeof s.bootcamp === "object") ? s.bootcamp : {};
+    Object.keys(bc.notes || {}).forEach(function(k){
+      var v = str(bc.notes[k]);
+      if(/^(bb|eb)-\d+$/.test(k) && v) d.bootcamp.notes[k] = v.slice(0, 20000);
+    });
+    Object.keys(bc.done || {}).forEach(function(k){
+      var v = str(bc.done[k]);
+      if(/^(bb|eb)-\d+$/.test(k) && /^\d{4}-\d{2}-\d{2}$/.test(v)) d.bootcamp.done[k] = v;
+    });
     if(Array.isArray(s.pairs)){
       var pairs = s.pairs.map(function(p){
         p = p || {};
@@ -1575,6 +1586,120 @@
     saveSettings();
     renderPsychology();
   });
+
+  // ---------- Bootcamps (AJ / Currency Squad course notes) ----------
+  // Lesson notes come from bootcamp.js (window.BOOTCAMPS). Each module is a
+  // fold-out chapter; your answer to its practical task and the date you
+  // marked it done are saved in settings.bootcamp.
+  function setupBootcamp(view, kind, prefix){
+    var root = document.getElementById("bootcamp-" + view);
+    var openIds = {};
+    function data(){ return (window.BOOTCAMPS && window.BOOTCAMPS[kind]) || { title: "", intro: "", roadmap: [], modules: [] }; }
+    function bc(){ return settings.bootcamp || (settings.bootcamp = { notes: {}, done: {} }); }
+    function fmtDay(d){ return d ? parseLocalDate(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""; }
+
+    function render(){
+      var b = data(), store = bc();
+      root.querySelectorAll(".rb-chapter").forEach(function(d){ openIds[d.dataset.id] = d.open; });
+      var written = b.modules.map(function(m){ return m.num; });
+      var doneCount = b.modules.filter(function(m){ return store.done[prefix + m.num]; }).length;
+
+      var head = '<div class="panel rb-intro">' +
+        '<h2 class="panel-title">' + escapeHtml(b.title) + "</h2>" +
+        "<p>" + escapeHtml(b.intro) + "</p>";
+      if(b.modules.length){
+        head += '<p class="bc-progress">' + b.modules.length + " module" + (b.modules.length === 1 ? "" : "s") +
+          " written up · " + doneCount + " done</p>" +
+          '<nav class="rb-toc" aria-label="' + escapeHtml(b.title) + ' modules">' +
+          b.modules.map(function(m){
+            var id = prefix + m.num;
+            return '<a href="#" data-jump="' + id + '"' + (store.done[id] ? ' class="bc-done"' : "") + ">" +
+              (store.done[id] ? "✓ " : "") + m.num + " · " + escapeHtml(m.title) + "</a>";
+          }).join("") + "</nav>" +
+          '<div class="rb-tools"><button type="button" class="ghost small bc-open-all">Open all</button>' +
+          '<button type="button" class="ghost small bc-close-all">Close all</button></div>';
+      }
+      var upcoming = (b.roadmap || []).filter(function(r){ return written.indexOf(r.num) === -1; });
+      if(upcoming.length){
+        head += '<details class="bc-roadmap"><summary>Coming up in the course</summary><ul>' +
+          upcoming.map(function(r){
+            return "<li>Module " + r.num + " · " + escapeHtml(r.title) + (r.tentative ? ' <span class="muted">(as described so far)</span>' : "") + "</li>";
+          }).join("") + "</ul></details>";
+      }
+      head += "</div>";
+
+      if(!b.modules.length){
+        root.innerHTML = head + '<div class="panel empty-state bc-empty"><p>Nothing written up yet.</p>' +
+          '<p class="muted">Send the lesson text or video scripts and they\'ll appear here, one module per chapter.</p></div>';
+        return;
+      }
+
+      var body = b.modules.map(function(m, i){
+        var id = prefix + m.num, done = store.done[id];
+        var open = openIds.hasOwnProperty(id) ? openIds[id] : (i === b.modules.length - 1 && !done);
+        var h = '<details class="panel rb-chapter bc-module" data-id="' + id + '"' + (open ? " open" : "") + ">" +
+          "<summary>Module " + m.num + " · " + escapeHtml(m.title) + (done ? ' <span class="bc-tick">✓ done</span>' : "") + "</summary>";
+        if(m.tagline) h += '<p class="bc-tagline">' + escapeHtml(m.tagline) + "</p>";
+        (m.lessons || []).forEach(function(l){
+          h += '<h3 class="rb-sub"><span class="bc-code">' + escapeHtml(l.code) + "</span> " + escapeHtml(l.title) + "</h3>" +
+            '<div class="bc-lesson">' + l.html + "</div>";
+        });
+        if(m.mistakes && m.mistakes.length){
+          h += '<h3 class="rb-sub">Common mistakes at this stage</h3><ul>' +
+            m.mistakes.map(function(x){ return "<li>" + x + "</li>"; }).join("") + "</ul>";
+        }
+        if(m.vsRulebook && m.vsRulebook.length){
+          h += '<div class="rb-box bc-vs"><h3>Compared with the Rulebook</h3><ul>' +
+            m.vsRulebook.map(function(x){ return "<li>" + x + "</li>"; }).join("") + "</ul></div>";
+        }
+        if(m.task){
+          h += '<div class="rb-box bc-task"><h3>Practical task</h3><p>' + escapeHtml(m.task) + "</p>" +
+            '<label class="bc-notes-label" for="bc-notes-' + id + '">My answer / notes</label>' +
+            '<textarea class="bc-notes" id="bc-notes-' + id + '" data-id="' + id + '" rows="6" placeholder="Write it here — it saves with your journal.">' +
+            escapeHtml(store.notes[id] || "") + "</textarea>" +
+            '<div class="bc-task-foot">' +
+            '<button type="button" class="small ' + (done ? "ghost" : "primary") + ' bc-done-btn" data-id="' + id + '">' +
+            (done ? "Mark not done" : "Mark module done") + "</button>" +
+            '<span class="muted">' + (done ? "Done " + escapeHtml(fmtDay(done)) : "") + "</span></div></div>";
+        }
+        return h + "</details>";
+      }).join("");
+      root.innerHTML = head + body;
+    }
+
+    root.addEventListener("click", function(ev){
+      var a = ev.target.closest("a[data-jump]");
+      if(a){
+        ev.preventDefault();
+        var target = root.querySelector('.rb-chapter[data-id="' + a.dataset.jump + '"]');
+        if(target){ target.open = true; target.scrollIntoView({ behavior: "smooth", block: "start" }); }
+        return;
+      }
+      if(ev.target.closest(".bc-open-all, .bc-close-all")){
+        var open = !!ev.target.closest(".bc-open-all");
+        root.querySelectorAll(".rb-chapter").forEach(function(d){ d.open = open; });
+        return;
+      }
+      var btn = ev.target.closest(".bc-done-btn");
+      if(btn){
+        var store = bc(), id = btn.dataset.id;
+        if(store.done[id]) delete store.done[id]; else store.done[id] = todayStr();
+        saveSettings();
+        render();
+      }
+    });
+    root.addEventListener("input", function(ev){
+      var t = ev.target.closest(".bc-notes");
+      if(!t) return;
+      var store = bc(), v = t.value.slice(0, 20000);
+      if(v.trim()) store.notes[t.dataset.id] = v; else delete store.notes[t.dataset.id];
+      saveSettings();
+    });
+
+    renderers[view] = render;
+  }
+  setupBootcamp("bb", "beginner", "bb-");
+  setupBootcamp("eb", "edge", "eb-");
 
   // ---------- formatting ----------
   function escapeHtml(s){

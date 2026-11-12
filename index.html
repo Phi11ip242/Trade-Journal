@@ -37,6 +37,7 @@
 <script src="config.js"></script>
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js" defer></script>
+<script src="bootcamp.js" defer></script>
 <script src="app.js" defer></script>
 </head>
 <body>
@@ -56,6 +57,8 @@
     <button id="tab-milestones" type="button" data-view="milestones">Milestones</button>
     <button id="tab-rulebook" type="button" data-view="rulebook">Rulebook</button>
     <button id="tab-psychology" type="button" data-view="psychology">Psychology</button>
+    <button id="tab-bb" type="button" data-view="bb">Beginner Bootcamp</button>
+    <button id="tab-eb" type="button" data-view="eb">Edge Bootcamp</button>
   </nav>
 
   <div class="header-actions">
@@ -723,6 +726,17 @@
       </div>
       <div class="book-body"></div>
     </div>
+  </section>
+
+  <!-- ============ BOOTCAMP VIEWS ============ -->
+  <!-- AJ / Currency Squad course notes. Content lives in bootcamp.js;
+       your answers and "done" marks are saved with your settings. -->
+  <section id="view-bb" class="view hidden">
+    <div class="bootcamp" id="bootcamp-bb"></div>
+  </section>
+
+  <section id="view-eb" class="view hidden">
+    <div class="bootcamp" id="bootcamp-eb"></div>
   </section>
 
   <!-- ============ WEEKLY REVIEW VIEW ============ -->

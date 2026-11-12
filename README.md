@@ -5,15 +5,17 @@ Johnson Journal, on your own accounts — every tab works the same (Log Trade, T
 - **Accounts:** each broker account (AvaTrade, Kudo, ...) keeps its own deposit, deposits/withdrawals, balance, drawdown, loss protocol and lot sizes. Switch accounts at the top, or pick "All accounts" to see everything together. Every trade records its account.
 - **AJ** as a source: its own risk %, 100-pip stop, 1 or 3 entries, and a fixed reward:risk plan (take profit at 1.5R, stop to breakeven at 1R) — the Log Trade form shows the BE and TP prices.
 - **Psychology** tab: editable chapters, read once a week.
+- **Beginner Bootcamp** and **Edge Bootcamp** tabs: AJ / Currency Squad course notes, one fold-out chapter per module, with a box for each practical task and a "done" mark (both saved with your journal). The notes themselves live in `bootcamp.js`.
 - Johnson Journal backups import directly — their trades land on the first account (AvaTrade).
 
-It's four files plus a database schema — no build step:
+It's five files plus a database schema — no build step:
 
 | File | What it is |
 |---|---|
 | `index.html` | the page |
 | `styles.css` | the look |
 | `app.js` | everything the journal does |
+| `bootcamp.js` | the bootcamp course notes |
 | `config.js` | **your settings — the only file you edit** |
 | `supabase/schema.sql` | creates the database tables, run once |
 
