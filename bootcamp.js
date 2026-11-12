@@ -509,6 +509,242 @@ window.BOOTCAMPS = {
           "<strong>Gold pip matches:</strong> the journal's XAUUSD is pip size 0.1 at $10 per pip per lot — the same as the course. AJ's 100-pip stop on gold = a $10 move.",
           "<strong>To log the other instruments,</strong> add them in Position Sizing → Settings: EURUSD and GBPUSD pip size 0.0001, $10 per pip; XAGUSD pip size 0.01, $50 per pip; NAS100 pip size 1, $ per point from your broker's spec (commonly $1)."
         ]
+      },
+      {
+        num: 5,
+        title: "Leverage & Margin",
+        tagline: "Borrowed size, real risk. Leverage gets blamed for accounts it didn't blow and trusted in ways it doesn't deserve. Once Module 4 sizing is in place, leverage is just plumbing.",
+        lessons: [
+          {
+            code: "L5.1",
+            title: "What leverage is — and isn't",
+            html:
+              "<p><strong>Leverage</strong> lets you control a position bigger than your deposit: at 1:100, each $1 controls $100 of exposure; at 1:500, $500.</p>" +
+              "<p>It is <strong>not</strong> a multiplier that makes trades bigger. Your size is the lot size you type (Module 4). Leverage only decides <strong>how much of your account is locked as a deposit</strong> to hold that position — the width of the door, not what you carry through it.</p>" +
+              "<p>Example: 0.10 lot EURUSD ≈ $11,000 of exposure at 1.10. At 1:100 the broker locks $110; at 1:500, $22. Same pip value, same profit, same loss — only the security deposit differs.</p>"
+          },
+          {
+            code: "L5.2",
+            title: "Margin requirement, used margin, free margin, margin level",
+            html:
+              "<ul>" +
+              "<li><strong>Margin requirement</strong> — deposit needed for one position = position value ÷ leverage (the $22 above).</li>" +
+              "<li><strong>Used margin</strong> — total locked across all open positions.</li>" +
+              "<li><strong>Free margin</strong> — equity minus used margin; absorbs floating losses and funds new positions.</li>" +
+              "<li><strong>Margin level</strong> — equity ÷ used margin × 100. $500 equity with $22 used = 2,272% (very healthy). This is the number the broker's systems watch.</li>" +
+              "</ul>"
+          },
+          {
+            code: "L5.3",
+            title: "Margin call and stop out",
+            html:
+              "<p>As losses drag equity down, margin level falls. Two broker-set thresholds — <strong>commonly about 100% and 50%</strong>, but check your own broker's:</p>" +
+              "<ul>" +
+              "<li><strong>Margin call</strong> (the warning) — account flagged, no new positions.</li>" +
+              "<li><strong>Stop out</strong> (the enforcement) — the platform force-closes positions automatically, <strong>largest loser first</strong>, at whatever price the market offers, until margin level recovers. Nobody phones you.</li>" +
+              "</ul>" +
+              "<p>Someone sizing at 1% with a stop on every trade essentially never meets stop out — their stops close trades long before margin level is threatened. <strong>Stop out isn't a risk tool; it's what exists for people who didn't have one.</strong></p>"
+          },
+          {
+            code: "L5.4",
+            title: "High leverage isn't high risk if sizing is right",
+            html:
+              "<p>Two $1,000 accounts, one at 1:30, one at 1:500, same EURUSD signal, 30-pip stop, both sized at 1% = 0.03 lots. Both lose <strong>$9</strong> if stopped. Identical risk — leverage only changed the margin locked.</p>" +
+              "<p>Leverage's reputation comes from what it <em>permits</em>: at 1:500 a $1,000 account can open about 4 lots of EURUSD, where a 30-pip move is $1,200 — more than the account. Leverage removes the guardrail; the trader supplies the crash. <strong>Your guardrail is the Module 4 formula.</strong> Keep it and the leverage setting is close to irrelevant.</p>"
+          },
+          {
+            code: "L5.5",
+            title: "How beginners blow accounts",
+            html:
+              "<p>The standard crash: oversized position, no stop (\"I'll watch it\") → it goes against them → closing would make the loss real, so they hold → free margin drains → they <strong>average down</strong> with another position in the same direction → used margin rises, free margin drains faster → margin level slides to stop out → one ordinary wiggle and everything is liquidated. Deposit to zero in an afternoon, and the market did nothing unusual.</p>" +
+              '<div class="rb-box"><p>Every step breaks something already taught: the size (Module 4), the missing stop (Module 3), refusing the small loss and doubling down (Modules 9 and 12). <strong>Blown accounts aren\'t bad luck — they\'re a recipe.</strong></p></div>'
+          }
+        ],
+        mistakes: [
+          "<strong>Choosing maximum leverage to trade bigger.</strong> Size comes from the formula; higher leverage just locks less margin for the same correct trade.",
+          "<strong>Treating free margin as money to spend.</strong> It's the shock absorber. Commit nearly all of it and one adverse move starts the liquidation cascade.",
+          "<strong>Relying on stop out as a worst-case stop loss.</strong> Stop out closes everything at the bottom; a stop loss closes one trade at your line.",
+          "<strong>Not knowing your broker's margin call and stop out levels.</strong> Two numbers, one minute to find in the account terms. Know them before you fund."
+        ],
+        quiz: [
+          { q: "Two identical 0.03 lot EURUSD trades, one on a 1:30 account, one on 1:500. Which loses more if the 30-pip stop is hit?", a: "Neither — both lose $9 (0.03 × 30 pips × $10). Leverage only changes how much margin is locked." },
+          { q: "Equity $800, used margin $400. Margin level, and is anything wrong?", a: "200%. Above typical margin call (100%) so no alarm yet, but half your equity is locked as margin — positions are large. A $400 drop in equity would bring a margin call." },
+          { q: "What actually happens at stop out?", a: "The platform automatically force-closes your positions, largest loser first, at whatever price the market offers, until margin level recovers. No warning call." },
+          { q: "Why does a properly sized trader with stops almost never see a margin call?", a: "Each trade risks ~1% and its stop closes it long before equity falls enough to threaten margin level — and correctly sized trades use only a little margin." }
+        ],
+        task: "On demo, open one correctly sized position and write down all five Toolbox numbers (balance, equity, margin, free margin, margin level). Find your broker's margin call and stop out percentages in the account terms and write them down too. Then, in one paragraph: given that position, what would have to happen for the account to reach margin call — and why does your stop loss make that essentially unreachable?",
+        vsRulebook: [
+          "<strong>Matches the Rulebook:</strong> \"don't use your whole margin\" is the same idea as treating free margin as the shock absorber.",
+          "<strong>Your accounts:</strong> look up AvaTrade's and Kudo's leverage, margin call and stop out levels and put them in the notes box — on AvaTrade this matters most, because Callisto split entries (up to 8 legs) and AJ trades can be open on the same account.",
+          "<strong>Averaging down:</strong> the course calls adding to a loser a blow-up step. Callisto's planned split legs are different — every leg is sized up front for the full stop, one stop for the basket — but adding <em>unplanned</em> legs is exactly what this lesson warns about."
+        ]
+      },
+      {
+        num: 6,
+        title: "Reading a Chart",
+        tagline: "What the candles are telling you. You don't need to be an analyst to follow signals, but you need the vocabulary signals are written in: candles, timeframes, levels and structure.",
+        lessons: [
+          {
+            code: "L6.1",
+            title: "Candlesticks",
+            html:
+              "<p>Four prices per block of time: <strong>open, high, low, close</strong>. The <strong>body</strong> runs open → close: close above open = <strong>bullish</strong> (usually green), below = <strong>bearish</strong> (usually red). The <strong>wicks</strong> mark the high and low — ground price visited but didn't hold.</p>" +
+              "<p>Read candles as the record of a fight: long body, tiny wicks = one side controlled the whole period. Long wicks, small body = price travelled far and was pushed back (a rejection). A long lower wick at a level = sellers pushed down, buyers slammed it back up. Skip memorising pattern names; ask of every candle: <strong>who was winning, and did anything get rejected?</strong></p>"
+          },
+          {
+            code: "L6.2",
+            title: "Timeframes",
+            html:
+              "<p>The timeframe is how much time each candle covers (H1 = 1 hour, M5 = 5 minutes). Same market, different resolution.</p>" +
+              "<p>They nest: one H1 candle contains twelve M5 candles — its open is the first open, its high the highest high, its low the lowest low, its close the last close. A calm hourly candle can hide a violent five-minute fight; a scary M5 drop can be a flick on the daily. <strong>Higher timeframes show where the market is going; lower ones show what it's doing right now.</strong></p>"
+          },
+          {
+            code: "L6.3",
+            title: "Support and resistance",
+            html:
+              "<p><strong>Support</strong> = an area where falling price has repeatedly stopped and turned up. <strong>Resistance</strong> = where rising price has repeatedly stopped and turned down. They exist because markets have memory — orders cluster where buying and selling appeared before.</p>" +
+              "<ul>" +
+              "<li><strong>Zones, not lines</strong> — areas a few pips deep; think rectangle, not laser.</li>" +
+              "<li>More touches and rejections = stronger, but nothing holds forever; a clean break is information too.</li>" +
+              "<li><strong>Roles flip</strong> — broken resistance often becomes support on the way back, and vice versa.</li>" +
+              "</ul>" +
+              "<p>For a signal follower: stops and targets live at these zones. A stop just beyond a level means \"if this zone breaks, the idea is wrong\" (Module 9 builds on this).</p>"
+          },
+          {
+            code: "L6.4",
+            title: "Trend, range and structure",
+            html:
+              "<ul>" +
+              "<li><strong>Uptrend</strong> — stair pattern of higher highs and higher lows.</li>" +
+              "<li><strong>Downtrend</strong> — lower highs and lower lows.</li>" +
+              "<li><strong>Range</strong> — sideways between support and resistance, resolving nothing.</li>" +
+              "</ul>" +
+              "<p><strong>Market structure</strong> = that skeleton of highs and lows. The beginner question: <em>is the stair pattern intact?</em> When an uptrend's pullback breaks below the previous higher low, structure has shifted and the trend is in question. (Deeper layers are in their advanced material.)</p>" +
+              "<p>Markets range more often than they trend, and ranges are where impatient traders bleed buying tops and selling bottoms. Recognising there's nothing to do is chart reading too.</p>"
+          },
+          {
+            code: "L6.5",
+            title: "Higher timeframe context",
+            html:
+              "<p>Timeframes are a chain of command: the <strong>daily sets the regime, H4 and H1 shape the day, small timeframes execute</strong>. A pretty M5 uptrend climbing into a daily resistance zone is a small truth inside a bigger warning — and the bigger one usually wins.</p>" +
+              '<div class="rb-box"><p><strong>The 30-second habit:</strong> before judging any chart, zoom out — daily, then H4 — and ask: which way is structure pointing, and am I near a major level? Then drop to your timeframe. That is what \"higher timeframe bias\" in their analysis means.</p></div>'
+          }
+        ],
+        mistakes: [
+          "<strong>Candle astrology.</strong> Memorising fifty pattern names but unable to say who was in control this hour. Read the fight, not the flashcards.",
+          "<strong>Drawing levels as exact lines</strong> and calling them broken on a one-pip poke. Zones, always.",
+          "<strong>Living on the 1-minute chart.</strong> The lowest timeframes are mostly noise and exhaust you into overtrading. Nothing you need lives below M5.",
+          "<strong>Marking twenty levels per chart.</strong> If everything is a level, nothing is. Two or three obviously respected zones beat a barcode."
+        ],
+        quiz: [
+          { q: "Small body, very long lower wick. Tell the story of that period.", a: "Sellers drove price well down, but buyers rejected those lower prices and pushed it back up to close near the open — a rejection of the lows, buyers in control at that level." },
+          { q: "How many M15 candles are inside one H1 candle, and where does the H1 high come from?", a: "Four. The H1 high is the highest high of those four M15 candles." },
+          { q: "Price breaks up through resistance, later falls back to that zone and bounces up. What happened?", a: "A role flip: the old resistance became support, and the retest held." },
+          { q: "An uptrend breaks below its most recent higher low. What is the market telling you?", a: "Structure has shifted — the stair pattern is broken, so the uptrend is in question (not yet proven reversed)." }
+        ],
+        task: "Pick one of the five instruments. On H4, mark one support zone and one resistance zone that price has clearly respected at least twice each. Write down whether H4 and H1 are trending or ranging, using the stair pattern to justify it. Screenshot the chart with your zones and keep it — you redraw it properly in TradingView in Module 7.",
+        vsRulebook: [
+          "<strong>Top-down matches:</strong> the course's zoom-out habit (D → H4 → H1 → your timeframe) is the Rulebook's bias step (Daily → 4H → 1H → 15M, 3 timeframes aligned).",
+          "<strong>Structure:</strong> the course stops at the stair pattern and \"structure shifted\"; the Rulebook already goes deeper (CHoCH, BOS with a body close, order blocks, FVGs). Same foundation.",
+          "<strong>Difference — lowest timeframe:</strong> the course says nothing you need lives below M5. The Rulebook's confirmations drop to 1M/3M/5M (with an extra BOS + retest required on 1M/3M). For AJ signals you don't need to go lower than M5.",
+          "<strong>Zones:</strong> same idea as Rulebook POIs — fresh zones, treated as areas, not exact prices."
+        ]
+      },
+      {
+        num: 7,
+        title: "TradingView",
+        tagline: "Your analysis workstation. MetaTrader executes; TradingView is where analysis is produced. The setup: TradingView to think, MetaTrader to act.",
+        lessons: [
+          {
+            code: "L7.1",
+            title: "Why TradingView alongside MetaTrader",
+            html:
+              "<p>TradingView (browser and app) doesn't hold money or place trades — it only displays and marks up charts, and does that far better: smoother charts, better drawing tools, watchlists, alerts, markups synced across devices.</p>" +
+              "<p>Separating the jobs builds a habit: <strong>decide where you can't place the trade</strong>, then move to the execution platform to carry out a decision already made.</p>"
+          },
+          {
+            code: "L7.2",
+            title: "Free vs paid",
+            html:
+              "<p>Free gives full charts, all timeframes, a couple of indicators per chart, one alert, one chart per tab — everything the bootcamp needs. Paid adds multi-chart layouts, more alerts and indicators, second-based intervals. <strong>Start free</strong>; upgrade only when you hit a real wall (usually wanting more alerts). Paid improves convenience, not trading.</p>"
+          },
+          {
+            code: "L7.3",
+            title: "Finding the five instruments",
+            html:
+              "<p>Symbol search shows many results per symbol — one per data feed — and indices appear both as the raw index and as broker CFDs (NAS100, US100…).</p>" +
+              "<p><strong>Rule:</strong> chart your own broker's feed if TradingView lists it, so the chart matches your executable prices. Otherwise any major feed is fine — expect a few pips' difference from MetaTrader (most on indices) and treat levels as zones.</p>"
+          },
+          {
+            code: "L7.4",
+            title: "Chart type and timeframes",
+            html:
+              "<p>Use <strong>candlesticks</strong> and never think about it again. Favourite the timeframes that matter: <strong>M5, M15, H1, H4, D</strong>. Flipping D → H4 → H1 is the Lesson 6.5 zoom-out habit made physical.</p>"
+          },
+          {
+            code: "L7.5",
+            title: "Drawing tools",
+            html:
+              "<ul>" +
+              "<li><strong>Horizontal line</strong> — a support or resistance price.</li>" +
+              "<li><strong>Rectangle</strong> — a zone (the truer shape of S/R); stretch it over the area price keeps reacting to.</li>" +
+              "<li><strong>Trendline</strong> — connects higher lows or lower highs to make the stair pattern visible.</li>" +
+              "<li><strong>Fib retracement</strong> — percentage levels between a swing low and swing high; traders watch <strong>50–61.8%</strong> for pullbacks to end. For now just know how to draw it low → high.</li>" +
+              "</ul>" +
+              "<p>Housekeeping: drawings sync to your account — date them or delete stale ones weekly. A chart buried under months of old lines stops being readable.</p>"
+          },
+          {
+            code: "L7.6",
+            title: "Indicators and the overload warning",
+            html:
+              "<p>An indicator is a calculation from past price (moving averages smooth price; RSI scores momentum). Stacking them adds no new information, only more voices — a beginner with six indicators is outsourcing the decision to a committee that always disagrees.</p>" +
+              "<p>Skill order: <strong>price first, structure second, indicators later and sparingly</strong>. For the bootcamp: <strong>zero or one</strong> indicator — a single moving average to show trend is plenty.</p>"
+          },
+          {
+            code: "L7.7",
+            title: "Watchlists and layouts",
+            html:
+              "<p>Build a watchlist of exactly the five instruments — your 30-second morning scan. Adding every interesting symbol is how focus dies. Save the setup as a <strong>layout</strong> so drawings, timeframes and watchlist restore on any device.</p>"
+          },
+          {
+            code: "L7.8",
+            title: "Price alerts",
+            html:
+              "<p>Right-click a price → Add Alert (or the alarm-clock icon), set condition and expiry. Alerts are the antidote to screen-watching: mark the level, set the alert, close the app, live your life. Watching every tick doesn't give information — it gives urges (Module 12).</p>"
+          },
+          {
+            code: "L7.9",
+            title: "Replay mode",
+            html:
+              "<p>The rewind icon rolls the chart back and plays it forward candle by candle, hiding everything after — it restores what hindsight destroys: not knowing what happens next. Drill: rewind a month, step forward, call out structure and levels in real time. Ten minutes of replay beats an hour of scrolling history, because you can be wrong in it.</p>"
+          },
+          {
+            code: "L7.10",
+            title: "Analyse on TradingView, execute on MetaTrader",
+            html:
+              "<p>The loop (Module 10 formalises it for signals): context on TradingView with the zoom-out habit, levels marked, alert set → when the moment comes, size it with Module 4 → order in MetaTrader with SL and TP at entry → manage per plan.</p>" +
+              '<div class="rb-box"><p><strong>Keep the wall</strong> between deciding and doing. Decisions made with the buy button under your thumb are systematically worse than decisions made a screen away.</p></div>'
+          }
+        ],
+        mistakes: [
+          "<strong>Indicator stacking.</strong> Six overlapping opinions from the same prices. Price and structure first; one indicator maximum.",
+          "<strong>Panicking over TradingView vs MetaTrader price differences.</strong> Feeds differ by a few pips, indices most. Zones, not lasers.",
+          "<strong>A forty-symbol watchlist.</strong> The five. Depth beats breadth.",
+          "<strong>Never deleting old drawings.</strong> A chart you can't read is a chart you'll misread."
+        ],
+        quiz: [
+          { q: "Why analyse on TradingView but execute on MetaTrader, beyond chart quality?", a: "It separates deciding from doing: you decide where you can't place a trade, then execute a decision already made. Choices made with the buy button under your thumb are worse." },
+          { q: "Searching EURUSD gives many results. Which should you chart?", a: "Your own broker's feed if it's listed, so prices match what you can execute. Otherwise any major feed, expecting a few pips' difference." },
+          { q: "Why is replay mode better practice than scrolling back through history?", a: "It hides what happens next, so you have to call structure in real time and can be wrong — scrolling history is hindsight." },
+          { q: "The argument against five indicators on your chart?", a: "They're all rearrangements of the same past price — no new information, just more conflicting voices. You end up outsourcing the decision instead of reading price and structure." }
+        ],
+        task: "Build your TradingView workstation: watchlist of exactly the five instruments, candlestick chart, quick timeframes M5, M15, H1, H4 and D. Redraw your Module 6 zones properly as rectangles, set one alert at the edge of your most important zone, and save the layout. Then run one replay session: rewind any instrument one month on H1 and step through a week of candles, narrating structure out loud. Screenshot the finished workstation.",
+        vsRulebook: [
+          "<strong>Indicators:</strong> same stance as the Rulebook — optional confluence, never part of an entry. The course allows zero or one (a single moving average).",
+          "<strong>Fibonacci:</strong> the course watches 50–61.8% for pullbacks; the Rulebook uses the 0.5 split for premium/discount. Compatible — both centre on the 50% area.",
+          "<strong>Timeframes:</strong> the course's favourites (M5, M15, H1, H4, D) cover the Rulebook's bias chain; for Callisto confirmations you'd also add 1M/3M.",
+          "<strong>Sessions:</strong> keep the Rulebook's session indicator on your TradingView layout — it counts as tooling, not an entry indicator."
+        ]
       }
     ]
   },
