@@ -186,7 +186,8 @@
       accounts: DEFAULT_ACCOUNTS.map(function(a){ return Object.assign({}, a); }),
       psychology: defaultBook("psychology"),
       psychReadAt: "",         // last time the Psychology tab was marked as read
-      bootcamp: { notes: {}, done: {} }   // bootcamp answers + done dates, by module ("bb-1")
+      bootcamp: { notes: {}, done: {} },  // bootcamp answers + done dates, by module ("bb-1")
+      backtests: []                       // practice trades (Backtest tab)
     };
   }
 
@@ -211,7 +212,63 @@
   }
 
   var SETTINGS_KEYS = ["startingDeposit", "depositsWithdrawals", "riskOwnPremium", "riskGrindInst", "defaultStop", "maxDrawdown",
-    "splitStopsPremium", "splitStopsGrind", "pairs", "cashFlows", "sizing", "accounts", "psychology", "psychReadAt", "bootcamp"];
+    "splitStopsPremium", "splitStopsGrind", "pairs", "cashFlows", "sizing", "accounts", "psychology", "psychReadAt", "bootcamp", "backtests"];
+
+  // ---- backtests ----
+  // Practice trades from replay/backtesting. Kept apart from real trades: they
+  // never touch balances, P/L or any real stat. Stored with the settings, so
+  // they go into the JSON backup too.
+  var BT_MODELS = ["Own (SMC)", "Aaron EMAs", "AMD", "SMT", "AJ", "Other"];
+  var BT_CONFIRMATIONS = ["CHoCH + retest", "CHoCH + engulfing", "iFVG", "Engulfing", "EMA tap", "Other", "None"];
+  var BT_CONFLUENCES = ["HTF POI", "Fresh POI", "Liquidity sweep", "Session high/low", "Devil's mark", "SMT", "FVG", "Order block", "EMA tap", "Displacement"];
+  var BT_RESULTS = ["TP hit", "SL hit", "Breakeven", "Closed manually"];
+  var BT_KEYS = ["id", "createdAt", "updatedAt", "date", "time", "pair", "direction", "session", "model", "bias",
+    "confluences", "confirmation", "confirmationNote", "entry", "stopLoss", "takeProfit", "result", "exit", "mfePips",
+    "mistakes", "lessons", "link"];
+  function normalizeBacktest(b){
+    b = (b && typeof b === "object") ? b : {};
+    var bias = (b.bias && typeof b.bias === "object") ? b.bias : {};
+    var createdAt = num(b.createdAt); if(createdAt === null) createdAt = Date.now();
+    var updatedAt = num(b.updatedAt);
+    function bv(v){ return v === "Bullish" || v === "Bearish" ? v : ""; }
+    return Object.assign(extraFields(b, BT_KEYS), {
+      id: str(b.id) || makeId(),
+      createdAt: createdAt,
+      updatedAt: updatedAt === null ? createdAt : updatedAt,
+      date: /^\d{4}-\d{2}-\d{2}$/.test(str(b.date)) ? str(b.date) : "",
+      time: str(b.time).slice(0, 10),
+      pair: str(b.pair) || "XAUUSD",
+      direction: b.direction === "Sell" ? "Sell" : "Buy",
+      session: SESSIONS.indexOf(b.session) === -1 ? "" : b.session,
+      model: BT_MODELS.indexOf(b.model) === -1 ? "Other" : b.model,
+      bias: { daily: bv(bias.daily), h4: bv(bias.h4), h1: bv(bias.h1), m15: bv(bias.m15) },
+      confluences: Array.isArray(b.confluences) ? b.confluences.filter(function(c){ return BT_CONFLUENCES.indexOf(c) !== -1; }) : [],
+      confirmation: BT_CONFIRMATIONS.indexOf(b.confirmation) === -1 ? "None" : b.confirmation,
+      confirmationNote: str(b.confirmationNote),
+      entry: num(b.entry), stopLoss: num(b.stopLoss), takeProfit: num(b.takeProfit),
+      result: BT_RESULTS.indexOf(b.result) === -1 ? "Closed manually" : b.result,
+      exit: num(b.exit), mfePips: num(b.mfePips),
+      mistakes: str(b.mistakes), lessons: str(b.lessons), link: str(b.link)
+    });
+  }
+  // Derived numbers for one backtest: stop and result in pips, R, planned R:R,
+  // and how many bias timeframes agree with the direction.
+  function backtestCalc(b, settings){
+    var spec = pairSpec(settings, b.pair);
+    var dir = b.direction === "Sell" ? -1 : 1;
+    var stopPips = (b.entry !== null && b.stopLoss !== null) ? Math.abs(b.entry - b.stopLoss) / spec.pipSize : null;
+    var exitPrice = b.exit !== null ? b.exit
+      : b.result === "TP hit" ? b.takeProfit
+      : b.result === "SL hit" ? b.stopLoss
+      : b.result === "Breakeven" ? b.entry : null;
+    var resultPips = (b.entry !== null && exitPrice !== null) ? (exitPrice - b.entry) * dir / spec.pipSize : null;
+    var r = (resultPips !== null && stopPips) ? resultPips / stopPips : null;
+    var plannedRR = (b.entry !== null && b.takeProfit !== null && stopPips) ? (b.takeProfit - b.entry) * dir / spec.pipSize / stopPips : null;
+    var want = dir === 1 ? "Bullish" : "Bearish";
+    var aligned = ["daily", "h4", "h1", "m15"].filter(function(k){ return b.bias[k] === want; }).length;
+    var outcome = r === null ? "open" : r > 0.05 ? "win" : r < -0.05 ? "loss" : "be";
+    return { stopPips: stopPips, resultPips: resultPips, r: r, plannedRR: plannedRR, aligned: aligned, outcome: outcome };
+  }
 
   function normalizeSizing(v){
     v = (v && typeof v === "object") ? v : {};
@@ -296,6 +353,7 @@
     d.startingDeposit = round2(sum(accounts.map(function(a){ return a.startingDeposit; })));
     d.depositsWithdrawals = round2(sum(accounts.map(function(a){ return a.adjustment; })));
 
+    d.backtests = Array.isArray(s.backtests) ? s.backtests.map(normalizeBacktest) : [];
     var book = normalizeBook(s.psychology);
     if(book) d.psychology = book;
     d.psychReadAt = /^\d{4}-\d{2}-\d{2}$/.test(str(s.psychReadAt)) ? str(s.psychReadAt) : "";
@@ -1386,6 +1444,207 @@
   tabButtons.forEach(function(btn){
     btn.addEventListener("click", function(){ showView(btn.dataset.view); });
   });
+
+  // ---------- backtest ----------
+  (function(){
+    var form = document.getElementById("bt-form");
+    if(!form) return;
+    function $(id){ return document.getElementById(id); }
+    var f = {
+      date: $("bt-date"), time: $("bt-time"), pair: $("bt-pair"), direction: $("bt-direction"), session: $("bt-session"),
+      model: $("bt-model"), confirmation: $("bt-confirmation"), confirmationNote: $("bt-confirmation-note"),
+      entry: $("bt-entry"), stopLoss: $("bt-sl"), takeProfit: $("bt-tp"), result: $("bt-result"), exit: $("bt-exit"),
+      mfePips: $("bt-mfe"), mistakes: $("bt-mistakes"), lessons: $("bt-lessons"), link: $("bt-link")
+    };
+    var biasSel = Array.prototype.slice.call(form.querySelectorAll("[data-bias]"));
+    var elChips = $("bt-confluences"), elErr = $("bt-error"), elTitle = $("bt-form-title");
+    var elSave = $("bt-save"), elCancel = $("bt-cancel"), elReadout = $("bt-readout");
+    var elFilter = $("bt-filter-model"), elTable = $("bt-table");
+    var editingId = null, chosen = [];
+
+    function opts(list, blank){
+      return (blank ? '<option value="">' + escapeHtml(blank) + "</option>" : "") +
+        list.map(function(o){ return "<option>" + escapeHtml(o) + "</option>"; }).join("");
+    }
+    f.session.innerHTML = opts(SESSIONS, "—");
+    f.model.innerHTML = opts(BT_MODELS);
+    f.confirmation.innerHTML = opts(BT_CONFIRMATIONS);
+    f.result.innerHTML = opts(BT_RESULTS);
+    biasSel.forEach(function(sel){ sel.innerHTML = opts(["Bullish", "Bearish"], "—"); });
+    elFilter.innerHTML = '<option value="">All models</option>' + opts(BT_MODELS);
+
+    function list(){ return settings.backtests || (settings.backtests = []); }
+    function renderChips(){
+      elChips.innerHTML = BT_CONFLUENCES.map(function(c){
+        var on = chosen.indexOf(c) !== -1;
+        return '<button type="button" class="chip bt-chip' + (on ? " on" : "") + '" aria-pressed="' + on + '" data-c="' + escapeHtml(c) + '">' + escapeHtml(c) + "</button>";
+      }).join("");
+    }
+    elChips.addEventListener("click", function(ev){
+      var b = ev.target.closest("[data-c]"); if(!b) return;
+      var c = b.dataset.c, i = chosen.indexOf(c);
+      if(i === -1) chosen.push(c); else chosen.splice(i, 1);
+      renderChips();
+    });
+
+    function draft(){
+      var bias = {};
+      biasSel.forEach(function(sel){ bias[sel.dataset.bias] = sel.value; });
+      return normalizeBacktest({
+        id: editingId || undefined, date: f.date.value, time: f.time.value.trim(), pair: f.pair.value,
+        direction: f.direction.value, session: f.session.value, model: f.model.value, bias: bias,
+        confluences: chosen.slice(), confirmation: f.confirmation.value, confirmationNote: f.confirmationNote.value.trim(),
+        entry: f.entry.value, stopLoss: f.stopLoss.value, takeProfit: f.takeProfit.value, result: f.result.value,
+        exit: f.exit.value, mfePips: f.mfePips.value, mistakes: f.mistakes.value.trim(), lessons: f.lessons.value.trim(),
+        link: f.link.value.trim()
+      });
+    }
+    function fmtR(v){ return v === null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2) + "R"; }
+    function fmtPips(v){ return v === null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1); }
+    function updateReadout(){
+      var c = backtestCalc(draft(), settings);
+      elReadout.innerHTML =
+        "<span>Stop <strong>" + (c.stopPips === null ? "—" : c.stopPips.toFixed(1) + " pips") + "</strong></span>" +
+        "<span>Planned <strong>" + (c.plannedRR === null ? "—" : "1 : " + c.plannedRR.toFixed(2)) + "</strong></span>" +
+        "<span>Result <strong>" + (c.resultPips === null ? "—" : fmtPips(c.resultPips) + " pips") + "</strong></span>" +
+        '<span>R <strong class="' + (c.r > 0.05 ? "pos" : c.r < -0.05 ? "neg" : "") + '">' + fmtR(c.r) + "</strong></span>" +
+        "<span>Bias aligned <strong>" + c.aligned + "/4</strong></span>";
+    }
+    form.addEventListener("input", updateReadout);
+    form.addEventListener("change", updateReadout);
+
+    function resetForm(){
+      var keepModel = f.model.value, keepPair = f.pair.value;
+      form.reset();
+      f.pair.innerHTML = opts(settings.pairs.map(function(p){ return p.pair; }));
+      if(keepPair && settings.pairs.some(function(p){ return p.pair === keepPair; })) f.pair.value = keepPair;
+      if(keepModel) f.model.value = keepModel;
+      f.date.value = todayStr();
+      chosen = []; editingId = null;
+      elTitle.textContent = "Log a backtest"; elSave.textContent = "Save backtest";
+      elCancel.hidden = true; elErr.hidden = true;
+      renderChips(); updateReadout();
+    }
+    function fill(b){
+      f.pair.innerHTML = opts(settings.pairs.map(function(p){ return p.pair; }).concat(
+        settings.pairs.some(function(p){ return p.pair === b.pair; }) ? [] : [b.pair]));
+      Object.keys(f).forEach(function(k){ f[k].value = b[k] === null || b[k] === undefined ? "" : b[k]; });
+      biasSel.forEach(function(sel){ sel.value = b.bias[sel.dataset.bias] || ""; });
+      chosen = b.confluences.slice(); editingId = b.id;
+      elTitle.textContent = "Edit backtest"; elSave.textContent = "Save changes";
+      elCancel.hidden = false; elErr.hidden = true;
+      renderChips(); updateReadout();
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    form.addEventListener("submit", function(ev){
+      ev.preventDefault();
+      var b = draft();
+      var err = !b.date ? "Pick the date." :
+        b.entry === null || b.stopLoss === null ? "Enter the entry and the stop loss." :
+        b.entry === b.stopLoss ? "Entry and stop can't be the same price." :
+        (b.result === "Closed manually" && b.exit === null) ? "Closed manually — enter the exit price." : "";
+      if(!err && (b.stopLoss - b.entry) * (b.direction === "Buy" ? 1 : -1) > 0) err = "The stop is on the wrong side for a " + b.direction.toLowerCase() + ".";
+      if(err){ elErr.textContent = err; elErr.hidden = false; return; }
+      if(editingId){
+        settings.backtests = list().map(function(x){ return x.id === editingId ? normalizeBacktest(Object.assign({}, x, b, { createdAt: x.createdAt, updatedAt: Date.now() })) : x; });
+      }else{
+        settings.backtests = list().concat([b]);
+      }
+      saveSettings();
+      resetForm();
+      renderBacktests();
+    });
+    elCancel.addEventListener("click", resetForm);
+
+    function summary(rows){
+      var done = rows.filter(function(r){ return r.c.r !== null; });
+      var W = done.filter(function(r){ return r.c.outcome === "win"; }), L = done.filter(function(r){ return r.c.outcome === "loss"; });
+      var rs = done.map(function(r){ return r.c.r; });
+      var gw = sum(W.map(function(r){ return r.c.r; })), gl = -sum(L.map(function(r){ return r.c.r; }));
+      var mfe = rows.map(function(r){ return r.b.mfePips; }).filter(function(v){ return v !== null; });
+      return { n: rows.length, done: done.length, wins: W.length, losses: L.length, be: done.length - W.length - L.length,
+        winRate: W.length + L.length ? W.length / (W.length + L.length) : null,
+        totalR: rs.length ? sum(rs) : null, avgR: rs.length ? mean(rs) : null,
+        avgWin: W.length ? gw / W.length : null, avgLoss: L.length ? -gl / L.length : null,
+        pf: gl > 0 ? gw / gl : null, avgMfe: mfe.length ? mean(mfe) : null };
+    }
+    function breakdown(title, rows, keyFn, order){
+      var groups = {};
+      rows.forEach(function(r){ var k = keyFn(r); (groups[k] = groups[k] || []).push(r); });
+      var keys = (order || Object.keys(groups).sort()).filter(function(k){ return groups[k]; });
+      if(!keys.length) return "";
+      return '<div class="bt-break"><h3>' + escapeHtml(title) + '</h3><div class="mini-scroll"><table class="mini-table">' +
+        "<thead><tr><th></th><th>Trades</th><th>Win %</th><th>Avg R</th><th>Total R</th></tr></thead><tbody>" +
+        keys.map(function(k){
+          var s = summary(groups[k]);
+          return "<tr><td>" + escapeHtml(k) + "</td><td>" + s.n + "</td><td>" + fmtPct(s.winRate) + "</td>" +
+            '<td class="' + (s.avgR > 0 ? "pos" : s.avgR < 0 ? "neg" : "") + '">' + fmtR(s.avgR) + "</td>" +
+            '<td class="' + (s.totalR > 0 ? "pos" : s.totalR < 0 ? "neg" : "") + '">' + fmtR(s.totalR) + "</td></tr>";
+        }).join("") + "</tbody></table></div></div>";
+    }
+
+    function renderBacktests(){
+      var m = elFilter.value;
+      var rows = list().filter(function(b){ return !m || b.model === m; })
+        .map(function(b){ return { b: b, c: backtestCalc(b, settings) }; })
+        .sort(function(x, y){ return x.b.date < y.b.date ? 1 : x.b.date > y.b.date ? -1 : y.b.createdAt - x.b.createdAt; });
+      var s = summary(rows);
+      $("bt-stats").innerHTML =
+        statCard("btN", "Backtests", String(s.n)) +
+        statCard("btWin", "Win rate", fmtPct(s.winRate), s.wins + " W · " + s.losses + " L · " + s.be + " BE") +
+        statCard("btAvg", "Avg R per trade", fmtR(s.avgR), "expectancy") +
+        statCard("btTotal", "Total R", fmtR(s.totalR)) +
+        statCard("btWL", "Avg win / avg loss", fmtR(s.avgWin) + " / " + fmtR(s.avgLoss)) +
+        statCard("btPF", "Profit factor", s.pf === null ? "—" : s.pf.toFixed(2)) +
+        statCard("btMfe", "Avg max pips in favour", s.avgMfe === null ? "—" : s.avgMfe.toFixed(0));
+      $("bt-breakdowns").innerHTML = rows.length ?
+        (m ? "" : breakdown("By model", rows, function(r){ return r.b.model; }, BT_MODELS)) +
+        breakdown("By confirmation", rows, function(r){ return r.b.confirmation; }, BT_CONFIRMATIONS) +
+        breakdown("By session", rows, function(r){ return r.b.session || "—"; }, SESSIONS.concat(["—"])) +
+        breakdown("By bias aligned", rows, function(r){ return r.c.aligned + "/4"; }, ["4/4", "3/4", "2/4", "1/4", "0/4"]) +
+        breakdown("By confluence (trades that had it)", [].concat.apply([], rows.map(function(r){
+          return r.b.confluences.map(function(c){ return { b: r.b, c: r.c, k: c }; });
+        })), function(r){ return r.k; }, BT_CONFLUENCES)
+        : '<div class="hint">No backtests yet. Log your first one above.</div>';
+
+      elTable.innerHTML = rows.length ?
+        "<thead><tr><th>Date</th><th>Model</th><th>Dir</th><th>Session</th><th>Bias</th><th>Confirmation</th><th>Stop</th><th>Result</th><th>R</th><th>Max fav.</th><th>Lesson</th><th></th></tr></thead><tbody>" +
+        rows.map(function(r){
+          var b = r.b, c = r.c;
+          return '<tr data-id="' + escapeHtml(b.id) + '">' +
+            "<td>" + escapeHtml(fmtDayLabel(b.date)) + (b.time ? " " + escapeHtml(b.time) : "") + "</td>" +
+            "<td>" + escapeHtml(b.model) + "</td><td>" + b.direction + "</td><td>" + escapeHtml(b.session || "—") + "</td>" +
+            "<td>" + c.aligned + "/4</td>" +
+            '<td title="' + escapeHtml(b.confluences.join(", ") + (b.confirmationNote ? " — " + b.confirmationNote : "")) + '">' + escapeHtml(b.confirmation) + "</td>" +
+            "<td>" + (c.stopPips === null ? "—" : c.stopPips.toFixed(0)) + "</td>" +
+            "<td>" + escapeHtml(b.result) + (c.resultPips === null ? "" : " (" + fmtPips(c.resultPips) + ")") + "</td>" +
+            '<td class="' + (c.r > 0.05 ? "pos" : c.r < -0.05 ? "neg" : "") + '">' + fmtR(c.r) + "</td>" +
+            "<td>" + (b.mfePips === null ? "—" : Math.round(b.mfePips)) + "</td>" +
+            '<td class="bt-lesson">' + escapeHtml(b.lessons || b.mistakes || "") + (b.link ? ' <a href="' + escapeHtml(b.link) + '" target="_blank" rel="noopener">chart</a>' : "") + "</td>" +
+            '<td class="bt-acts"><button type="button" class="ghost small" data-act="edit">Edit</button> <button type="button" class="ghost small danger" data-act="delete">Delete</button></td>' +
+          "</tr>";
+        }).join("") + "</tbody>"
+        : '<tbody><tr><td class="bt-empty">Nothing logged yet.</td></tr></tbody>';
+    }
+    elFilter.addEventListener("change", renderBacktests);
+    elTable.addEventListener("click", function(ev){
+      var btn = ev.target.closest("button[data-act]"); if(!btn) return;
+      var id = btn.closest("tr").dataset.id;
+      var b = list().filter(function(x){ return x.id === id; })[0]; if(!b) return;
+      if(btn.dataset.act === "edit"){ fill(b); return; }
+      if(btn.dataset.armed !== "1"){ btn.dataset.armed = "1"; btn.textContent = "Tap again to delete"; return; }
+      settings.backtests = list().filter(function(x){ return x.id !== id; });
+      if(editingId === id) resetForm();
+      saveSettings();
+      renderBacktests();
+    });
+
+    renderers.backtest = function(){
+      if(!editingId) resetForm();
+      renderBacktests();
+    };
+  })();
 
   // ---------- rulebook ----------
   // Static content in index.html; chapters are <details>. The chapter links

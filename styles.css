@@ -193,7 +193,7 @@ label, .label{
   letter-spacing: .4px;
 }
 
-input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], select, textarea{
+input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], input[type=url], select, textarea{
   background: var(--panel-2);
   border: 1px solid var(--border);
   color: var(--text);
@@ -743,7 +743,7 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
   .close-row .c-out{ text-align: left; }
   .form-actions button{ padding: 11px 16px; }
   /* 16px stops iOS zooming the page when a field is focused */
-  input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], select, textarea{ font-size: 16px; }
+  input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], input[type=url], select, textarea{ font-size: 16px; }
 }
 
 /* ---- sign in + save status ---- */
@@ -1059,3 +1059,20 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .bc-table.bc-num td:first-child{ white-space: normal; min-width: 110px; }
 .bc-table.bc-num td:nth-child(n+3){ white-space: nowrap; }
 .bc-vs-note{ color: var(--text-dim); font-size: 12.5px !important; margin: -2px 0 8px !important; }
+
+/* ---- backtest tab ---- */
+.bt-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
+.bt-chip{ cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 10px; border-radius: 14px; background: transparent; color: var(--text-dim); }
+.bt-chip.on{ background: rgba(53,208,127,0.16); border-color: var(--green); color: var(--green); }
+.bt-readout{ display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--text-dim); }
+.bt-readout strong{ color: var(--text); font-variant-numeric: tabular-nums; }
+.bt-readout strong.pos{ color: var(--green); } .bt-readout strong.neg{ color: var(--red); }
+.bt-head{ display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.bt-filter{ font-size: 13px; color: var(--text-dim); display: flex; gap: 6px; align-items: center; }
+.bt-filter select{ width: auto; }
+.bt-breakdowns{ display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px 18px; }
+.bt-break h3{ margin: 0 0 6px; font-size: 12.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .4px; }
+.bt-table td.bt-lesson{ white-space: normal; text-align: left; min-width: 160px; max-width: 280px; color: var(--text-dim); }
+.bt-acts{ white-space: nowrap; }
+.bt-empty{ color: var(--text-dim); text-align: left !important; }
+@media (max-width: 760px){ .bt-breakdowns{ grid-template-columns: minmax(0, 1fr); } }
