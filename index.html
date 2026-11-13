@@ -51,6 +51,7 @@
   <nav class="tabs">
     <button id="tab-new" type="button" data-view="new">+ Log Trade</button>
     <button id="tab-list" type="button" data-view="list" class="active">Trade Log</button>
+    <button id="tab-backtest" type="button" data-view="backtest">Backtest</button>
     <button id="tab-dash" type="button" data-view="dash">Dashboard</button>
     <button id="tab-sizing" type="button" data-view="sizing">Position Sizing</button>
     <button id="tab-weekly" type="button" data-view="weekly">Weekly Review</button>
@@ -234,6 +235,83 @@
   </section>
 
   <!-- ============ DASHBOARD VIEW ============ -->
+  <!-- ============ BACKTEST VIEW ============ -->
+  <section id="view-backtest" class="view hidden">
+    <div class="panel">
+      <h2 class="form-title" id="bt-form-title">Log a backtest</h2>
+      <div class="hint">Practice trades from replay or chart study. They never touch your balance or real stats — this tab is all about the data: setups, confluences, confirmations, R and lessons.</div>
+      <form id="bt-form" novalidate>
+        <fieldset>
+          <legend>Setup</legend>
+          <div class="grid">
+            <div class="field"><label for="bt-date">Date (on the chart)</label><input type="date" id="bt-date"></div>
+            <div class="field"><label for="bt-time">Time</label><input type="text" id="bt-time" placeholder="e.g. 10:45" inputmode="numeric"></div>
+            <div class="field"><label for="bt-pair">Pair</label><select id="bt-pair"></select></div>
+            <div class="field"><label for="bt-direction">Direction</label><select id="bt-direction"><option>Buy</option><option>Sell</option></select></div>
+            <div class="field"><label for="bt-session">Session</label><select id="bt-session"></select></div>
+            <div class="field"><label for="bt-model">Model</label><select id="bt-model"></select></div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Bias</legend>
+          <div class="grid bt-bias">
+            <div class="field"><label for="bt-b-daily">Daily</label><select id="bt-b-daily" data-bias="daily"></select></div>
+            <div class="field"><label for="bt-b-h4">4H</label><select id="bt-b-h4" data-bias="h4"></select></div>
+            <div class="field"><label for="bt-b-h1">1H</label><select id="bt-b-h1" data-bias="h1"></select></div>
+            <div class="field"><label for="bt-b-m15">15M</label><select id="bt-b-m15" data-bias="m15"></select></div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Confluences &amp; confirmation</legend>
+          <div class="bt-chips" id="bt-confluences" role="group" aria-label="Confluences"></div>
+          <div class="grid field-gap">
+            <div class="field"><label for="bt-confirmation">Confirmation</label><select id="bt-confirmation"></select></div>
+            <div class="field"><label for="bt-confirmation-note">Details</label><input type="text" id="bt-confirmation-note" placeholder="e.g. 1M CHoCH body close, retest at 4071"></div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Trade</legend>
+          <div class="grid">
+            <div class="field"><label for="bt-entry">Entry</label><input type="number" step="any" inputmode="decimal" id="bt-entry"></div>
+            <div class="field"><label for="bt-sl">Stop loss</label><input type="number" step="any" inputmode="decimal" id="bt-sl"></div>
+            <div class="field"><label for="bt-tp">Take profit (planned)</label><input type="number" step="any" inputmode="decimal" id="bt-tp"></div>
+            <div class="field"><label for="bt-result">Result</label><select id="bt-result"></select></div>
+            <div class="field"><label for="bt-exit">Exit price (if closed manually)</label><input type="number" step="any" inputmode="decimal" id="bt-exit"></div>
+            <div class="field"><label for="bt-mfe">Max pips in favour</label><input type="number" step="any" inputmode="decimal" id="bt-mfe" placeholder="how far it ran"></div>
+          </div>
+          <div class="bt-readout field-gap" id="bt-readout"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Review</legend>
+          <div class="grid">
+            <div class="field"><label for="bt-mistakes">Mistakes</label><textarea id="bt-mistakes" placeholder="What would I have done wrong?"></textarea></div>
+            <div class="field"><label for="bt-lessons">Lessons</label><textarea id="bt-lessons" placeholder="What does this setup teach me?"></textarea></div>
+          </div>
+          <div class="field field-gap"><label for="bt-link">Screenshot link (optional)</label><input type="url" id="bt-link" placeholder="TradingView snapshot link"></div>
+        </fieldset>
+        <div class="form-error field-gap" id="bt-error" hidden></div>
+        <div class="form-actions field-gap">
+          <button type="submit" class="primary" id="bt-save">Save backtest</button>
+          <button type="button" class="ghost" id="bt-cancel" hidden>Cancel edit</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="bt-head">
+        <h2 class="panel-title">Backtest stats</h2>
+        <label class="bt-filter">Model <select id="bt-filter-model"></select></label>
+      </div>
+      <div class="stats-grid" id="bt-stats"></div>
+      <div class="bt-breakdowns field-gap" id="bt-breakdowns"></div>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Backtest log</h2>
+      <div class="mini-scroll"><table class="mini-table bt-table" id="bt-table"></table></div>
+    </div>
+  </section>
+
   <section id="view-dash" class="view hidden">
     <div class="panel empty-state" id="dash-empty" hidden>No closed trades yet</div>
 
