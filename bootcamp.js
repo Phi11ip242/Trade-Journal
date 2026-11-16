@@ -1364,6 +1364,30 @@ window.BOOTCAMPS = {
           "<strong>Asia — both</strong> treat the Asia session as liquidity for later sessions. <strong>AJ</strong> marks resistance, supply/demand and trendlines inside Asia; <strong>Rulebook</strong> marks the Asian high/low as a liquidity target or sweep level and no longer uses support/resistance.",
           "<strong>Routine:</strong> AJ wants a fixed routine around one open. That ties in with Beginner Bootcamp Module 8 (one trading window) and Module 12 (a defined end time for the day)."
         ]
+      },
+      {
+        num: 4,
+        label: "1.4",
+        phase: 1,
+        title: "Understanding News",
+        tagline: "1:31 video. Why they avoid high-impact news at all costs.",
+        lessons: [
+          {
+            code: "News",
+            title: "Red folders: stay away",
+            html:
+              "<ul>" +
+              "<li>Use <strong>Forex Factory</strong> with the time set to your own timezone to see exactly when each release is. <strong>Red folders are the ones to stay away from.</strong></li>" +
+              "<li>Example shown: <strong>NFP on 3 July</strong>, released at 1:30 on his chart. Price spiked hard straight through the nearby lows.</li>" +
+              "<li>If you were in a buy with your stop under that low, you wouldn't just be stopped out — you'd be <strong>slipped</strong>, and can end up losing <strong>two to three times your planned risk</strong>.</li>" +
+              "<li>They don't go deep into fundamentals; the point is timing — <strong>avoid news at all costs</strong>.</li>" +
+              "</ul>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>News — AJ:</strong> avoid red-folder news at all costs (same as Beginner Bootcamp Module 8: be flat). <strong>Rulebook:</strong> check Forex Factory daily and expect spikes and slippage, but no rule to stay out. This is now the second time AJ's material makes it a rule — one of the decisions for the end.",
+          "<strong>Slippage on a 20% idea:</strong> 2–3× slippage on a Callisto basket risked at 20% could mean a 40–60% loss in one news candle. Worth weighing when you decide."
+        ]
       }
     ]
   }
