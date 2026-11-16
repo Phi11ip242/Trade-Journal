@@ -1,0 +1,38 @@
+name: fetch-gold-m1
+on:
+  push:
+    branches: [data-fetch]
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download XAUUSD M1 (Dukascopy, bid, GMT)
+        shell: python
+        run: |
+          import urllib.request, lzma, struct, datetime as dt, csv, time
+          start, end = dt.date(2026, 9, 1), dt.date.today()
+          rows, d = [], start
+          while d <= end:
+              url = f"https://datafeed.dukascopy.com/datafeed/XAUUSD/{d.year}/{d.month-1:02d}/{d.day:02d}/BID_candles_min_1.bi5"
+              for attempt in range(4):
+                  try:
+                      raw = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=30).read(); break
+                  except Exception as e:
+                      raw = None; err = e; time.sleep(2)
+              n = 0
+              if raw:
+                  data = lzma.decompress(raw)
+                  base = dt.datetime(d.year, d.month, d.day)
+                  for i in range(0, len(data), 24):
+                      t, o, c, lo, hi, v = struct.unpack(">5if", data[i:i+24])
+                      if v <= 0: continue
+                      rows.append([(base + dt.timedelta(seconds=t)).strftime("%Y-%m-%d %H:%M"), o/1000, hi/1000, lo/1000, c/1000, round(v, 4)]); n += 1
+              print(d, n if raw is not None else f"fail {err}")
+              d += dt.timedelta(days=1)
+          with open("xauusd_m1_gmt.csv", "w", newline="") as f:
+              w = csv.writer(f); w.writerow(["time_gmt", "open", "high", "low", "close", "volume"]); w.writerows(rows)
+          print("rows", len(rows), rows[0] if rows else None, rows[-1] if rows else None)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xauusd-m1
+          path: xauusd_m1_gmt.csv
