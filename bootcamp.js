@@ -1478,6 +1478,50 @@ window.BOOTCAMPS = {
           "<strong>Messy timeframe — AJ:</strong> if it isn't clean, drop to a lower timeframe and use that. <strong>Rulebook:</strong> stacks all the timeframes and wants three aligned; in a weak/messy structure it expects a deeper pullback. Slightly different handling of unclear charts.",
           "<strong>Still open after all three structure lessons:</strong> whether a wick beyond the level counts as a break, or only a body close (Rulebook: body close only). Joshua's examples don't say. Worth asking in their community if it isn't answered later."
         ]
+      },
+      {
+        num: 8,
+        label: "1.8",
+        phase: 1,
+        title: "Supply & Demand",
+        tagline: "6:41 video. Supply and demand is other traders' strategy. AJ and Joshua use it to see where those traders enter — and often to trade against them.",
+        lessons: [
+          {
+            code: "Idea",
+            title: "Someone else's strategy, used as information",
+            html:
+              "<p>Supply and demand is a strategy in itself, but <strong>not theirs</strong>. Other traders use it to enter; AJ and Joshua use it to understand <strong>where those traders will enter the market</strong>, as one factor in their analysis — and often to <strong>go against them</strong>.</p>"
+          },
+          {
+            code: "Zones",
+            title: "What a demand and supply zone is",
+            html:
+              "<ul>" +
+              "<li>Structure goes push up → retracement → push up. A <strong>demand zone</strong> is where price <strong>slows down right before an imbalance</strong> is created and price pushes up (see 1.9 Imbalances). A <strong>supply zone</strong> is the same in reverse.</li>" +
+              "<li>In a bullish trend, S&amp;D traders see the demand zone as the last point price can come back to before continuing up. Price often does react there and continue — <strong>but not always</strong>.</li>" +
+              "<li>If there's <strong>more liquidity underneath</strong> (needed to break structure), the market will gravitate to that instead.</li>" +
+              "<li>Either way it's an area where price slows down and a lot of people get in — useful to know.</li>" +
+              "<li>Every timeframe has them: 4H supply and demand, 1H supply and demand, and so on.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Examples",
+            title: "Where it works — and where it traps people",
+            html:
+              "<ul>" +
+              "<li><strong>4H demand:</strong> price slowed (a battle between buyers and sellers, visible on lower timeframes) before a big push up, then later came back into it.</li>" +
+              "<li><strong>4H supply:</strong> price returned and had a perfect reaction down — the strategy worked for sellers that time.</li>" +
+              "<li><strong>15M:</strong> after a 5M break of structure down, price crept back up into a supply and continued down; later it left a demand zone, came back, respected it, and continued higher once bullish.</li>" +
+              "<li><strong>The trap:</strong> a 4H demand trader waits for price to reach the lowest point of the bullish range, sees 15M internal breaks of structure up, and buys. Price breaks up a little — then comes back down and <strong>takes out everyone who got in there</strong>.</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>Their point:</strong> combine this with where the bigger liquidity is. Seeing S&amp;D traders enter can be the reason to trade against them. The full top-down analysis later shows how.</p></div>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>Zones — Rulebook:</strong> order blocks (last opposite candle before an impulse that breaks structure, ideally with a sweep, FVG, inducement or HTF alignment) are POIs you <em>enter from</em> after a LTF confirmation. <strong>AJ:</strong> similar zones, but treated as where <em>other</em> traders enter — information, and often a place to fade.",
+          "<strong>The trap example is close to a Rulebook entry:</strong> HTF demand/OB in the discount of a bullish range + LTF break up = the Rulebook's POI-plus-CHoCH entry. AJ's point is that it fails when bigger liquidity sits underneath. The Rulebook guards against this with \"liquidity swept first\" and inducement as OB criteria, and Nick's \"sweep then shift\" model. Worth comparing once AJ's entry model (1.16) is in.",
+          "<strong>Liquidity first:</strong> both say price is drawn to liquidity — the Rulebook targets it and wants a sweep before entry; AJ uses it to decide whether a zone will hold."
+        ]
       }
     ]
   }
