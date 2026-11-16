@@ -1444,6 +1444,40 @@ window.BOOTCAMPS = {
           "<strong>Same top-down idea</strong> as the Rulebook's bias (Daily → 4H → 1H → 15M → LTF). The Rulebook adds a rule AJ hasn't stated yet: <strong>at least three timeframes aligned</strong> before taking a trade.",
           "<strong>Terminology:</strong> again \"break of structure\" here = the Rulebook's CHoCH (the flip from bearish to bullish)."
         ]
+      },
+      {
+        num: 7,
+        label: "1.7",
+        phase: 1,
+        title: "Market Structure pt 3",
+        tagline: "2:30 video. GBPUSD example: how a break of structure defines the range you're in, and stepping down the timeframes when one isn't clean.",
+        lessons: [
+          {
+            code: "Range",
+            title: "The break sets the range",
+            html:
+              "<ul>" +
+              "<li><strong>GBPUSD 1H:</strong> price stepped up (higher highs, higher lows), then made a <strong>lower low</strong> below the last low — the break of structure.</li>" +
+              "<li>Now the <strong>range is the last high to the new low</strong>, and it's <strong>bearish</strong>, because that high hasn't been broken. It stays the range until one end breaks.</li>" +
+              "<li>Price plays out inside that range. If it doesn't look clean on that timeframe, <strong>you can't really use it there — step down</strong>.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Step down",
+            title: "15M and 5M inside the range",
+            html:
+              "<ul>" +
+              "<li><strong>15M:</strong> clearer ranges. Price came up, pulled back, made another high, pulled back, <strong>failed to break that high</strong>, then broke to the downside (15M break of structure) and stepped down — now pushing back up again. The 15M range runs from its low to its high, with its break of structure marked.</li>" +
+              "<li><strong>5M:</strong> more internal structure again inside that 15M area.</li>" +
+              "<li>Each step down gives more and more ranges inside the bigger one.</li>" +
+              "</ul>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Range logic matches:</strong> a range stays bearish until its high is broken — same as the Rulebook's structure read (bias holds until the opposite swing breaks).",
+          "<strong>Messy timeframe — AJ:</strong> if it isn't clean, drop to a lower timeframe and use that. <strong>Rulebook:</strong> stacks all the timeframes and wants three aligned; in a weak/messy structure it expects a deeper pullback. Slightly different handling of unclear charts.",
+          "<strong>Still open after all three structure lessons:</strong> whether a wick beyond the level counts as a break, or only a body close (Rulebook: body close only). Joshua's examples don't say. Worth asking in their community if it isn't answered later."
+        ]
       }
     ]
   }
