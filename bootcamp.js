@@ -1420,6 +1420,30 @@ window.BOOTCAMPS = {
           "<strong>Body close vs wick — not said yet:</strong> the Rulebook only counts a break on a body candle close (a wick through is a sweep). Joshua hasn't said whether a wick counts; watch for it in pt 2–3.",
           "<strong>Internal structure:</strong> same idea as the Rulebook's internal/LTF structure and stacking timeframes (e.g. daily bias, 4H/1H internal moves)."
         ]
+      },
+      {
+        num: 6,
+        label: "1.6",
+        phase: 1,
+        title: "Market Structure pt 2",
+        tagline: "1:41 video. A real gold example of a daily break of structure and the internal ranges inside it.",
+        lessons: [
+          {
+            code: "Example",
+            title: "Gold daily, then down the timeframes",
+            html:
+              "<ul>" +
+              "<li><strong>Daily gold:</strong> price had been stepping down (lower highs, lower lows). Then it pushed above a lower high — the <strong>break of structure</strong> where daily turned bullish. After that: low → high → higher low → higher high once price pushed above the previous high.</li>" +
+              "<li>The daily range is clear: the low and the high it's working between.</li>" +
+              "<li><strong>4H:</strong> inside that daily range there are internal ranges and internal structure of their own. <strong>1H:</strong> more structure again, some similar to the higher timeframe. Down at the <strong>1M</strong> you see crazy amounts of ranges chopping around.</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>The skill:</strong> know which direction the market is going on <em>each</em> timeframe, then use that to build your <strong>bias for an execution</strong>.</p></div>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>Same top-down idea</strong> as the Rulebook's bias (Daily → 4H → 1H → 15M → LTF). The Rulebook adds a rule AJ hasn't stated yet: <strong>at least three timeframes aligned</strong> before taking a trade.",
+          "<strong>Terminology:</strong> again \"break of structure\" here = the Rulebook's CHoCH (the flip from bearish to bullish)."
+        ]
       }
     ]
   }
