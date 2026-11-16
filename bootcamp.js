@@ -1327,6 +1327,43 @@ window.BOOTCAMPS = {
         vsRulebook: [
           "<strong>No differences yet.</strong> Same candle basics as the Rulebook. The Rulebook's rule that breaks count only on a body close (a wick through is a sweep, not a break) isn't covered here — watch for how Joshua treats wicks vs body closes in the Market Structure lessons (1.5–1.7)."
         ]
+      },
+      {
+        num: 3,
+        label: "1.3",
+        phase: 1,
+        title: "Trading sessions and how to use them",
+        tagline: "2:17 video. When AJ and Joshua trade, and how they use the Asia session.",
+        lessons: [
+          {
+            code: "Sessions",
+            title: "Trade the London and New York opens",
+            html:
+              "<ul>" +
+              "<li><strong>AJ and Joshua trade the London open and the New York open</strong> — that's where the volume is, far more than in Asia.</li>" +
+              "<li>The <strong>biggest move usually comes in the first hour or two of London</strong>; New York usually gives a move of some sort too.</li>" +
+              "<li>Entries can be found on any timeframe at any time, but <strong>pick your session and stick to a set routine around a market open</strong>, watching the charts in that window.</li>" +
+              "</ul>" +
+              "<p>In SA time (approximate, shifts an hour with UK/US clock changes): London opens around <strong>10:00</strong> in the northern winter (09:00 in summer); New York's forex open is around <strong>15:00</strong> and the US stock market open (which drives NAS100) around <strong>16:30</strong> in winter.</p>"
+          },
+          {
+            code: "Asia",
+            title: "Asia builds the liquidity",
+            html:
+              "<p>The Tokyo/Asia session has much less volume. They use it as a <strong>build-up of liquidity</strong>: within Asia they mark resistance levels, supply and demand levels and trendlines. When Asia rolls over into London, they <strong>use the liquidity built up in Asia to find their London entries</strong>.</p>"
+          },
+          {
+            code: "Tool",
+            title: "The sessions indicator",
+            html:
+              "<p>TradingView's \"Trading Sessions\" indicator shows the sessions on the chart. Joshua doesn't keep it on himself — he knows the times — but it's there if you want it. (In 1.1 he called it the only indicator he'd use.)</p>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>When to trade — AJ:</strong> the London and New York opens, mainly the first 1–2 hours, and stick to one routine. <strong>Rulebook:</strong> no session limit; a valid setup gets taken. Nick's view is that London often ranges and New York brings the expansion; your KZP kill zones are London 09:00–12:00 and NY AM 16:30–18:00 SA time (from 2 Nov). Aaron only trades after 15:00.",
+          "<strong>Asia — both</strong> treat the Asia session as liquidity for later sessions. <strong>AJ</strong> marks resistance, supply/demand and trendlines inside Asia; <strong>Rulebook</strong> marks the Asian high/low as a liquidity target or sweep level and no longer uses support/resistance.",
+          "<strong>Routine:</strong> AJ wants a fixed routine around one open. That ties in with Beginner Bootcamp Module 8 (one trading window) and Module 12 (a defined end time for the day)."
+        ]
       }
     ]
   }
