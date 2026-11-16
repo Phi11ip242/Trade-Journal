@@ -3121,7 +3121,97 @@
 
     renderPartials(p, usd);
     renderAJ(p, usd);
+    ajcCtx = { balance: prot.sizingBalance, mult: prot.riskMult, acc: multiAccount() ? accountName(accId) : "", spec: pairSpec(settings, pair) };
+    renderAJCalc();
   }
+
+  // ---------- AJ pip calculator ----------
+  // Prices in → stop/TP pips, R:R and the lots for a risk % at the sizing
+  // balance (loss protocol applied). Nothing is saved.
+  var ajcCtx = null;
+  var ajcLegs = 1;
+  var elAjc = {
+    entry: document.getElementById("ajc-entry"), sl: document.getElementById("ajc-sl"),
+    tp: document.getElementById("ajc-tp"), risk: document.getElementById("ajc-risk"),
+    lots: document.getElementById("ajc-lots"), legs: document.getElementById("ajc-legs"),
+    err: document.getElementById("ajc-error"), out: document.getElementById("ajc-out")
+  };
+  function renderAJCalc(){
+    if(!ajcCtx) return;
+    var sz = settings.sizing, spec = ajcCtx.spec, pip = spec.pipSize, usd = spec.usdPerPip, bal = ajcCtx.balance;
+    var defRisk = round2(sz.aj * ajcCtx.mult);
+    elAjc.risk.placeholder = defRisk;
+    var entry = num(elAjc.entry.value), sl = num(elAjc.sl.value), tp = num(elAjc.tp.value);
+    var typedRisk = num(elAjc.risk.value), risk = typedRisk !== null && typedRisk > 0 ? typedRisk : defRisk;
+    var check = num(elAjc.lots.value);
+    var err = "", warns = [];
+    function show(html){
+      elAjc.err.textContent = err; elAjc.err.hidden = !err;
+      elAjc.out.innerHTML = html;
+    }
+    var balLine = '<div class="hint">Sizing from <strong>' + escapeHtml(fmtUsd(bal)) + "</strong>" +
+      (ajcCtx.acc ? " (" + escapeHtml(ajcCtx.acc) + ")" : "") +
+      (ajcCtx.mult !== 1 ? " · loss protocol on half risk, so the default is " + defRisk + "%" : "") +
+      (typedRisk === null ? " · using AJ's " + defRisk + "%" : "") + ".</div>";
+    if(entry === null || sl === null){ show(balLine); return; }
+    if(entry === sl){ err = "The stop can't be at the entry price."; show(balLine); return; }
+    var sign = sl < entry ? 1 : -1;               // stop below = buy
+    var dir = sign > 0 ? "Buy" : "Sell";
+    var slPips = clean(Math.abs(entry - sl) / pip);
+    var tpPips = null, rr = null;
+    if(tp !== null){
+      if((tp - entry) * sign <= 0){ err = dir + ": the take profit has to be " + (sign > 0 ? "above" : "below") + " the entry (the stop is " + (sign > 0 ? "below" : "above") + " it)."; }
+      else { tpPips = clean(Math.abs(tp - entry) / pip); rr = tpPips / slPips; }
+    }
+    if(risk > SOURCE_RISK.AJ.max) warns.push("Above your " + SOURCE_RISK.AJ.max + "% hard cap per idea.");
+    if(slPips > OWN_PREM_STOP) warns.push("Stop is " + slPips.toFixed(1) + " pips — over AJ's " + OWN_PREM_STOP + "-pip max.");
+    if(rr !== null && rr < sz.ajRR) warns.push("Only " + rr.toFixed(2) + "R to the take profit — the AJ plan needs at least " + sz.ajRR + "R.");
+
+    var exact = bal * risk / 100 / (slPips * usd);
+    var perLeg = Math.floor(exact / ajcLegs * 100 + 1e-9) / 100;
+    var buffered = round2(Math.max(perLeg - 0.01, 0));
+    function moneyPct(lotsTotal){
+      var r = riskDollars(lotsTotal, slPips, usd);
+      return fmtMoney(-r) + ' <span class="neutral">(' + (bal > 0 ? (r / bal * 100).toFixed(1) : "—") + "%)</span>";
+    }
+    function reward(lotsTotal){ return tpPips === null ? "—" : fmtMoney(round2(lotsTotal * tpPips * usd)); }
+    var legWord = ajcLegs > 1 ? '<br><span class="neutral">each × ' + ajcLegs + "</span>" : "";
+    var cards =
+      statCard("ajcDir", "Direction", '<span class="' + (sign > 0 ? "pos" : "neg") + '">' + dir + "</span>") +
+      statCard("ajcSl", "Stop loss", slPips.toFixed(1) + " pips", fmtUsd(round2(slPips * usd)) + " per 1 lot") +
+      statCard("ajcTp", "Take profit", tpPips === null ? "—" : tpPips.toFixed(1) + " pips") +
+      statCard("ajcRR", "Reward : risk", rr === null ? "—" : '<span class="' + (rr >= sz.ajRR ? "pos" : "neg") + '">' + rr.toFixed(2) + "R</span>") +
+      statCard("ajcBE", "Stop to BE at", fmtPrice(entry + sign * slPips * sz.ajBE * pip, spec), sz.ajBE + "R · +" + clean(slPips * sz.ajBE).toFixed(1) + " pips");
+    var rows;
+    if(perLeg < 0.01){
+      rows = '<div class="warn">Below 0.01 lots' + (ajcLegs > 1 ? " per entry — use 1 entry" : "") + " at " + risk + "% with a " + slPips.toFixed(1) + "-pip stop. 0.01 would risk " +
+        escapeHtml(fmtUsd(riskDollars(0.01 * ajcLegs, slPips, usd))) + ".</div>";
+    }else{
+      rows = '<table class="mini-table ajc-table"><thead><tr><th></th><th>Lots</th><th>Risk</th><th>At TP</th></tr></thead><tbody>' +
+        '<tr class="ajc-go"><td><strong>Enter with</strong><br><span class="neutral">−0.01 buffer</span></td><td><strong>' + fmtLots(buffered < 0.01 ? 0.01 : buffered) + "</strong>" + legWord + "</td><td>" +
+          moneyPct((buffered < 0.01 ? 0.01 : buffered) * ajcLegs) + "</td><td>" + reward((buffered < 0.01 ? 0.01 : buffered) * ajcLegs) + "</td></tr>" +
+        "<tr><td>Full " + risk + "%<br><span class=\"neutral\">rounded down</span></td><td>" + fmtLots(perLeg) + legWord + "</td><td>" + moneyPct(perLeg * ajcLegs) + "</td><td>" + reward(perLeg * ajcLegs) + "</td></tr>" +
+        (check !== null && check > 0 ? "<tr><td>Your lots</td><td>" + fmtLots(check) + " total</td><td>" + moneyPct(check) + "</td><td>" + reward(check) + "</td></tr>" : "") +
+        "</tbody></table>";
+      if(buffered < 0.01) warns.push("0.01 is the smallest size, so the buffer can't come off here.");
+    }
+    show(balLine + '<div class="stats-grid ajc-stats">' + cards + "</div>" +
+      (warns.length ? '<div class="warn-list">' + warns.map(function(w){ return '<div class="warn">' + escapeHtml(w) + "</div>"; }).join("") + "</div>" : "") +
+      '<div class="mini-scroll field-gap">' + rows + "</div>");
+  }
+  ["entry", "sl", "tp", "risk", "lots"].forEach(function(k){ elAjc[k].addEventListener("input", renderAJCalc); });
+  elAjc.legs.addEventListener("click", function(ev){
+    var b = ev.target.closest("button[data-legs]");
+    if(!b) return;
+    ajcLegs = Number(b.dataset.legs);
+    Array.prototype.forEach.call(elAjc.legs.querySelectorAll("button"), function(x){ x.classList.toggle("on", x === b); });
+    renderAJCalc();
+  });
+  document.getElementById("ajc-clear").addEventListener("click", function(){
+    ["entry", "sl", "tp", "risk", "lots"].forEach(function(k){ elAjc[k].value = ""; });
+    renderAJCalc();
+    elAjc.entry.focus();
+  });
 
   // AJ: fixed reward:risk, no partial ladder.
   function renderAJ(p, usd){

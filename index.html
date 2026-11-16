@@ -369,6 +369,22 @@
 
     <div class="panel protocol" id="protocol-panel"></div>
 
+    <div class="panel" id="ajc-panel">
+      <h2 class="panel-title">AJ — pip calculator</h2>
+      <div class="hint" id="ajc-intro">Type AJ's entry, stop and take profit. Buy or sell is worked out from the stop. Lots come from the risk % and the balance below — nothing here is saved.</div>
+      <div class="grid field-gap ajc-grid">
+        <div class="field"><label for="ajc-entry">Entry price</label><input type="number" step="any" inputmode="decimal" id="ajc-entry"></div>
+        <div class="field"><label for="ajc-sl">Stop loss</label><input type="number" step="any" inputmode="decimal" id="ajc-sl"></div>
+        <div class="field"><label for="ajc-tp">Take profit</label><input type="number" step="any" inputmode="decimal" id="ajc-tp"></div>
+        <div class="field"><label for="ajc-risk">Risk %</label><input type="number" step="any" inputmode="decimal" id="ajc-risk"></div>
+        <div class="field"><label>Entries</label><div class="seg" id="ajc-legs" role="group" aria-label="Entries"><button type="button" data-legs="1" class="on">1</button><button type="button" data-legs="3">3</button></div></div>
+        <div class="field"><label for="ajc-lots">Check a lot size (optional, total)</label><input type="number" step="any" inputmode="decimal" id="ajc-lots" placeholder="e.g. 0.05"></div>
+      </div>
+      <div class="form-error field-gap" id="ajc-error" hidden></div>
+      <div class="ajc-out field-gap" id="ajc-out"></div>
+      <div class="field-gap"><button type="button" class="ghost" id="ajc-clear">Clear</button></div>
+    </div>
+
     <div class="panel">
       <h2 class="panel-title">Risk per setup</h2>
       <div class="hint">Risk is for the <strong>whole idea</strong> — every entry together, if all of them get stopped. Sizes use your current balance and update as it changes. Signals are capped at 20%.</div>
