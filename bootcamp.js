@@ -1522,6 +1522,31 @@ window.BOOTCAMPS = {
           "<strong>The trap example is close to a Rulebook entry:</strong> HTF demand/OB in the discount of a bullish range + LTF break up = the Rulebook's POI-plus-CHoCH entry. AJ's point is that it fails when bigger liquidity sits underneath. The Rulebook guards against this with \"liquidity swept first\" and inducement as OB criteria, and Nick's \"sweep then shift\" model. Worth comparing once AJ's entry model (1.16) is in.",
           "<strong>Liquidity first:</strong> both say price is drawn to liquidity — the Rulebook targets it and wants a sweep before entry; AJ uses it to decide whether a zone will hold."
         ]
+      },
+      {
+        num: 9,
+        label: "1.9",
+        phase: 1,
+        title: "Imbalances",
+        tagline: "2:11 video. What an imbalance (fair value gap) is and why price tends to come back to it. Comes before 1.8 in their numbering logic — the imbalance is what creates a supply or demand zone.",
+        lessons: [
+          {
+            code: "Imbalance",
+            title: "Unfairly traded price",
+            html:
+              "<ul>" +
+              "<li>Normal bullish movement: push up → retrace into an area → continue up.</li>" +
+              "<li>An <strong>imbalance</strong> is price moving so aggressively (up or down) that it doesn't come back to fill the area it moved through — that area was <strong>unfairly traded</strong>. Other name: <strong>fair value gap</strong>.</li>" +
+              "<li><strong>EURUSD example:</strong> price slowed down, then pushed up aggressively, leaving an imbalance. Price later came back down toward that area but left the gap — a notable area you can expect price to come back and fill at some point.</li>" +
+              "<li>Used to build the technical analysis. The imbalance is what leaves a <strong>supply or demand zone</strong> behind (the zone is where price slowed just before the imbalance — see 1.8).</li>" +
+              "<li>He says it works the same on every market: forex, commodities, crypto.</li>" +
+              "</ul>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Same concept:</strong> imbalance = FVG in the Rulebook. AJ: price is expected to come back and fill it at some point. <strong>Rulebook:</strong> FVGs are drawn with the exact 3-candle wick-to-wick rule, only once candle 3 has closed; they're entry zones for continuation in the trend's direction, a wick tap activates them, a body close through invalidates them (becomes an iFVG), and not every FVG fills. AJ hasn't given a drawing rule or an invalidation rule yet.",
+          "<strong>Zone link:</strong> AJ's demand zone = where price slowed before the imbalance. The Rulebook's OB = last opposite candle before the impulse, with an FVG in the leg as one of the four quality criteria. Very close ideas."
+        ]
       }
     ]
   }
