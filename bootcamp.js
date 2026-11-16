@@ -1388,6 +1388,38 @@ window.BOOTCAMPS = {
           "<strong>News — AJ:</strong> avoid red-folder news at all costs (same as Beginner Bootcamp Module 8: be flat). <strong>Rulebook:</strong> check Forex Factory daily and expect spikes and slippage, but no rule to stay out. This is now the second time AJ's material makes it a rule — one of the decisions for the end.",
           "<strong>Slippage on a 20% idea:</strong> 2–3× slippage on a Callisto basket risked at 20% could mean a 40–60% loss in one news candle. Worth weighing when you decide."
         ]
+      },
+      {
+        num: 5,
+        label: "1.5",
+        phase: 1,
+        title: "Market Structure pt 1",
+        tagline: "2:30 video. Direction and ranges: what structure is, what a break of structure means, and internal structure.",
+        lessons: [
+          {
+            code: "Structure",
+            title: "Bullish, bearish and the break of structure",
+            html:
+              "<ul>" +
+              "<li><strong>Bullish structure:</strong> low → higher high → higher low → higher high… price stepping up.</li>" +
+              "<li><strong>Bearish structure:</strong> price stepping its way down (lower highs, lower lows).</li>" +
+              "<li><strong>Break of structure (his definition):</strong> in bullish structure, after a higher high and higher low, price makes a <strong>lower low</strong>. That point is the break of structure — the market has <strong>flipped the direction</strong> of the range you're in.</li>" +
+              "<li>Always ask two things: <strong>what range am I in, and which direction is it going?</strong></li>" +
+              "</ul>"
+          },
+          {
+            code: "Timeframes",
+            title: "Every timeframe has its own structure",
+            html:
+              "<p>A break of structure belongs to the timeframe it's on — on the daily it's a daily break of structure. Inside one day's move there are lots of smaller steps and smaller breaks of structure on every lower timeframe, and it can look very jagged.</p>" +
+              "<p><strong>Internal structure:</strong> the structure inside a bigger timeframe's structure. If the main structure is daily, the internal structure sits inside it; on the 4H, the internal structure might be 1H or 15M. This carries across every timeframe (examples follow in pt 2–3).</p>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Terminology — important:</strong> Joshua calls the <em>first</em> break against the trend (a lower low after higher highs/lows) a <strong>break of structure</strong>. In the Rulebook that same event is a <strong>CHoCH</strong> (change of character), and BOS means a break <em>with</em> the trend (continuation). Same price event, different name — keep this in mind reading his charts and the later lessons.",
+          "<strong>Body close vs wick — not said yet:</strong> the Rulebook only counts a break on a body candle close (a wick through is a sweep). Joshua hasn't said whether a wick counts; watch for it in pt 2–3.",
+          "<strong>Internal structure:</strong> same idea as the Rulebook's internal/LTF structure and stacking timeframes (e.g. daily bias, 4H/1H internal moves)."
+        ]
       }
     ]
   }
