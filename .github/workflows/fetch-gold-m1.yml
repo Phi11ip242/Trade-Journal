@@ -5,8 +5,11 @@ on:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
+    permissions:
+      contents: write
     steps:
+      - uses: actions/checkout@v4
       - name: Probe
         run: curl -sS -o /dev/null -w "%{http_code} %{time_total}s\n" -A "Mozilla/5.0" --max-time 20 https://datafeed.dukascopy.com/datafeed/XAUUSD/2026/08/02/BID_candles_min_1.bi5 || true
       - name: Download XAUUSD M1 (Dukascopy, bid, GMT)
@@ -18,9 +21,9 @@ jobs:
           days = [start + dt.timedelta(days=i) for i in range((end - start).days + 1)]
           def get(d):
               url = f"https://datafeed.dukascopy.com/datafeed/XAUUSD/{d.year}/{d.month-1:02d}/{d.day:02d}/BID_candles_min_1.bi5"
-              for a in range(3):
+              for a in range(8):
                   try:
-                      raw = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=20).read()
+                      raw = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=40).read()
                       out = []
                       if raw:
                           data = lzma.decompress(raw); base = dt.datetime(d.year, d.month, d.day)
@@ -29,17 +32,18 @@ jobs:
                               if v > 0: out.append([(base + dt.timedelta(seconds=t)).strftime("%Y-%m-%d %H:%M"), o/1000, hi/1000, lo/1000, c/1000, round(v, 4)])
                       return d, out, None
                   except Exception as e:
-                      err = e; time.sleep(1)
+                      err = e; time.sleep(3 * (a + 1))
               return d, [], str(err)
           rows, fails = [], []
-          with ThreadPoolExecutor(12) as ex:
+          with ThreadPoolExecutor(4) as ex:
               for d, out, err in ex.map(get, days):
                   rows += out
                   if err and d.weekday() < 5: fails.append((str(d), err))
           print("fails", len(fails), fails[:5]); print("rows", len(rows), rows[0] if rows else None, rows[-1] if rows else None); sys.stdout.flush()
           with open("xauusd_m1_gmt.csv", "w", newline="") as f:
               w = csv.writer(f); w.writerow(["time_gmt", "open", "high", "low", "close", "volume"]); w.writerows(rows)
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xauusd-m1
-          path: xauusd_m1_gmt.csv
+      - name: Commit data to this branch
+        run: |
+          mkdir -p data && gzip -c xauusd_m1_gmt.csv > data/xauusd_m1_gmt.csv.gz
+          git config user.name "data-bot" && git config user.email "data-bot@users.noreply.github.com"
+          git add data/xauusd_m1_gmt.csv.gz && git commit -m "XAUUSD M1 data [skip ci]" && git push
