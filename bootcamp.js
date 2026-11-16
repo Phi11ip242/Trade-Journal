@@ -1232,8 +1232,102 @@ window.BOOTCAMPS = {
   },
   edge: {
     title: "Edge Bootcamp",
-    intro: "Currency Squad's Edge course — text lessons plus private videos. Notes go in here as the scripts come through.",
-    roadmap: [],
-    modules: []
+    unit: "Lesson",
+    intro: "Currency Squad's strategy programme, taught by Joshua (MoneyybagJoshua) on video. Phase 1 is the methodology (19 lessons, about 1h), Phase 2 is live application (6 lessons, about 1h), Phase 3 (Education) is still to come. Written up lesson by lesson from the video transcripts.",
+    phases: { 1: "The Methodology", 2: "Live Application", 3: "Education" },
+    roadmap: [
+      { num: 1, label: "1.1", phase: 1, title: "TradingView basics", length: "4:55" },
+      { num: 2, label: "1.2", phase: 1, title: "Wicks and Candles", length: "2:05" },
+      { num: 3, label: "1.3", phase: 1, title: "Trading sessions and how to use them", length: "2:17" },
+      { num: 4, label: "1.4", phase: 1, title: "Understanding News", length: "1:31" },
+      { num: 5, label: "1.5", phase: 1, title: "Market Structure pt 1", length: "2:30" },
+      { num: 6, label: "1.6", phase: 1, title: "Market Structure pt 2", length: "1:41" },
+      { num: 7, label: "1.7", phase: 1, title: "Market Structure pt 3", length: "2:30" },
+      { num: 8, label: "1.8", phase: 1, title: "Supply & Demand", length: "6:41" },
+      { num: 9, label: "1.9", phase: 1, title: "Imbalances", length: "2:11" },
+      { num: 10, label: "1.10", phase: 1, title: "Support and Resistance pt 1", length: "3:19" },
+      { num: 11, label: "1.11", phase: 1, title: "Support and Resistance pt 2", length: "2:39" },
+      { num: 12, label: "1.12", phase: 1, title: "Trendlines", length: "5:52" },
+      { num: 13, label: "1.13", phase: 1, title: "Fibonacci pt 1", length: "1:47" },
+      { num: 14, label: "1.14", phase: 1, title: "Fibonacci pt 2", length: "1:18" },
+      { num: 15, label: "1.15", phase: 1, title: "Liquidity and Liquidity Sweeps", length: "4:24" },
+      { num: 16, label: "1.16", phase: 1, title: "LTF Liquidity Entry Model", length: "7:06" },
+      { num: 17, label: "1.17", phase: 1, title: "GBPUSD Breakdown", length: "4:46" },
+      { num: 18, label: "1.18", phase: 1, title: "Free Sauce Vol 1 — Local Liquidity pt 1", length: "3:12" },
+      { num: 19, label: "1.19", phase: 1, title: "Free Sauce Vol 2 — Local Liquidity pt 2", length: "1:47" },
+      { num: 20, label: "2.x", phase: 2, title: "Live Application — 6 lessons (titles to come)", length: "59m" },
+      { num: 21, label: "3.x", phase: 3, title: "Education — coming soon" }
+    ],
+    modules: [
+      {
+        num: 1,
+        label: "1.1",
+        phase: 1,
+        title: "TradingView basics",
+        tagline: "4:55 video. How Joshua sets up TradingView so you can follow everything later in the course. Setup only — no trading rules yet.",
+        lessons: [
+          {
+            code: "Setup",
+            title: "Symbols and data feed",
+            html:
+              "<ul>" +
+              "<li>Watchlist panel holds the symbols: NAS100, gold, silver, EURUSD, GBPUSD. Searching a symbol shows one result per data provider.</li>" +
+              "<li>Joshua charts live on <strong>FXCM</strong>. When he backtests during a trading session he uses <strong>OANDA</strong> instead, so his live drawings don't get messed up.</li>" +
+              "<li>Timeframes: star the ones you use and they sit on the top bar (the Beginner Bootcamp list was M5, M15, H1, H4, D).</li>" +
+              "</ul>"
+          },
+          {
+            code: "Setup",
+            title: "Indicator and drawing tools",
+            html:
+              "<ul>" +
+              "<li><strong>One indicator only: Trading Sessions</strong>, toggled on to see what happened in each session and off when not needed.</li>" +
+              "<li>Favourite drawing tools: trend line, horizontal ray, vertical line, Fibonacci, long/short position, brush/highlighter, <strong>rectangle</strong> (for zones — his \"boxes\") and <strong>path</strong> (to sketch scenarios).</li>" +
+              "</ul>"
+          },
+          {
+            code: "Setup",
+            title: "Chart settings and templates",
+            html:
+              "<ul>" +
+              "<li>Clean canvas: solid background, <strong>no grid lines</strong> — he trades purely on the candles and wicks. Buy/sell buttons off, alerts on.</li>" +
+              "<li>Save drawing templates (right-click → Template) so each type looks the same every time: zone boxes (e.g. supply / demand), a stop-loss line, a <strong>blue break-of-structure line</strong>, a liquidity line, and a 1:1 marker for when a trade reaches 1R. Colours are personal preference.</li>" +
+              "<li><strong>Lines as thin as possible</strong>, so levels are pinpoint accurate.</li>" +
+              "<li><strong>Marking a range:</strong> one highlighter dot at each end (e.g. a 15-minute or daily bearish range).</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>Habit:</strong> at the start, map out structure and ranges yourself on the chart so you see how price is moving before doing anything else.</p></div>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>Session indicator — AJ:</strong> TradingView's built-in Trading Sessions, the only indicator. <strong>Rulebook:</strong> KZP [TFO] kill zones (NY time). Same purpose — decide whether to keep KZP or switch.",
+          "<strong>Data feed — AJ:</strong> FXCM for live charts, OANDA for backtesting. <strong>Beginner Bootcamp:</strong> chart your own broker's feed if listed. Your AvaTrade prices can differ from FXCM by a few pips on gold — worth deciding which feed you mark levels on.",
+          "<strong>Indicator-free:</strong> both AJ and the Rulebook trade off price, with a session tool as the only add-on."
+        ]
+      },
+      {
+        num: 2,
+        label: "1.2",
+        phase: 1,
+        title: "Wicks and Candles",
+        tagline: "2:05 video. Basic, but the base for reading ranges and where price is coming into on each timeframe.",
+        lessons: [
+          {
+            code: "Candles",
+            title: "Body and wicks",
+            html:
+              "<ul>" +
+              "<li>Colours are personal preference. Default is green bullish / red bearish; Joshua uses <strong>grey for bullish, blue for bearish</strong> — keep that in mind when reading his charts.</li>" +
+              "<li>A candle is bullish or bearish by its colour and direction: bullish opened low and closed higher, bearish opened high and closed lower.</li>" +
+              "<li><strong>Body</strong> = the open and close of the period.</li>" +
+              "<li><strong>Wicks</strong> = how far price travelled during the period. On a daily candle, price went up to the top of the upper wick and down to the bottom of the lower wick at some point that day (the candle doesn't show when), then closed where the body ends.</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>Why it matters:</strong> reading bodies and wicks is what the course uses to understand ranges and where price is coming into on the different timeframes.</p></div>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>No differences yet.</strong> Same candle basics as the Rulebook. The Rulebook's rule that breaks count only on a body close (a wick through is a sweep, not a break) isn't covered here — watch for how Joshua treats wicks vs body closes in the Market Structure lessons (1.5–1.7)."
+        ]
+      }
+    ]
   }
 };

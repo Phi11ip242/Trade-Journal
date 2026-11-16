@@ -1861,6 +1861,12 @@
       var b = data(), store = bc();
       root.querySelectorAll(".rb-chapter").forEach(function(d){ openIds[d.dataset.id] = d.open; });
       var written = b.modules.map(function(m){ return m.num; });
+      var unit = b.unit || "Module";
+      function lab(m){ return m.label || String(m.num); }
+      function phaseHead(m, prev){
+        if(!b.phases || !m.phase || (prev && prev.phase === m.phase)) return "";
+        return '<h2 class="bc-phase">Phase ' + m.phase + (b.phases[m.phase] ? " · " + escapeHtml(b.phases[m.phase]) : "") + "</h2>";
+      }
       var doneCount = b.modules.filter(function(m){ return store.done[prefix + m.num]; }).length;
 
       var head = '<div class="panel rb-intro">' +
@@ -1873,7 +1879,7 @@
           b.modules.map(function(m){
             var id = prefix + m.num;
             return '<a href="#" data-jump="' + id + '"' + (store.done[id] ? ' class="bc-done"' : "") + ">" +
-              (store.done[id] ? "✓ " : "") + m.num + " · " + escapeHtml(m.title) + "</a>";
+              (store.done[id] ? "✓ " : "") + escapeHtml(lab(m)) + " · " + escapeHtml(m.title) + "</a>";
           }).join("") + "</nav>" +
           '<div class="rb-tools"><button type="button" class="ghost small bc-open-all">Open all</button>' +
           '<button type="button" class="ghost small bc-close-all">Close all</button></div>';
@@ -1881,8 +1887,10 @@
       var upcoming = (b.roadmap || []).filter(function(r){ return written.indexOf(r.num) === -1; });
       if(upcoming.length){
         head += '<details class="bc-roadmap"><summary>Coming up in the course</summary><ul>' +
-          upcoming.map(function(r){
-            return "<li>Module " + r.num + " · " + escapeHtml(r.title) + (r.tentative ? ' <span class="muted">(as described so far)</span>' : "") + "</li>";
+          upcoming.map(function(r, ri){
+            var prev = ri ? upcoming[ri - 1] : null;
+            var ph = (b.phases && r.phase && (!prev || prev.phase !== r.phase)) ? '<li class="bc-road-phase">Phase ' + r.phase + (b.phases[r.phase] ? " · " + escapeHtml(b.phases[r.phase]) : "") + "</li>" : "";
+            return ph + "<li>" + unit + " " + escapeHtml(lab(r)) + " · " + escapeHtml(r.title) + (r.length ? ' <span class="muted">' + escapeHtml(r.length) + "</span>" : "") + (r.tentative ? ' <span class="muted">(as described so far)</span>' : "") + "</li>";
           }).join("") + "</ul></details>";
       }
       head += "</div>";
@@ -1896,8 +1904,9 @@
       var body = b.modules.map(function(m, i){
         var id = prefix + m.num, done = store.done[id];
         var open = openIds.hasOwnProperty(id) ? openIds[id] : (i === b.modules.length - 1 && !done);
-        var h = '<details class="panel rb-chapter bc-module" data-id="' + id + '"' + (open ? " open" : "") + ">" +
-          "<summary>Module " + m.num + " · " + escapeHtml(m.title) + (done ? ' <span class="bc-tick">✓ done</span>' : "") + "</summary>";
+        var h = phaseHead(m, i ? b.modules[i - 1] : null) +
+          '<details class="panel rb-chapter bc-module" data-id="' + id + '"' + (open ? " open" : "") + ">" +
+          "<summary>" + unit + " " + escapeHtml(lab(m)) + " · " + escapeHtml(m.title) + (done ? ' <span class="bc-tick">✓ done</span>' : "") + "</summary>";
         if(m.tagline) h += '<p class="bc-tagline">' + escapeHtml(m.tagline) + "</p>";
         (m.lessons || []).forEach(function(l){
           h += '<h3 class="rb-sub"><span class="bc-code">' + escapeHtml(l.code) + "</span> " + escapeHtml(l.title) + "</h3>" +
@@ -1917,14 +1926,14 @@
           h += '<div class="rb-box bc-vs"><h3>Differences from the Rulebook — to decide</h3><p class="bc-vs-note">AJ and Callisto are different strategies. These are the points where they differ, side by side — not a verdict on which is right.</p><ul>' +
             m.vsRulebook.map(function(x){ return "<li>" + x + "</li>"; }).join("") + "</ul></div>";
         }
-        if(m.task){
-          h += '<div class="rb-box bc-task"><h3>Practical task</h3><p>' + escapeHtml(m.task) + "</p>" +
+        {
+          h += '<div class="rb-box bc-task">' + (m.task ? "<h3>Practical task</h3><p>" + escapeHtml(m.task) + "</p>" : "<h3>My notes</h3>") +
             '<label class="bc-notes-label" for="bc-notes-' + id + '">My answer / notes</label>' +
             '<textarea class="bc-notes" id="bc-notes-' + id + '" data-id="' + id + '" rows="6" placeholder="Write it here — it saves with your journal.">' +
             escapeHtml(store.notes[id] || "") + "</textarea>" +
             '<div class="bc-task-foot">' +
             '<button type="button" class="small ' + (done ? "ghost" : "primary") + ' bc-done-btn" data-id="' + id + '">' +
-            (done ? "Mark not done" : "Mark module done") + "</button>" +
+            (done ? "Mark not done" : "Mark " + unit.toLowerCase() + " done") + "</button>" +
             '<span class="muted">' + (done ? "Done " + escapeHtml(fmtDay(done)) : "") + "</span></div></div>";
         }
         return h + "</details>";
