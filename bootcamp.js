@@ -1258,7 +1258,8 @@ window.BOOTCAMPS = {
       { num: 20, label: "2.1", phase: 2, title: "Internal and External Structure" },
       { num: 21, label: "2.2", phase: 2, title: "Which side has more liquidity" },
       { num: 22, label: "2.3", phase: 2, title: "Targets from a top-down analysis" },
-      { num: 99, label: "2.4–2.6", phase: 2, title: "3 more lessons (titles to come)" },
+      { num: 23, label: "2.4", phase: 2, title: "Managing the stop loss" },
+      { num: 99, label: "2.5–2.6", phase: 2, title: "2 more lessons (titles to come)" },
       { num: 100, label: "3.x", phase: 3, title: "Education — coming soon" }
     ],
     modules: [
@@ -2143,6 +2144,41 @@ window.BOOTCAMPS = {
           "<strong>Breakeven — AJ:</strong> once the local liquidity (the first small target) is taken. <strong>Rulebook:</strong> after TP1 (20 pips). Similar idea — BE after the first objective — but AJ's trigger is a level, not a pip count.",
           "<strong>Entry timeframe — AJ:</strong> 1M or 5M break off the local liquidity; he warns against wanting too many 1M confirmations. <strong>Rulebook:</strong> 1M/3M/5M confirmations, with an extra BOS + retest needed on 1M/3M. Both caution against over-relying on the 1M, from opposite sides.",
           "<strong>New tool:</strong> \"resistance just below a supply = magnet\" isn't in the Rulebook. The Rulebook's closest is inducement (a fake high/low before an OB)."
+        ]
+      },
+      {
+        num: 23,
+        label: "2.4",
+        phase: 2,
+        title: "Managing the stop loss",
+        tagline: "About 3.5 minutes (title is my label). When it's safe to move the stop so you don't get stopped out of a good trade — \"there's no other way I would do this\".",
+        lessons: [
+          {
+            code: "Trade",
+            title: "The example trade",
+            html:
+              "<ul>" +
+              "<li>Price tapped a supply and broke down — lots of people in the market short. Two pockets of local liquidity, a resistance building up: a clean entry against them.</li>" +
+              "<li>Targets: a higher-timeframe <strong>open supply</strong>, then further the <strong>resistance level</strong> above it.</li>" +
+              "<li>Price swept a nearby resistance; you could worry, but with two strategies' liquidity stacked he's comfortable holding.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Steps",
+            title: "His three stop moves",
+            html:
+              '<div class="rb-box"><ol>' +
+              "<li><strong>Local liquidity taken → stop to the low of the new 5M range.</strong> Go to the 5M, find the range price just made, put the stop under its low. In the example that cut the risk from <strong>16.2 pips to 2.8 pips</strong> — about five times less (risking $200 on a $1,000 account becomes roughly $35).</li>" +
+              "<li><strong>Breakeven — not straight away.</strong> If price keeps going up it may dip into this range, respect the structure and break up again. Wait for that: a slight pullback that holds and a new push up, or price getting far enough. Don't drag the stop under every little step — locking in 0.4% isn't worth being stopped out of the trade. Hold to at least <strong>1:2</strong>, then the stop is at <strong>breakeven</strong>: \"risk free, emotion free, head absolutely clear.\"</li>" +
+              "<li><strong>Close at the target reaction.</strong> Price reacted from the supply at <strong>2.15R</strong> — happy to close.</li>" +
+              "</ol></div>" +
+              "<p>Why it works: once the local liquidity has been taken there's an increased chance price reverses, so coming to the low of the range stops you losing so many trades at full size.</p>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>The stop rule — the main decision.</strong> <strong>AJ:</strong> (1) after the local liquidity is taken, tighten to the new 5M range low (small partial loss if it reverses); (2) breakeven once structure confirms or around 1:2; (3) close ~2R at the target. <strong>Your rule (Oct 2):</strong> stop to BE after TP1 (20 pips) and then nothing — no trailing or hovering, accepting being tapped out before a big run. These two can't both apply to the same trade; decide per source (e.g. AJ's method on AJ trades, yours on Callisto).",
+          "<strong>Stop size:</strong> AJ's example stop was 16.2 pips (instrument not stated; the earlier gold signal was 50 pips). The Rulebook plans 100–120 pips on gold. Small stops mean bigger lots at the same risk — the journal's AJ sizing should use each trade's actual stop, not a fixed 100.",
+          "<strong>Risk example:</strong> he uses $200 on $1,000 (20%) as his illustration — the same as your Callisto cap. The Beginner Bootcamp teaches 1%. Worth noting when you settle AJ risk."
         ]
       }
     ]
