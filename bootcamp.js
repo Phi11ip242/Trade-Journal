@@ -1259,7 +1259,8 @@ window.BOOTCAMPS = {
       { num: 21, label: "2.2", phase: 2, title: "Which side has more liquidity" },
       { num: 22, label: "2.3", phase: 2, title: "Targets from a top-down analysis" },
       { num: 23, label: "2.4", phase: 2, title: "Managing the stop loss" },
-      { num: 99, label: "2.5–2.6", phase: 2, title: "2 more lessons (titles to come)" },
+      { num: 24, label: "2.5", phase: 2, title: "Risk management and consistency" },
+      { num: 99, label: "2.6", phase: 2, title: "1 more lesson (title to come)" },
       { num: 100, label: "3.x", phase: 3, title: "Education — coming soon" }
     ],
     modules: [
@@ -2179,6 +2180,49 @@ window.BOOTCAMPS = {
           "<strong>The stop rule — the main decision.</strong> <strong>AJ:</strong> (1) after the local liquidity is taken, tighten to the new 5M range low (small partial loss if it reverses); (2) breakeven once structure confirms or around 1:2; (3) close ~2R at the target. <strong>Your rule (Oct 2):</strong> stop to BE after TP1 (20 pips) and then nothing — no trailing or hovering, accepting being tapped out before a big run. These two can't both apply to the same trade; decide per source (e.g. AJ's method on AJ trades, yours on Callisto).",
           "<strong>Stop size:</strong> AJ's example stop was 16.2 pips (instrument not stated; the earlier gold signal was 50 pips). The Rulebook plans 100–120 pips on gold. Small stops mean bigger lots at the same risk — the journal's AJ sizing should use each trade's actual stop, not a fixed 100.",
           "<strong>Risk example:</strong> he uses $200 on $1,000 (20%) as his illustration — the same as your Callisto cap. The Beginner Bootcamp teaches 1%. Worth noting when you settle AJ risk."
+        ]
+      },
+      {
+        num: 24,
+        label: "2.5",
+        phase: 2,
+        title: "Risk management and consistency",
+        tagline: "About 7 minutes (title is my label). Not strategy — risk: the same amount on every trade, because trading is a numbers game.",
+        lessons: [
+          {
+            code: "Maths",
+            title: "It's a numbers game",
+            html:
+              "<ul>" +
+              "<li>Risk the <strong>same amount on every trade</strong> — 1% or a fixed dollar amount, your choice.</li>" +
+              "<li>Their typical reward:risk is <strong>1:2 to 1:3</strong>; Joshua states his win rate as <strong>70%</strong>.</li>" +
+              "<li>Worked example at only 50%: 10 trades, 5 wins at an average 2.1R and 5 losses at 1R → +10.5% − 5% = <strong>+5.5%</strong>.</li>" +
+              "<li>On a $100k account at 1% ($1,000 per trade), that's about <strong>$5,500</strong> — he frames it as two weeks of trading (about 10 trades a week, around 3 hours a day).</li>" +
+              "</ul>"
+          },
+          {
+            code: "Discipline",
+            title: "Why never over- or under-risk",
+            html:
+              "<ul>" +
+              "<li>Every trade should be the same quality of entry. If you're not 100% happy with an entry, <strong>don't take it</strong> — rather than taking it smaller.</li>" +
+              "<li>If you vary your size with a 5-win / 5-loss record, nothing says the wins land on the big trades. Usually the opposite: you start over-analysing and over-risking and end up unprofitable.</li>" +
+              "<li>Confidence in your ability and your strategy is what lets you keep the risk the same and let things play out.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Costs",
+            title: "Spread and commission come out of the risk",
+            html:
+              "<p>Know your average spread and commission per trade and <strong>deduct them from your risk</strong>. Example: 1% of $100k = $1,000; if costs are about $200, risk $800 on the stop so the full loss including costs stays at $1,000. Slightly smaller returns, but you still come out ahead over the long run.</p>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Varying size — AJ:</strong> never; same risk every trade. <strong>Your loss protocol:</strong> deliberately keeps size after a loss and halves it after a double loss; the de-risking ladder lowers % as the balance grows. Those are planned rules rather than in-the-moment changes, but they do vary size. Decide whether the protocol applies to AJ trades.",
+          "<strong>Risk % — still open:</strong> this lesson uses 1%; 2.4 illustrated $200 on $1,000 (20%); AJ said 5% live; the journal's AJ setting is 5%; Callisto is 20% per idea. One number for AJ trades is the main decision left.",
+          "<strong>Costs on small stops:</strong> AJ's stops are small (16–50 pips on the examples). If gold's spread on AvaTrade is around 2–4 pips, that's roughly 5–25% of the risk on every trade — the same issue flagged in the earlier Callisto review of tight stops. AJ's own advice (deduct costs from the risk) is the fix; worth checking your real spread.",
+          "<strong>The numbers:</strong> 1:2.1 at 50% does come out at +5.5% per 10 trades before costs (break-even win rate about 32%). The 70% win rate is his statement, not shown with a track record here — your own journal of AJ trades is what will confirm it.",
+          "<strong>Skip, don't shrink:</strong> AJ's \"not 100% happy → no trade\" matches your Oct 2 rule: wait for a valid confirmation or don't trade."
         ]
       }
     ]
