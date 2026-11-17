@@ -1770,7 +1770,7 @@ window.BOOTCAMPS = {
               "<li>Because more liquidity sits above than below, they <strong>enter long on that break</strong>, against the crowd. Result: an instant reaction up toward the resistance.</li>" +
               "<li><strong>Stop loss:</strong> below the <strong>most significant low of the range you're working in</strong> — the level where, if price went lower, you'd have to change your whole bias. (In the example that low was also a demand zone.)</li>" +
               "</ul>" +
-              '<p class="muted">My reading of the transcript: the 5M break is bearish and the trade is a buy into it. Check against the video that the entry is at the break itself and not after a pullback.</p>'
+              '<p class="muted">My reading of the transcript: the 5M break is bearish and the trade is a buy into it. 1.17 confirms the trade direction (buy toward the liquidity) but is just as vague about which break is the entry candle — check both videos: is the entry on the bearish 5M break itself, or on the break back up through the local liquidity?</p>'
           },
           {
             code: "Target",
@@ -1814,6 +1814,59 @@ window.BOOTCAMPS = {
           "<strong>Targets — AJ:</strong> one target at the stacked liquidity, ~2–3R, take it or consider exiting at 2R+. <strong>Rulebook:</strong> partials at TP1–TP6 (20/40/60/100/150/200 pips) with the rest running to HTF liquidity.",
           "<strong>Stop management — AJ:</strong> tighten early (small range low on a pullback), BE or trail to the new higher low once liquidity is swept. <strong>Rulebook / your own rule:</strong> BE after TP1 (20 pips) and then nothing — no trailing. Opposite approaches; a key decision for AJ trades.",
           "<strong>Same foundation:</strong> both read structure top-down, target liquidity pools, and treat retail levels as fuel. AJ's model can be logged in the journal as an AJ trade with its own stop and one target — which matches the Module 10 note about logging each signal's own SL/TP."
+        ]
+      },
+      {
+        num: 17,
+        label: "1.17",
+        phase: 1,
+        title: "GBPUSD Breakdown",
+        tagline: "4:46 video. A second worked trade with the local liquidity method — and how to protect it once the local liquidity is taken.",
+        lessons: [
+          {
+            code: "Setup",
+            title: "Significant high as the target",
+            html:
+              "<ul>" +
+              "<li><strong>1H:</strong> a bullish range with a <strong>significant high</strong> — price respected it, so a lot of liquidity has built up there and there's a reason price needs to come back and take it.</li>" +
+              "<li>Ideally a <strong>15M</strong> break, but here a cleaner <strong>5M break of structure down</strong> gave a <strong>5M bearish structure</strong> (from its high to its low).</li>" +
+              "<li>Inside that structure you need <strong>liquidity to build</strong> before you look for an entry — the \"local liquidity method\" used in many of his videos.</li>" +
+              "<li>Local liquidity here: a <strong>resistance level</strong> — a high never broken, retested, lots of candles and wicks along it. That's where people shorted after the breakdown, expecting much lower after such a bullish run.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Entry",
+            title: "Entry, stop and target",
+            html:
+              "<ul>" +
+              "<li>Execute on the break (\"on the break right here\" — see the video for the exact candle).</li>" +
+              "<li><strong>Stop:</strong> covering all relevant areas — below the <strong>significant low</strong>.</li>" +
+              "<li><strong>Target:</strong> take out the significant 1H high.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Manage",
+            title: "Protect the low — the management he calls very easy",
+            html:
+              "<ol>" +
+              "<li>Price took the <strong>local liquidity</strong> (the resistance). That's the reason for the trade and what lets you manage the stop early, so you never take a full loss.</li>" +
+              "<li>That move made a <strong>new bullish structure</strong> (from its low to its high). <strong>Move the stop below that new low</strong> — \"protect the low\".</li>" +
+              "<li>He's <strong>always willing to take a reduced loss</strong>: once the local liquidity is collected, price could reverse from any supply above. Better a smaller loss under the protected low than a full one — and better than being stopped at breakeven over and over, which he says happens if you don't protect the low.</li>" +
+              "<li>Price went well into profit but <strong>never reached the target</strong> and started pulling back. Being that far in profit, it made no sense to lose money → <strong>stop to breakeven</strong>. The trade closed at breakeven.</li>" +
+              "</ol>"
+          },
+          {
+            code: "Lesson",
+            title: "Stick to the plan",
+            html:
+              "<p>During the trade, supply/demand traders and <strong>SMC traders</strong> kept entering and getting trapped after the break of structure. Afterwards price went up and filled the imbalance — it would have been about <strong>1:6.5</strong>. Don't dwell on it: <strong>have a plan, execute per the plan, get out per the plan.</strong></p>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Early stop management — AJ:</strong> once the local liquidity is taken, move the stop under the new structure low (accept a reduced loss), then to breakeven when well in profit. <strong>Your rule:</strong> BE after TP1 (20 pips) and then nothing, accepting being tapped out sometimes. AJ instead argues that protecting the structure low gives fewer breakeven stop-outs. Key decision for AJ trades.",
+          "<strong>No partials — AJ:</strong> one target, all in, all out (here closed at breakeven after being well in profit). <strong>Rulebook:</strong> 10% at TP1–TP3 etc. would have banked part of this move before it came back. Worth comparing on your own data.",
+          "<strong>\"SMC traders getting trapped\":</strong> AJ names SMC entries after a break of structure as liquidity to trade against. That's the family the Rulebook's method comes from — another reason the sweep-first rule matters if you keep the Rulebook entries.",
+          "<strong>Timeframes:</strong> 1H range and target, 15M (ideally) or 5M break, local liquidity on the LTF — close to the Rulebook's stack (HTF bias, 15M bridge, LTF execution)."
         ]
       }
     ]
