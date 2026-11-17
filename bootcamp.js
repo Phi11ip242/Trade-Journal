@@ -1770,7 +1770,7 @@ window.BOOTCAMPS = {
               "<li>Because more liquidity sits above than below, they <strong>enter long on that break</strong>, against the crowd. Result: an instant reaction up toward the resistance.</li>" +
               "<li><strong>Stop loss:</strong> below the <strong>most significant low of the range you're working in</strong> — the level where, if price went lower, you'd have to change your whole bias. (In the example that low was also a demand zone.)</li>" +
               "</ul>" +
-              '<p class="muted">My reading of the transcript: the 5M break is bearish and the trade is a buy into it. 1.17 confirms the trade direction (buy toward the liquidity) but is just as vague about which break is the entry candle — check both videos: is the entry on the bearish 5M break itself, or on the break back up through the local liquidity?</p>'
+              '<p class="muted">Timing, across 1.16–1.19: the entry comes <strong>while the crowd is entering the other way</strong> — either as price breaks/sweeps a local low (1.16, 1.19: \"price breaks this low, we can enter\") or on the third touch of the level you are targeting (1.18). Then the stop moves as soon as the local liquidity is taken.</p>'
           },
           {
             code: "Target",
@@ -1867,6 +1867,90 @@ window.BOOTCAMPS = {
           "<strong>No partials — AJ:</strong> one target, all in, all out (here closed at breakeven after being well in profit). <strong>Rulebook:</strong> 10% at TP1–TP3 etc. would have banked part of this move before it came back. Worth comparing on your own data.",
           "<strong>\"SMC traders getting trapped\":</strong> AJ names SMC entries after a break of structure as liquidity to trade against. That's the family the Rulebook's method comes from — another reason the sweep-first rule matters if you keep the Rulebook entries.",
           "<strong>Timeframes:</strong> 1H range and target, 15M (ideally) or 5M break, local liquidity on the LTF — close to the Rulebook's stack (HTF bias, 15M bridge, LTF execution)."
+        ]
+      },
+      {
+        num: 18,
+        label: "1.18",
+        phase: 1,
+        title: "Free Sauce Vol 1 — Local Liquidity pt 1",
+        tagline: "3:12 video. The clearest statement of the entry: enter on the third touch of the local liquidity, move the stop once it's taken, minimum 1:2.",
+        lessons: [
+          {
+            code: "Setup",
+            title: "After NFP, into a big supply",
+            html:
+              "<ul>" +
+              "<li>After NFP, price came into a <strong>significant higher-timeframe supply</strong>. On the <strong>5M</strong> it was also in a supply, formed a resistance level, showed bearish price action, retested the supply and <strong>broke structure down again</strong>.</li>" +
+              "<li>Now go down and look at the manipulation: every other trader trying to <strong>short the retracement</strong>.</li>" +
+              "<li>Inside that range you need <strong>lower-timeframe liquidity to build</strong> — here a level you can call resistance or a supply tapped several times. Either way it's liquidity, and it's where a lot of people are entering short.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Entry",
+            title: "Enter on the third touch",
+            html:
+              '<div class="rb-box"><p><strong>When the local level gets its third touch, enter</strong> — positioned for price to take that level out. The probability of price coming to take it out is very high, whether or not it later goes lower.</p></div>' +
+              "<ul>" +
+              "<li>Why: it lets you get in, <strong>manage the stop, reduce your size in the market</strong> and minimise any chance of a full loss.</li>" +
+              "<li>Wait for price to take the level. <strong>As soon as it does, move the stop to the new low.</strong></li>" +
+              "</ul>"
+          },
+          {
+            code: "Target",
+            title: "Next reversal area, and the 1:2 rule",
+            html:
+              "<ul>" +
+              "<li>Then ask: where could price reverse next? Fib the new range — the <strong>0.618–0.716</strong> area is exactly where people look to short it. Price came in there and made equal highs.</li>" +
+              "<li>He's <strong>\"very stubborn on a minimum of 1:2\"</strong> — no profit taken before that. With a support building below and a resistance above, the low side got swept but the <strong>equal highs (3 touches), the resistance and the supply above didn't</strong> — plus higher-timeframe targets above. So the target stayed above.</li>" +
+              "<li>He took <strong>full profit at 1:2</strong>.</li>" +
+              "</ul>" +
+              '<p><strong>Moral:</strong> the entry is everything. Using the local liquidity method as your entry is \"the gateway to profitability\" — it\'s how you reduce your losses.</p>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>Entry trigger — AJ:</strong> an anticipatory entry at the third touch of a local level, no confirmation candle; protection comes from moving the stop as soon as the level is taken. <strong>Rulebook:</strong> POI first, then a confirmation (CHoCH with body close, iFVG or engulfing) and usually a retest — no blind limits at a zone.",
+          "<strong>Against the higher timeframe:</strong> here price sat in a significant HTF supply after a bearish 5M break, and AJ's trade went up against the crowd shorting the retracement. <strong>Rulebook:</strong> trade the HTF POI in its direction; counter-trend only with extra confirmation and aggressive management.",
+          "<strong>Reward:risk — AJ:</strong> minimum 1:2, full exit there. <strong>Rulebook:</strong> CE's standard target is also 1:2, but you partial from 20 pips. Note AJ's own GBPUSD trade (1.17) closed at breakeven after not reaching target — no partial taken.",
+          "<strong>News:</strong> this trade was taken after NFP had released (not into the release), consistent with 1.4 — avoid being in the market during the news, trade the aftermath."
+        ]
+      },
+      {
+        num: 19,
+        label: "1.19",
+        phase: 1,
+        title: "Free Sauce Vol 2 — Local Liquidity pt 2",
+        tagline: "1:47 video. Another post-NFP trade: stacked local liquidity, enter on the sweep, move the stop once price rockets through the trap.",
+        lessons: [
+          {
+            code: "Setup",
+            title: "Higher-timeframe liquidity first",
+            html:
+              "<ul>" +
+              "<li>After NFP, price came up to a <strong>very significant supply</strong>, didn't break it, formed a resistance and started showing bearish price action.</li>" +
+              "<li>Price dropped off, crept back up into the supply, retested, broke, retested — and the <strong>high was never broken</strong>, adding more liquidity above.</li>" +
+              "<li>On the <strong>15M</strong>: wait for price to come into the area for the key entry.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Entry",
+            title: "Local liquidity — \"where you guys mess up all the time\"",
+            html:
+              "<ul>" +
+              "<li>Local liquidity stacked at the entry: a <strong>supply that's been retested into</strong>, a <strong>sweep of a support level</strong> (price breaks that low), and a <strong>trendline with five touches</strong>.</li>" +
+              "<li><strong>Price breaks the low → enter</strong>, \"to an absolute T\".</li>" +
+              "<li><strong>Stop:</strong> below the low of the demand zone (refined: a bit lower, where structure technically broke down).</li>" +
+              "<li><strong>Move the stop at the earliest convenience</strong> — once price rockets through the liquidity trap where people got in. From there the trade is safe; let it run.</li>" +
+              "<li>It took time to reach the target because a supply sat in the way.</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>His claim:</strong> the local liquidity method is how you get in and out of the market without taking full losses. He promises examples of it going against him too (not in Phase 1).</p></div>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>Entry on the sweep:</strong> AJ enters as the support's low is broken (the sweep), with trendline and supply liquidity stacked on the other side. <strong>Rulebook:</strong> the sweep is the first step; it then waits for a CHoCH (body close) the other way and enters on the retest. AJ's entry is earlier and tighter; the Rulebook's is later with more confirmation.",
+          "<strong>Trendline touches:</strong> five touches here — far past AJ's 3-touch minimum and the Rulebook's 2.",
+          "<strong>Stop management:</strong> same as 1.16–1.18 — move the stop as soon as the trap is taken. Compare with your BE-after-TP1-then-nothing rule.",
+          "<strong>No losing examples yet:</strong> all Phase 1 examples are winners or breakeven. Judge the method on a run of trades including losses (his promised examples, your own demo/journal data), not on these four."
         ]
       }
     ]
