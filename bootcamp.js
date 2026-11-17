@@ -1256,7 +1256,8 @@ window.BOOTCAMPS = {
       { num: 18, label: "1.18", phase: 1, title: "Free Sauce Vol 1 — Local Liquidity pt 1", length: "3:12" },
       { num: 19, label: "1.19", phase: 1, title: "Free Sauce Vol 2 — Local Liquidity pt 2", length: "1:47" },
       { num: 20, label: "2.1", phase: 2, title: "Internal and External Structure" },
-      { num: 99, label: "2.2–2.6", phase: 2, title: "5 more lessons (titles to come)" },
+      { num: 21, label: "2.2", phase: 2, title: "Which side has more liquidity" },
+      { num: 99, label: "2.3–2.6", phase: 2, title: "4 more lessons (titles to come) — the entry drills" },
       { num: 100, label: "3.x", phase: 3, title: "Education — coming soon" }
     ],
     modules: [
@@ -2002,6 +2003,87 @@ window.BOOTCAMPS = {
           "<strong>Sweep — AJ:</strong> explicitly doesn't require a sweep of the zone before entering. <strong>Rulebook:</strong> sweep first is one of the strongest criteria (Nick's model, OB quality). This is the clearest statement yet of the entry-timing difference.",
           "<strong>Entries per range — AJ:</strong> don't wait for external breaks or you miss entries. <strong>Rulebook:</strong> wants 3 timeframes aligned before a trade. AJ will take more trades from internal structure; the Rulebook fewer, more aligned ones.",
           "<strong>Losses shown:</strong> the first stop-outs appear here, both managed rather than full losses. Good to see; still a small sample."
+        ]
+      },
+      {
+        num: 21,
+        label: "2.2",
+        phase: 2,
+        title: "Which side has more liquidity",
+        tagline: "About 14 minutes (title is my label). The core skill of the course: count every strategy entering on one side, wait until they're all in, then trade the other way off 1-minute local liquidity.",
+        lessons: [
+          {
+            code: "Idea",
+            title: "Liquidity = money = other traders",
+            html:
+              "<p>Liquidity means money: <strong>where retail traders and other strategies enter, and where their stop losses sit</strong>, so they can be hunted. Banks and institutions take retail traders out — \"the house always wins\". The job is to count how many strategies are on one side of the market versus the other.</p>"
+          },
+          {
+            code: "Count",
+            title: "Ticking off the crowd (4H/1H example)",
+            html:
+              "<ul>" +
+              "<li>Broad structure stepping down; on the daily, sellers want a break down — that's where everyone sells.</li>" +
+              "<li><strong>Fibonacci traders:</strong> the retracement range is the perfect place for them to short.</li>" +
+              "<li><strong>Supply and demand traders:</strong> the last supply in the range, tapped and retested.</li>" +
+              "<li><strong>Resistance traders:</strong> a 1H resistance retested many times.</li>" +
+              "<li><strong>Market structure traders</strong> and <strong>SMC traders</strong> (entering on the retest after the break).</li>" +
+              "</ul>" +
+              "<p>Then wait for <strong>something that convinces them all to short</strong>: a convincing break down, preferably on the <strong>15M</strong>. Once they're all in, you go against them.</p>"
+          },
+          {
+            code: "Patience",
+            title: "When not to enter yet",
+            html:
+              "<ul>" +
+              "<li>The first break down wasn't enough: a <strong>support level was still building below</strong>, not yet swept.</li>" +
+              "<li>Wait for a <strong>further break down</strong>, then look at the <strong>new range</strong> it gives you.</li>" +
+              "<li>Price swept that support — a sweep <em>in our favour</em>: since the plan is to buy, you want the liquidity that could go against you taken first.</li>" +
+              "<li>In the new range, look for <strong>1-minute local liquidity</strong> to build. Here a 1M resistance (not three touches, but a lot going on) that kept being respected — that's what you want every time: high probability that price takes the 1M liquidity, more so than higher-timeframe levels which can hold.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Entry",
+            title: "Entry, stop and target",
+            html:
+              "<ul>" +
+              "<li><strong>Entry:</strong> on the next 1M break of structure — \"here is where I'd enter\". He describes it as the break down off a small lower-timeframe support (taking a bit of the downside liquidity while more sits above), and later as an internal break: price moving up, retesting, never breaking the low, then breaking. <span class=\"muted\">Check the video around 6:50–7:10 and 11:20–11:40 to see exactly which candle.</span></li>" +
+              "<li><strong>Stop:</strong> below the range (\"about here\").</li>" +
+              "<li><strong>Target:</strong> the 1M resistance and the levels above — price blew through.</li>" +
+              "<li><strong>Exit:</strong> at a significant point (an untouched level / multi-tapped supply) at about <strong>2.5R it's good enough to close</strong>. Never below 1:2.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Manage",
+            title: "Management",
+            html:
+              "<ul>" +
+              "<li>The 1M liquidity is what accelerates you into the trade. Once it's taken, a reversal is more likely — and after a 1M break up there's a <strong>new bullish range</strong>. If price stays bullish it respects that range, so the <strong>stop goes to the bottom of it</strong> (allow for your broker's spread).</li>" +
+              "<li>Price often boosts through, then pulls back — people short after seeing the liquidity sweep. That's why the stop goes to the range low.</li>" +
+              "<li>If it had come back and taken you out: about a <strong>40% loss</strong> (of the planned risk) — \"and that's okay\".</li>" +
+              "<li><strong>Mitigated</strong> = liquidity that's been taken; it's gone, stop thinking about it. Keep asking: what liquidity is left?</li>" +
+              "</ul>"
+          },
+          {
+            code: "Recipe",
+            title: "The take-home",
+            html:
+              '<div class="rb-box"><ol>' +
+              "<li>Tick off every strategy entering on one side (Fibonacci, S&amp;D, resistance, structure, SMC).</li>" +
+              "<li>Wait for the break of structure that pulls them in — going opposite to the trade you want.</li>" +
+              "<li>Make sure there's no big threat left on your side (sweep it first if there is).</li>" +
+              "<li>Let 1M local liquidity build in the new range.</li>" +
+              "<li>Enter on the 1M break of structure off that setup; stop beyond the range.</li>" +
+              "<li>Target the stacked liquidity; take 2R+; move the stop to the new range low once the local liquidity is taken.</li>" +
+              "</ol><p>He says it plays out \"over and over\" — <strong>backtest it</strong> repeatedly before trusting it. The entry drills come in the next videos.</p></div>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Bias — AJ:</strong> decided by which side holds more trapped traders, even against the broad structure (here a buy inside a bearish daily). <strong>Rulebook:</strong> bias from HTF structure (Daily/4H/1H aligned); counter-trend only with extra confirmation and aggressive management.",
+          "<strong>The SMC crowd:</strong> AJ lists SMC traders entering on the retest after a break as one of the groups to fade. The Rulebook's standard entry (CHoCH + retest) is that entry — the key reason to settle which entry you use for which source.",
+          "<strong>Partial loss accepted — AJ:</strong> stop moved to the new range low; a ~40% loss of the risk is fine. <strong>Your rule:</strong> BE after TP1 then nothing — no partial-loss stop.",
+          "<strong>Exit — AJ:</strong> full close around 2–2.5R at a significant level, never below 1:2. <strong>Rulebook:</strong> partials from 20 pips, rest runs.",
+          "<strong>Backtesting:</strong> AJ says backtest this over and over. The journal can log these as AJ trades on a demo/paper basis while you learn it (the Module 11 paper-trade idea)."
         ]
       }
     ]
