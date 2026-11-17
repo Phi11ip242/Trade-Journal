@@ -1615,6 +1615,44 @@ window.BOOTCAMPS = {
           "<strong>Same core idea:</strong> repeated rejections stack up stops, and price goes to take them. The Rulebook expresses it as equal highs/lows and liquidity pools, with the sweep as the event to wait for.",
           "<strong>Win-rate claim:</strong> \"you'll be surprised with the win rate\" has no numbers behind it yet. Judge it on your own journal data once you trade it."
         ]
+      },
+      {
+        num: 12,
+        label: "1.12",
+        phase: 1,
+        title: "Trendlines",
+        tagline: "5:52 video. Drawing trendlines properly, the three-touch rule, and trendlines as one more pool of liquidity to trade through.",
+        lessons: [
+          {
+            code: "Drawing",
+            title: "How to draw one",
+            html:
+              "<ul>" +
+              "<li>A trendline follows basic market structure. Bearish: start from the <strong>top of the range</strong> and connect the lower highs.</li>" +
+              "<li>Only draw <strong>from the top down</strong> along highs, or <strong>from the bottom up</strong> along lows. <strong>Never draw from the underside</strong> through price, and once price has moved past a line it's irrelevant.</li>" +
+              "<li><strong>Three touches = a valid trendline.</strong> Two touches is not valid for their entry models.</li>" +
+              "<li>But if price is heading toward a two-touch line, mark it in advance: a rejection off the third touch makes it liquidity and a factor in the trade.</li>" +
+              "<li>Very steep lines rarely get used again. Trendlines work on every timeframe, daily included.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Example",
+            title: "Stacked liquidity, then through it",
+            html:
+              "<ul>" +
+              "<li><strong>15M:</strong> third touch on a bearish trendline. On the <strong>1M</strong>, price rejected it with internal breaks of structure down — the confirmation trendline traders want, so they sell.</li>" +
+              "<li>Above the trendline sat a <strong>lower-timeframe resistance</strong> (repeated wicks) and <strong>lower-timeframe supply</strong>. Trendline + resistance + supply = a lot of liquidity on that side.</li>" +
+              "<li>With more liquidity above than below, Joshua would look for an entry to <strong>trade up through it</strong>. Price blew past and took the liquidity.</li>" +
+              "<li><strong>Daily example:</strong> a line with 3–4 touches. If price came back to it and rejected, he'd look to trade through it — one component of the entry.</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>The pattern across 1.8–1.12:</strong> supply/demand, support/resistance and trendlines are all other traders\' entries. Where several stack on one side, that side holds more liquidity, and AJ looks to trade toward and through it. The exact entry comes in 1.16.</p></div>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>Valid trendline — AJ:</strong> 3 touches; 2 is not valid. <strong>Rulebook:</strong> valid at 2 touches, strong at 3+. Decide which you'll use when marking trendline liquidity.",
+          "<strong>Use — both:</strong> trendline liquidity is one of the Rulebook's five liquidity types (stops under/over the line, usually a trap price comes back for). AJ uses it the same way, as something to trade through, not to bounce from.",
+          "<strong>Drawing rule</strong> (top-down along highs, bottom-up along lows, never from the underside) isn't in the Rulebook — worth adding if you agree with it."
+        ]
       }
     ]
   }
