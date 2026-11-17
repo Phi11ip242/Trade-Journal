@@ -1260,7 +1260,7 @@ window.BOOTCAMPS = {
       { num: 22, label: "2.3", phase: 2, title: "Targets from a top-down analysis" },
       { num: 23, label: "2.4", phase: 2, title: "Managing the stop loss" },
       { num: 24, label: "2.5", phase: 2, title: "Risk management and consistency" },
-      { num: 99, label: "2.6", phase: 2, title: "1 more lesson (title to come)" },
+      { num: 25, label: "2.6", phase: 2, title: "How to backtest" },
       { num: 100, label: "3.x", phase: 3, title: "Education — coming soon" }
     ],
     modules: [
@@ -1775,7 +1775,7 @@ window.BOOTCAMPS = {
               "<li>Because more liquidity sits above than below, they <strong>enter long on that break</strong>, against the crowd. Result: an instant reaction up toward the resistance.</li>" +
               "<li><strong>Stop loss:</strong> below the <strong>most significant low of the range you're working in</strong> — the level where, if price went lower, you'd have to change your whole bias. (In the example that low was also a demand zone.)</li>" +
               "</ul>" +
-              '<p class="muted">Timing, across 1.16–1.19: the entry comes <strong>while the crowd is entering the other way</strong> — either as price breaks/sweeps a local low (1.16, 1.19: \"price breaks this low, we can enter\") or on the third touch of the level you are targeting (1.18). Then the stop moves as soon as the local liquidity is taken.</p>'
+              '<p class="muted">Timing, across 1.16–2.6: the entry comes <strong>while the crowd is entering the other way</strong> — as price breaks/sweeps a local low (1.16, 1.19, and the 2.6 backtest: \"we see price push its way down, and that\'s the entry\"), or on the third touch of the level you are targeting (1.18). Then the stop moves as soon as the local liquidity is taken.</p>'
           },
           {
             code: "Target",
@@ -2223,6 +2223,64 @@ window.BOOTCAMPS = {
           "<strong>Costs on small stops:</strong> AJ's stops are small (16–50 pips on the examples). If gold's spread on AvaTrade is around 2–4 pips, that's roughly 5–25% of the risk on every trade — the same issue flagged in the earlier Callisto review of tight stops. AJ's own advice (deduct costs from the risk) is the fix; worth checking your real spread.",
           "<strong>The numbers:</strong> 1:2.1 at 50% does come out at +5.5% per 10 trades before costs (break-even win rate about 32%). The 70% win rate is his statement, not shown with a track record here — your own journal of AJ trades is what will confirm it.",
           "<strong>Skip, don't shrink:</strong> AJ's \"not 100% happy → no trade\" matches your Oct 2 rule: wait for a valid confirmation or don't trade."
+        ]
+      },
+      {
+        num: 25,
+        label: "2.6",
+        phase: 2,
+        title: "How to backtest",
+        tagline: "About 12 minutes (title is my label). Backtesting is training, live is game day. A full replay of a London session — and an honest-journaling rule.",
+        lessons: [
+          {
+            code: "Setup",
+            title: "Setting up a replay",
+            html:
+              "<ul>" +
+              "<li>Backtest <strong>rigorously until you're 100% confident</strong> and can prove profitability in your backtests.</li>" +
+              "<li>TradingView <strong>bar replay</strong>: jump to the date and the session.</li>" +
+              "<li><strong>Check the news first.</strong> If the session has news, <strong>skip that session</strong> — they don't trade it live, so they don't backtest it either. (His example: London clear, New York had news.)</li>" +
+              "<li>Start about <strong>an hour before London</strong>, with a vertical line marking the open.</li>" +
+              "<li><strong>Don't cheat:</strong> no rewinding to change your mind once you're in a trade. You're only cheating yourself.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Analysis",
+            title: "The top-down, live",
+            html:
+              "<ul>" +
+              "<li><strong>Daily:</strong> very bullish range, <strong>equal highs</strong> = a strong resistance. Draw it as a line at the very top, or as a zone covering all the wicks. Near it, be careful: aim for 1:2, and if you're already at 1:2 and price slows there, a reversal is more likely.</li>" +
+              "<li><strong>4H:</strong> big rejection, an old demand broken. Support below but not strong (a lower second wick would have meant a stronger build-up). A trendline forming, but not three <em>clean</em> touches — not usable; once broken, delete it.</li>" +
+              "<li>A demand zone price is dancing off <strong>needs to be swept</strong> before a long. A small resistance already got a little sweep, so it's not clean liquidity — wait for more build-up.</li>" +
+              "<li>He sometimes enters <strong>half an hour before London</strong>.</li>" +
+              "<li>Targets: ultimately the absolute highs; first the resistance cluster and open supplies above.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Trade",
+            title: "Entry, management and exit",
+            html:
+              "<ul>" +
+              "<li>A+ entry: a break of structure <strong>to the downside</strong>, stop covering below. On the 5M an internal break down came — <strong>\"price pushes its way down, and that's the entry\"</strong> (a buy).</li>" +
+              "<li>Local liquidity (a supply plus a resistance) got taken → new bullish range → <strong>stop to a very small loss</strong>.</li>" +
+              "<li>Full target was <strong>1:4</strong>. At <strong>1:1.8</strong> price reached a supply: he wouldn't close there himself, but <strong>moved to breakeven</strong> — no loss once it's that far in profit.</li>" +
+              "<li>At <strong>2.46R</strong>, deep in a key 15M supply: \"I'd take 2R all the time.\"</li>" +
+              "<li><strong>Second entry, New York:</strong> a supply tapped, a 15M break down, then the support below swept → long again, stop under it, target the resistance. Both trades together about <strong>7R</strong> in one day of replay.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Journal",
+            title: "Record it honestly",
+            html:
+              "<p>Journal every backtest trade honestly: if you said you'd take profit at a level, record it as taken there. Build up a portfolio of trades to learn how price moves. (A community member shared a Notion template in their Discord.)</p>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Backtesting:</strong> both ask for it — Nick's RB 2 homework was 3 months of ranging conditions; AJ wants it until you can prove profitability. AJ's rules: skip news sessions, no rewinding, journal honestly.",
+          "<strong>News — AJ:</strong> skip the <em>whole session</em> if it has news. <strong>Rulebook:</strong> no news rule. Third time this has come up — a clear decision for the end.",
+          "<strong>Pre-London entries:</strong> AJ sometimes enters 30 minutes before the London open. Your KZP London kill zone starts at the open (09:00 SA time from 2 Nov).",
+          "<strong>Breakeven timing:</strong> here at ~1.8R; in 2.4 around 1:2; in 2.3 once local liquidity is taken. Your rule: after TP1 (20 pips).",
+          "<strong>Logging backtests:</strong> the journal doesn't have a backtest/paper category yet. If you want AJ backtests in the journal (separate from live stats), that can be added."
         ]
       }
     ]
