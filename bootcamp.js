@@ -1255,8 +1255,9 @@ window.BOOTCAMPS = {
       { num: 17, label: "1.17", phase: 1, title: "GBPUSD Breakdown", length: "4:46" },
       { num: 18, label: "1.18", phase: 1, title: "Free Sauce Vol 1 — Local Liquidity pt 1", length: "3:12" },
       { num: 19, label: "1.19", phase: 1, title: "Free Sauce Vol 2 — Local Liquidity pt 2", length: "1:47" },
-      { num: 20, label: "2.x", phase: 2, title: "Live Application — 6 lessons (titles to come)", length: "59m" },
-      { num: 21, label: "3.x", phase: 3, title: "Education — coming soon" }
+      { num: 20, label: "2.1", phase: 2, title: "Internal and External Structure" },
+      { num: 99, label: "2.2–2.6", phase: 2, title: "5 more lessons (titles to come)" },
+      { num: 100, label: "3.x", phase: 3, title: "Education — coming soon" }
     ],
     modules: [
       {
@@ -1951,6 +1952,56 @@ window.BOOTCAMPS = {
           "<strong>Trendline touches:</strong> five touches here — far past AJ's 3-touch minimum and the Rulebook's 2.",
           "<strong>Stop management:</strong> same as 1.16–1.18 — move the stop as soon as the trap is taken. Compare with your BE-after-TP1-then-nothing rule.",
           "<strong>No losing examples yet:</strong> all Phase 1 examples are winners or breakeven. Judge the method on a run of trades including losses (his promised examples, your own demo/journal data), not on these four."
+        ]
+      },
+      {
+        num: 20,
+        label: "2.1",
+        phase: 2,
+        title: "Internal and External Structure",
+        tagline: "About 9 minutes, live on current charts (title is my label — use the course's if it differs). How to use internal structure for entries when the external range is too big to wait for — including the first examples that go against him.",
+        lessons: [
+          {
+            code: "Concept",
+            title: "External vs internal",
+            html:
+              "<ul>" +
+              "<li><strong>External structure</strong> = the main range on a timeframe (e.g. daily bullish: from its low to its high, never back below that low).</li>" +
+              "<li><strong>Internal structure</strong> = the smaller swings inside it — on the 4H you see structure inside the daily move.</li>" +
+              "<li>Sometimes the external range is <strong>too large to use</strong>. Example: on the 15M, price never pulled back during a whole bearish leg, so technically the whole leg is one 15M external range. Then you work with the <strong>15M internal range</strong>.</li>" +
+              "<li>Internal structure is where the <strong>pockets of liquidity</strong> are, and where people get fooled or sold into taking a trade.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Live",
+            title: "London walk-through",
+            html:
+              "<ul>" +
+              "<li><strong>15M:</strong> a resistance level forming above (its high never taken) and a support level below.</li>" +
+              "<li><strong>5M:</strong> the external range is bullish (low to high). You could wait for that to break — but relying on external breaks means <strong>missing a lot of entries</strong>. The internal moves (price creeping up, down, up) are much clearer on the 1M.</li>" +
+              "<li><strong>1M:</strong> price tapped a supply, pushed down, and is now in a demand zone. With liquidity built up above, an entry here covers the internal low, targeting the resistance high.</li>" +
+              "<li><strong>15M internal break of structure:</strong> inside a 15M external range (low to high), price pulled back, never made a new high, then made a new low — that internal break is where an entry could come from.</li>" +
+              "<li>Once the supply above gets taken, the stop goes to <strong>breakeven</strong> — risk-free.</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>No sweep needed:</strong> \"Do we want a sweep of this demand zone? No.\" Once you\'ve decided which side has more liquidity, the tap into the zone + that liquidity + the break of structure is the reason to enter. Price may respect the zone or not — you manage it.</p></div>'
+          },
+          {
+            code: "Flip",
+            title: "Flipping the bias, and trades that go against you",
+            html:
+              "<ul>" +
+              "<li>After a deep 15M break down, the bias flips: now look for price to take the support below — or, if price creeps up with internal breaks up, use those for an entry the other way. In his live example it swept and broke up instead, so no trade.</li>" +
+              "<li><strong>First losing example:</strong> entry on the 1M tap into supply without a 5M break; price broke the 5M, respected the resistance high, then broke down — <strong>stopped out</strong>. \"That's okay, we manage that very healthily.\"</li>" +
+              "<li>Another setup on the local liquidity could have been a <strong>full loss</strong> if not managed carefully.</li>" +
+              "</ul>" +
+              "<p><strong>Takeaway:</strong> in deep, large ranges you can only work with the <strong>internal breaks as your liquidity and entries</strong>; don't sit and wait for the external range to break.</p>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Internal vs external — similar:</strong> the Rulebook also reads HTF (external) structure for bias and LTF internal CHoCHs (1–5M) for execution, and treats a weak CHoCH as a sign of a deeper pullback.",
+          "<strong>Sweep — AJ:</strong> explicitly doesn't require a sweep of the zone before entering. <strong>Rulebook:</strong> sweep first is one of the strongest criteria (Nick's model, OB quality). This is the clearest statement yet of the entry-timing difference.",
+          "<strong>Entries per range — AJ:</strong> don't wait for external breaks or you miss entries. <strong>Rulebook:</strong> wants 3 timeframes aligned before a trade. AJ will take more trades from internal structure; the Rulebook fewer, more aligned ones.",
+          "<strong>Losses shown:</strong> the first stop-outs appear here, both managed rather than full losses. Good to see; still a small sample."
         ]
       }
     ]
