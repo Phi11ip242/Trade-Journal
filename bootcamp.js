@@ -1257,7 +1257,8 @@ window.BOOTCAMPS = {
       { num: 19, label: "1.19", phase: 1, title: "Free Sauce Vol 2 — Local Liquidity pt 2", length: "1:47" },
       { num: 20, label: "2.1", phase: 2, title: "Internal and External Structure" },
       { num: 21, label: "2.2", phase: 2, title: "Which side has more liquidity" },
-      { num: 99, label: "2.3–2.6", phase: 2, title: "4 more lessons (titles to come) — the entry drills" },
+      { num: 22, label: "2.3", phase: 2, title: "Targets from a top-down analysis" },
+      { num: 99, label: "2.4–2.6", phase: 2, title: "3 more lessons (titles to come)" },
       { num: 100, label: "3.x", phase: 3, title: "Education — coming soon" }
     ],
     modules: [
@@ -2084,6 +2085,64 @@ window.BOOTCAMPS = {
           "<strong>Partial loss accepted — AJ:</strong> stop moved to the new range low; a ~40% loss of the risk is fine. <strong>Your rule:</strong> BE after TP1 then nothing — no partial-loss stop.",
           "<strong>Exit — AJ:</strong> full close around 2–2.5R at a significant level, never below 1:2. <strong>Rulebook:</strong> partials from 20 pips, rest runs.",
           "<strong>Backtesting:</strong> AJ says backtest this over and over. The journal can log these as AJ trades on a demo/paper basis while you learn it (the Module 11 paper-trade idea)."
+        ]
+      },
+      {
+        num: 22,
+        label: "2.3",
+        phase: 2,
+        title: "Targets from a top-down analysis",
+        tagline: "About 12 minutes (title is my label). Local 1-minute liquidity gets you in; the target is always a higher-timeframe pool of liquidity. Includes a missed entry and why.",
+        lessons: [
+          {
+            code: "Rule",
+            title: "Where the target comes from",
+            html:
+              '<div class="rb-box"><p><strong>Target = a higher-timeframe area of liquidity</strong> — a build-up on the 15M or higher: equal highs/lows, a multi-tapped supply/demand, a resistance/support level, a significant wick, \"where price caused a lot of grief, slowed down, built up\". The 1M local liquidity is only what gets you in.</p></div>' +
+              "<ul>" +
+              "<li>Only take the trade if the target gives <strong>at least 1:2</strong> with a stop that covers everything it needs to. If the stop has to be too wide for that, skip it.</li>" +
+              "<li>Two choices: a nearer target (the closest resistance cluster), or a much further higher-timeframe build-up, holding the stop at the bottom of the range.</li>" +
+              "<li>Once the local liquidity is taken, <strong>move to breakeven</strong> — a stronger level ahead could still hold.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Magnet",
+            title: "Resistance sitting just below a supply",
+            html:
+              "<p>A <strong>resistance level sitting just below a supply</strong> (mirror: a support sitting just above a demand) is a magnet. Lots of people sell there and clearly don't want price taking that area — so the probability of price <strong>blowing past it</strong> is high.</p>"
+          },
+          {
+            code: "Gold",
+            title: "Gold walk-through (29 May)",
+            html:
+              "<ul>" +
+              "<li><strong>Daily:</strong> in a big daily supply after taking a high — not a big factor for this trade. <strong>4H:</strong> at the low of the range.</li>" +
+              "<li>Above: a resistance level, an open 15M supply (just a wick on the 1H), a 5M supply — the magnet setup.</li>" +
+              "<li>Mark all this <strong>before the session</strong> (he was an hour early).</li>" +
+              "<li>Downside liquidity got taken; a 15M internal range formed; with enough local liquidity you buy through.</li>" +
+              "<li>On the 1M he waited for an internal break off the equal highs/resistance — <strong>wicks held him off, no clean entry</strong>, and price went without him. (He also flagged a trendline he'd drawn as not valid.)</li>" +
+              "<li>Looking back: a clean <strong>5M break of structure</strong> using that resistance was enough. \"I got too caught up in the 1-minute… I want too many confirmations. Sometimes jump back to the 5-minute and see the chart for what it is.\"</li>" +
+              "<li>The target — the higher-timeframe liquidity he called a magnet at the start — got taken.</li>" +
+              "</ul>"
+          },
+          {
+            code: "EURUSD",
+            title: "EURUSD walk-through, and when to close",
+            html:
+              "<ul>" +
+              "<li>Target: the area where price slowed and built up — equal highs, supply, a resistance level, a 1M supply on top.</li>" +
+              "<li>Below, a demand got swept → <strong>long</strong>, entering off the local liquidity.</li>" +
+              "<li>Once the local liquidity was taken: move the stop — \"no reason to lose any money\".</li>" +
+              "<li>At about <strong>2.1R</strong>, price touched a significant <strong>15M supply</strong> (the last candle where price slowed) — enough for him to <strong>close</strong>.</li>" +
+              "<li>Price later ran to about <strong>1:9.6</strong>, but it was a significant news area, so he would not have held it. \"That's just how it goes.\"</li>" +
+              "</ul>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Targets — AJ:</strong> one higher-timeframe liquidity target, full close around 2R+ at the first significant level (especially near news). <strong>Rulebook:</strong> TP1–TP6 fixed in pips with partials, the rest running to HTF liquidity. On the 1:9.6 move the Rulebook's runner would have stayed in; AJ closed at 2.1R.",
+          "<strong>Breakeven — AJ:</strong> once the local liquidity (the first small target) is taken. <strong>Rulebook:</strong> after TP1 (20 pips). Similar idea — BE after the first objective — but AJ's trigger is a level, not a pip count.",
+          "<strong>Entry timeframe — AJ:</strong> 1M or 5M break off the local liquidity; he warns against wanting too many 1M confirmations. <strong>Rulebook:</strong> 1M/3M/5M confirmations, with an extra BOS + retest needed on 1M/3M. Both caution against over-relying on the 1M, from opposite sides.",
+          "<strong>New tool:</strong> \"resistance just below a supply = magnet\" isn't in the Rulebook. The Rulebook's closest is inducement (a fake high/low before an OB)."
         ]
       }
     ]
