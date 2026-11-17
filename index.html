@@ -37,7 +37,6 @@
 <script src="config.js"></script>
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js" defer></script>
-<script src="bootcamp.js" defer></script>
 <script src="app.js" defer></script>
 </head>
 <body>
@@ -58,8 +57,6 @@
     <button id="tab-milestones" type="button" data-view="milestones">Milestones</button>
     <button id="tab-rulebook" type="button" data-view="rulebook">Rulebook</button>
     <button id="tab-psychology" type="button" data-view="psychology">Psychology</button>
-    <button id="tab-bb" type="button" data-view="bb">Beginner Bootcamp</button>
-    <button id="tab-eb" type="button" data-view="eb">Edge Bootcamp</button>
   </nav>
 
   <div class="header-actions">
@@ -369,21 +366,6 @@
 
     <div class="panel protocol" id="protocol-panel"></div>
 
-    <div class="panel" id="ajc-panel">
-      <h2 class="panel-title">AJ — pip calculator</h2>
-      <div class="hint" id="ajc-intro">Type AJ's entry, stop and take profit. Buy or sell is worked out from the stop. Lots come from the risk % and the balance below — nothing here is saved.</div>
-      <div class="grid field-gap ajc-grid">
-        <div class="field"><label for="ajc-entry">Entry price</label><input type="number" step="any" inputmode="decimal" id="ajc-entry"></div>
-        <div class="field"><label for="ajc-sl">Stop loss</label><input type="number" step="any" inputmode="decimal" id="ajc-sl"></div>
-        <div class="field"><label for="ajc-tp">Take profit</label><input type="number" step="any" inputmode="decimal" id="ajc-tp"></div>
-        <div class="field"><label for="ajc-risk">Risk %</label><input type="number" step="any" inputmode="decimal" id="ajc-risk"></div>
-        <div class="field"><label>Entries</label><div class="seg" id="ajc-legs" role="group" aria-label="Entries"><button type="button" data-legs="1" class="on">1</button><button type="button" data-legs="3">3</button></div></div>
-        <div class="field"><label for="ajc-lots">Check a lot size (optional, total)</label><input type="number" step="any" inputmode="decimal" id="ajc-lots" placeholder="e.g. 0.05"></div>
-      </div>
-      <div class="form-error field-gap" id="ajc-error" hidden></div>
-      <div class="ajc-out field-gap" id="ajc-out"></div>
-      <div class="field-gap"><button type="button" class="ghost" id="ajc-clear">Clear</button></div>
-    </div>
 
     <div class="panel">
       <h2 class="panel-title">Risk per setup</h2>
@@ -394,7 +376,6 @@
         <div class="field"><label for="sz-grindLive">Grind Room live (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindLive" data-sizing="grindLive"></div>
         <div class="field"><label for="sz-grindSignal">Grind Room signal (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindSignal" data-sizing="grindSignal"></div>
         <div class="field"><label for="sz-inst">IT / Thomas (%)</label><input type="number" step="any" inputmode="decimal" id="sz-inst" data-sizing="inst"></div>
-        <div class="field"><label for="sz-aj">AJ (%)</label><input type="number" step="any" inputmode="decimal" id="sz-aj" data-sizing="aj"></div>
         <div class="field"><label for="sz-layer">Layer gap (pips, 20–25)</label><input type="number" step="any" inputmode="decimal" id="sz-layer" data-sizing="layer"></div>
       </div>
       <div class="form-error field-gap" id="sz-error" hidden></div>
@@ -408,15 +389,6 @@
       <div class="partials-grid field-gap" id="partials-cards"></div>
     </div>
 
-    <div class="panel">
-      <h2 class="panel-title">AJ — reward : risk</h2>
-      <div class="hint" id="aj-intro"></div>
-      <div class="grid field-gap sizing-settings">
-        <div class="field"><label for="sz-ajRR">Take profit at (R)</label><input type="number" step="any" inputmode="decimal" id="sz-ajRR" data-sizing="ajRR"></div>
-        <div class="field"><label for="sz-ajBE">Stop to BE at (R)</label><input type="number" step="any" inputmode="decimal" id="sz-ajBE" data-sizing="ajBE"></div>
-      </div>
-      <div class="mini-scroll field-gap" id="aj-table"></div>
-    </div>
 
     <div class="panel">
       <h2 class="panel-title">Settings</h2>
@@ -837,16 +809,6 @@
     </div>
   </section>
 
-  <!-- ============ BOOTCAMP VIEWS ============ -->
-  <!-- AJ / Currency Squad course notes. Content lives in bootcamp.js;
-       your answers and "done" marks are saved with your settings. -->
-  <section id="view-bb" class="view hidden">
-    <div class="bootcamp" id="bootcamp-bb"></div>
-  </section>
-
-  <section id="view-eb" class="view hidden">
-    <div class="bootcamp" id="bootcamp-eb"></div>
-  </section>
 
   <!-- ============ WEEKLY REVIEW VIEW ============ -->
   <section id="view-weekly" class="view hidden">

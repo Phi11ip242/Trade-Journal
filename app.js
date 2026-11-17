@@ -12,7 +12,11 @@
 
   var SESSIONS = ["Asia", "London", "New York"];
   var DIRECTIONS = ["Buy", "Sell"];
-  var SOURCES = ["Premium", "Grind Room", "Institutional", "AJ", "Own Trade"];
+  var SOURCES = ["Premium", "Grind Room", "Institutional", "Own Trade"];
+  // Sources no longer traded: old trades keep them so the history and
+  // balance stay right, but they can't be picked for new trades.
+  var OLD_SOURCES = ["AJ"];
+  var ALL_SOURCES = SOURCES.concat(OLD_SOURCES);
   // Broker accounts. Each keeps its own deposit, deposits/withdrawals,
   // balance, drawdown and lot sizes. The first one is where trades without
   // an account (e.g. from a Johnson Journal backup) belong.
@@ -28,7 +32,6 @@
     "Premium":       { def: 20, max: 30 },
     "Grind Room":    { def: 20, max: 30 },
     "Institutional": { def: 20, max: 30 },
-    "AJ":            { def: 5,  max: 20 },
     "Own Trade":     { def: 5,  max: 20 }
   };
   var CLOSE_TYPES = ["SL", "Force Close", "TP1", "TP2", "TP3", "TP4", "TP5", "TP6", "TP7", "TP8", "TP9", "TP10", "Full TP", "BE"];
@@ -59,15 +62,11 @@
     layer: 25,          // pips between layered entries (Own, Premium, IT): 20–25
     grindLiveStop: 120, // Grind live stop from the worst entry: usually 120, sometimes 130–150
     instStop: 100,      // IT stop from the first entry (he uses 30–100)
-    aj: 5,              // AJ (Currency Squad) risk %
-    ajRR: 1.5,          // AJ take profit, in R (multiples of the stop)
-    ajBE: 1             // AJ: stop to breakeven at this many R
   };
-  var SIZING_RISK_KEYS = ["own", "premium", "grindLive", "grindSignal", "inst", "aj"];
+  var SIZING_RISK_KEYS = ["own", "premium", "grindLive", "grindSignal", "inst"];
   var SIZING_LIMITS = {
     own: [0.1, 30], premium: [0.1, 20], grindLive: [0.1, 20], grindSignal: [0.1, 20], inst: [0.1, 20],
-    layer: [20, 25], grindLiveStop: [100, 150], instStop: [10, 100],
-    aj: [0.1, 20], ajRR: [0.5, 10], ajBE: [0.25, 5]
+    layer: [20, 25], grindLiveStop: [100, 150], instStop: [10, 100]
   };
   var OWN_PREM_STOP = 100;          // Own Trade and Premium: 100-pip max stop from the first entry
   var GRIND_SIGNAL_STOP = 120;      // Grind Room signal: 120 from the first (worst) entry
@@ -186,7 +185,6 @@
       accounts: DEFAULT_ACCOUNTS.map(function(a){ return Object.assign({}, a); }),
       psychology: defaultBook("psychology"),
       psychReadAt: "",         // last time the Psychology tab was marked as read
-      bootcamp: { notes: {}, done: {} },  // bootcamp answers + done dates, by module ("bb-1")
       backtests: []                       // practice trades (Backtest tab)
     };
   }
@@ -212,13 +210,13 @@
   }
 
   var SETTINGS_KEYS = ["startingDeposit", "depositsWithdrawals", "riskOwnPremium", "riskGrindInst", "defaultStop", "maxDrawdown",
-    "splitStopsPremium", "splitStopsGrind", "pairs", "cashFlows", "sizing", "accounts", "psychology", "psychReadAt", "bootcamp", "backtests"];
+    "splitStopsPremium", "splitStopsGrind", "pairs", "cashFlows", "sizing", "accounts", "psychology", "psychReadAt", "backtests"];
 
   // ---- backtests ----
   // Practice trades from replay/backtesting. Kept apart from real trades: they
   // never touch balances, P/L or any real stat. Stored with the settings, so
   // they go into the JSON backup too.
-  var BT_MODELS = ["Own (SMC)", "Aaron EMAs", "AMD", "SMT", "AJ", "Other"];
+  var BT_MODELS = ["Own (SMC)", "Aaron EMAs", "AMD", "SMT", "Other"];
   var BT_CONFIRMATIONS = ["CHoCH + retest", "CHoCH + engulfing", "iFVG", "Engulfing", "EMA tap", "Other", "None"];
   var BT_CONFLUENCES = ["HTF POI", "Fresh POI", "Liquidity sweep", "Session high/low", "Devil's mark", "SMT", "FVG", "Order block", "EMA tap", "Displacement"];
   var BT_RESULTS = ["TP hit", "SL hit", "Breakeven", "Closed manually"];
@@ -357,16 +355,6 @@
     var book = normalizeBook(s.psychology);
     if(book) d.psychology = book;
     d.psychReadAt = /^\d{4}-\d{2}-\d{2}$/.test(str(s.psychReadAt)) ? str(s.psychReadAt) : "";
-    d.bootcamp = { notes: {}, done: {} };
-    var bc = (s.bootcamp && typeof s.bootcamp === "object") ? s.bootcamp : {};
-    Object.keys(bc.notes || {}).forEach(function(k){
-      var v = str(bc.notes[k]);
-      if(/^(bb|eb)-\d+$/.test(k) && v) d.bootcamp.notes[k] = v.slice(0, 20000);
-    });
-    Object.keys(bc.done || {}).forEach(function(k){
-      var v = str(bc.done[k]);
-      if(/^(bb|eb)-\d+$/.test(k) && /^\d{4}-\d{2}-\d{2}$/.test(v)) d.bootcamp.done[k] = v;
-    });
     if(Array.isArray(s.pairs)){
       var pairs = s.pairs.map(function(p){
         p = p || {};
@@ -612,7 +600,6 @@
     if(source === "Premium") return sz.premium;
     if(source === "Grind Room") return sz.grindSignal;
     if(source === "Institutional") return sz.inst;
-    if(source === "AJ") return sz.aj;
     return null;
   }
 
@@ -730,7 +717,6 @@
     return {
       own: { risk: sz.own, single: single(OWN_PREM_STOP, sz.own), three: three(OWN_PREM_STOP, sz.own) },
       premium: { risk: sz.premium, single: single(OWN_PREM_STOP, sz.premium), three: three(OWN_PREM_STOP, sz.premium) },
-      aj: { risk: sz.aj, single: single(OWN_PREM_STOP, sz.aj), three: three(OWN_PREM_STOP, sz.aj) },
       grindLive: { risk: sz.grindLive, stop: sz.grindLiveStop, plan: ladder(sz.grindLiveStop, GRIND_LIVE_LEGS, sz.grindLive) },
       grindSignal: { risk: sz.grindSignal, stop: GRIND_SIGNAL_STOP, plan: ladder(GRIND_SIGNAL_STOP, GRIND_SIGNAL_LEGS, sz.grindSignal) },
       inst: { risk: sz.inst, stop: sz.instStop, single: single(sz.instStop, sz.inst),
@@ -889,7 +875,9 @@
     // P/L, avg is per idea. Wins/losses/BE use the same rule as the
     // Milestones streaks (an idea within $1 of zero is breakeven), and the
     // win rate leaves breakeven ideas out: wins / (wins + losses).
-    var bySource = SOURCES.map(function(name){
+    var bySource = ALL_SOURCES.filter(function(name){
+      return SOURCES.indexOf(name) !== -1 || closedIdeas.some(function(i){ return i.source === name; });
+    }).map(function(name){
       var list = closedIdeas.filter(function(i){ return i.source === name; })
                             .map(function(i){ return i.pl; });
       var wins = list.filter(function(v){ return ideaResult(v) === "W"; }).length;
@@ -1837,134 +1825,6 @@
     renderPsychology();
   });
 
-  // ---------- Bootcamps (AJ / Currency Squad course notes) ----------
-  // Lesson notes come from bootcamp.js (window.BOOTCAMPS). Each module is a
-  // fold-out chapter; your answer to its practical task and the date you
-  // marked it done are saved in settings.bootcamp.
-  function setupBootcamp(view, kind, prefix){
-    var root = document.getElementById("bootcamp-" + view);
-    var openIds = {};
-    function data(){ return (window.BOOTCAMPS && window.BOOTCAMPS[kind]) || { title: "", intro: "", roadmap: [], modules: [] }; }
-    function bc(){ return settings.bootcamp || (settings.bootcamp = { notes: {}, done: {} }); }
-    function fmtDay(d){ return d ? parseLocalDate(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""; }
-
-    function render(){
-      var b = data(), store = bc();
-      root.querySelectorAll(".rb-chapter").forEach(function(d){ openIds[d.dataset.id] = d.open; });
-      var written = b.modules.map(function(m){ return m.num; });
-      var unit = b.unit || "Module";
-      function lab(m){ return m.label || String(m.num); }
-      function phaseHead(m, prev){
-        if(!b.phases || !m.phase || (prev && prev.phase === m.phase)) return "";
-        return '<h2 class="bc-phase">Phase ' + m.phase + (b.phases[m.phase] ? " · " + escapeHtml(b.phases[m.phase]) : "") + "</h2>";
-      }
-      var doneCount = b.modules.filter(function(m){ return store.done[prefix + m.num]; }).length;
-
-      var head = '<div class="panel rb-intro">' +
-        '<h2 class="panel-title">' + escapeHtml(b.title) + "</h2>" +
-        "<p>" + escapeHtml(b.intro) + "</p>";
-      if(b.modules.length){
-        head += '<p class="bc-progress">' + b.modules.length + " module" + (b.modules.length === 1 ? "" : "s") +
-          " written up · " + doneCount + " done</p>" +
-          '<nav class="rb-toc" aria-label="' + escapeHtml(b.title) + ' modules">' +
-          b.modules.map(function(m){
-            var id = prefix + m.num;
-            return '<a href="#" data-jump="' + id + '"' + (store.done[id] ? ' class="bc-done"' : "") + ">" +
-              (store.done[id] ? "✓ " : "") + escapeHtml(lab(m)) + " · " + escapeHtml(m.title) + "</a>";
-          }).join("") + "</nav>" +
-          '<div class="rb-tools"><button type="button" class="ghost small bc-open-all">Open all</button>' +
-          '<button type="button" class="ghost small bc-close-all">Close all</button></div>';
-      }
-      var upcoming = (b.roadmap || []).filter(function(r){ return written.indexOf(r.num) === -1; });
-      if(upcoming.length){
-        head += '<details class="bc-roadmap"><summary>Coming up in the course</summary><ul>' +
-          upcoming.map(function(r, ri){
-            var prev = ri ? upcoming[ri - 1] : null;
-            var ph = (b.phases && r.phase && (!prev || prev.phase !== r.phase)) ? '<li class="bc-road-phase">Phase ' + r.phase + (b.phases[r.phase] ? " · " + escapeHtml(b.phases[r.phase]) : "") + "</li>" : "";
-            return ph + "<li>" + unit + " " + escapeHtml(lab(r)) + " · " + escapeHtml(r.title) + (r.length ? ' <span class="muted">' + escapeHtml(r.length) + "</span>" : "") + (r.tentative ? ' <span class="muted">(as described so far)</span>' : "") + "</li>";
-          }).join("") + "</ul></details>";
-      }
-      head += "</div>";
-
-      if(!b.modules.length){
-        root.innerHTML = head + '<div class="panel empty-state bc-empty"><p>Nothing written up yet.</p>' +
-          '<p class="muted">Send the lesson text or video scripts and they\'ll appear here, one module per chapter.</p></div>';
-        return;
-      }
-
-      var body = b.modules.map(function(m, i){
-        var id = prefix + m.num, done = store.done[id];
-        var open = openIds.hasOwnProperty(id) ? openIds[id] : (i === b.modules.length - 1 && !done);
-        var h = phaseHead(m, i ? b.modules[i - 1] : null) +
-          '<details class="panel rb-chapter bc-module" data-id="' + id + '"' + (open ? " open" : "") + ">" +
-          "<summary>" + unit + " " + escapeHtml(lab(m)) + " · " + escapeHtml(m.title) + (done ? ' <span class="bc-tick">✓ done</span>' : "") + "</summary>";
-        if(m.tagline) h += '<p class="bc-tagline">' + escapeHtml(m.tagline) + "</p>";
-        (m.lessons || []).forEach(function(l){
-          h += '<h3 class="rb-sub"><span class="bc-code">' + escapeHtml(l.code) + "</span> " + escapeHtml(l.title) + "</h3>" +
-            '<div class="bc-lesson">' + l.html + "</div>";
-        });
-        if(m.mistakes && m.mistakes.length){
-          h += '<h3 class="rb-sub">Common mistakes at this stage</h3><ul>' +
-            m.mistakes.map(function(x){ return "<li>" + x + "</li>"; }).join("") + "</ul>";
-        }
-        if(m.quiz && m.quiz.length){
-          h += '<h3 class="rb-sub">Quiz</h3><div class="bc-quiz">' +
-            m.quiz.map(function(x, qi){
-              return '<details class="bc-q"><summary>' + (qi + 1) + ". " + escapeHtml(x.q) + '</summary><p>' + escapeHtml(x.a) + "</p></details>";
-            }).join("") + "</div>";
-        }
-        if(m.vsRulebook && m.vsRulebook.length){
-          h += '<div class="rb-box bc-vs"><h3>Differences from the Rulebook — to decide</h3><p class="bc-vs-note">AJ and Callisto are different strategies. These are the points where they differ, side by side — not a verdict on which is right.</p><ul>' +
-            m.vsRulebook.map(function(x){ return "<li>" + x + "</li>"; }).join("") + "</ul></div>";
-        }
-        {
-          h += '<div class="rb-box bc-task">' + (m.task ? "<h3>Practical task</h3><p>" + escapeHtml(m.task) + "</p>" : "<h3>My notes</h3>") +
-            '<label class="bc-notes-label" for="bc-notes-' + id + '">My answer / notes</label>' +
-            '<textarea class="bc-notes" id="bc-notes-' + id + '" data-id="' + id + '" rows="6" placeholder="Write it here — it saves with your journal.">' +
-            escapeHtml(store.notes[id] || "") + "</textarea>" +
-            '<div class="bc-task-foot">' +
-            '<button type="button" class="small ' + (done ? "ghost" : "primary") + ' bc-done-btn" data-id="' + id + '">' +
-            (done ? "Mark not done" : "Mark " + unit.toLowerCase() + " done") + "</button>" +
-            '<span class="muted">' + (done ? "Done " + escapeHtml(fmtDay(done)) : "") + "</span></div></div>";
-        }
-        return h + "</details>";
-      }).join("");
-      root.innerHTML = head + body;
-    }
-
-    root.addEventListener("click", function(ev){
-      var a = ev.target.closest("a[data-jump]");
-      if(a){
-        ev.preventDefault();
-        var target = root.querySelector('.rb-chapter[data-id="' + a.dataset.jump + '"]');
-        if(target){ target.open = true; target.scrollIntoView({ behavior: "smooth", block: "start" }); }
-        return;
-      }
-      if(ev.target.closest(".bc-open-all, .bc-close-all")){
-        var open = !!ev.target.closest(".bc-open-all");
-        root.querySelectorAll(".rb-chapter").forEach(function(d){ d.open = open; });
-        return;
-      }
-      var btn = ev.target.closest(".bc-done-btn");
-      if(btn){
-        var store = bc(), id = btn.dataset.id;
-        if(store.done[id]) delete store.done[id]; else store.done[id] = todayStr();
-        saveSettings();
-        render();
-      }
-    });
-    root.addEventListener("input", function(ev){
-      var t = ev.target.closest(".bc-notes");
-      if(!t) return;
-      var store = bc(), v = t.value.slice(0, 20000);
-      if(v.trim()) store.notes[t.dataset.id] = v; else delete store.notes[t.dataset.id];
-      saveSettings();
-    });
-
-    renderers[view] = render;
-  }
-  setupBootcamp("bb", "beginner", "bb-");
-  setupBootcamp("eb", "edge", "eb-");
 
   // ---------- formatting ----------
   function escapeHtml(s){
@@ -2268,7 +2128,6 @@
       var plans = sizingPlans(prot.sizingBalance, settings, calc.spec.usdPerPip, prot.riskMult);
       var layered = draft.source === "Own Trade" ? "3 entries: " + fmtLots(plans.own.three.lots) + " each" :
         draft.source === "Premium" ? "3 entries: " + fmtLots(plans.premium.three.lots) + " each" :
-        draft.source === "AJ" ? "3 entries: " + fmtLots(plans.aj.three.lots) + " each" :
         draft.source === "Grind Room" ? "signal 5 legs: " + fmtLots(plans.grindSignal.plan.lots) + " each · live 8 legs: " + fmtLots(plans.grindLive.plan.lots) + " each" :
         draft.source === "Institutional" && plans.inst.three ? "3 entries: " + fmtLots(plans.inst.three.lots) + " each" : "";
       elSizeHint.innerHTML =
@@ -2278,20 +2137,8 @@
         (layered ? " · " + escapeHtml(layered) + " (Position Sizing has the full plan)" : "");
     }
 
-    // AJ's fixed reward:risk: breakeven and take-profit prices from the
-    // entry and the stop distance.
-    var sz = settings.sizing;
-    if(draft.source === "AJ" && hasDir && draft.entry !== null && calc.slPips !== null && calc.slPips < 0){
-      var sign = dirSign(draft.direction), dist = calc.stopDistance, pip = calc.spec.pipSize;
-      elPlanHint.hidden = false;
-      elPlanHint.innerHTML =
-        "<span>AJ plan · stop to BE at <b>" + fmtPrice(draft.entry + sign * dist * sz.ajBE * pip, calc.spec) + "</b> (" + sz.ajBE + "R · +" + (dist * sz.ajBE).toFixed(1) + " pips)</span>" +
-        "<span>Take profit at <b>" + fmtPrice(draft.entry + sign * dist * sz.ajRR * pip, calc.spec) + "</b> (" + sz.ajRR + "R · +" + (dist * sz.ajRR).toFixed(1) + " pips)</span>";
-    }else{
-      elPlanHint.hidden = true;
-      elPlanHint.innerHTML = "";
-    }
 
+    elPlanHint.hidden = true;
     var rows = closeRowEls();
     rows.forEach(function(row, i){
       var c = calc.closes[i];
@@ -2494,7 +2341,7 @@
     }).join("");
   }
   fillFilter(ffSession, SESSIONS);
-  fillFilter(ffSource, SOURCES);
+  fillFilter(ffSource, ALL_SOURCES);
   fillFilter(ffDirection, DIRECTIONS);
   fillFilter(ffResult, RESULTS);
 
@@ -3111,125 +2958,11 @@
         (p.inst.three ? planBlock("3 entries", p.inst.three, "Layered every " + L + " pips; last entry " + (p.inst.stop - 2 * L) + " pips from the stop.") : "") +
         planBlock("1 entry", p.inst.single, p.inst.three ? "" : "Stop is too tight to layer — take 1 entry."),
         '<div class="field plan-inst-stop"><label for="sz-instStop">Today\'s stop from the first entry (pips, max 100)</label>' +
-          '<input type="number" step="any" inputmode="decimal" id="sz-instStop" data-sizing-inline="instStop" value="' + p.inst.stop + '"></div>') +
-
-      planCard("aj", "AJ (Currency Squad)", p.aj.risk,
-        "Max stop 100 pips. Only trades with at least " + sz.ajRR + "R available; take profit at " + sz.ajRR + "R, stop to breakeven at " + sz.ajBE + "R.",
-        planBlock("1 entry", p.aj.single, "Stop 100 pips.") +
-        planBlock("3 entries", p.aj.three, layerNote));
+          '<input type="number" step="any" inputmode="decimal" id="sz-instStop" data-sizing-inline="instStop" value="' + p.inst.stop + '"></div>');
 
     renderPartials(p, usd);
-    renderAJ(p, usd);
-    ajcCtx = { balance: prot.sizingBalance, mult: prot.riskMult, acc: multiAccount() ? accountName(accId) : "", spec: pairSpec(settings, pair) };
-    renderAJCalc();
   }
 
-  // ---------- AJ pip calculator ----------
-  // Prices in → stop/TP pips, R:R and the lots for a risk % at the sizing
-  // balance (loss protocol applied). Nothing is saved.
-  var ajcCtx = null;
-  var ajcLegs = 1;
-  var elAjc = {
-    entry: document.getElementById("ajc-entry"), sl: document.getElementById("ajc-sl"),
-    tp: document.getElementById("ajc-tp"), risk: document.getElementById("ajc-risk"),
-    lots: document.getElementById("ajc-lots"), legs: document.getElementById("ajc-legs"),
-    err: document.getElementById("ajc-error"), out: document.getElementById("ajc-out")
-  };
-  function renderAJCalc(){
-    if(!ajcCtx) return;
-    var sz = settings.sizing, spec = ajcCtx.spec, pip = spec.pipSize, usd = spec.usdPerPip, bal = ajcCtx.balance;
-    var defRisk = round2(sz.aj * ajcCtx.mult);
-    elAjc.risk.placeholder = defRisk;
-    var entry = num(elAjc.entry.value), sl = num(elAjc.sl.value), tp = num(elAjc.tp.value);
-    var typedRisk = num(elAjc.risk.value), risk = typedRisk !== null && typedRisk > 0 ? typedRisk : defRisk;
-    var check = num(elAjc.lots.value);
-    var err = "", warns = [];
-    function show(html){
-      elAjc.err.textContent = err; elAjc.err.hidden = !err;
-      elAjc.out.innerHTML = html;
-    }
-    var balLine = '<div class="hint">Sizing from <strong>' + escapeHtml(fmtUsd(bal)) + "</strong>" +
-      (ajcCtx.acc ? " (" + escapeHtml(ajcCtx.acc) + ")" : "") +
-      (typedRisk === null ? " · using AJ's " + defRisk + "%" : "") + ".</div>";
-    if(entry === null || sl === null){ show(balLine); return; }
-    if(entry === sl){ err = "The stop can't be at the entry price."; show(balLine); return; }
-    var sign = sl < entry ? 1 : -1;               // stop below = buy
-    var dir = sign > 0 ? "Buy" : "Sell";
-    var slPips = clean(Math.abs(entry - sl) / pip);
-    var tpPips = null, rr = null;
-    if(tp !== null){
-      if((tp - entry) * sign <= 0){ err = dir + ": the take profit has to be " + (sign > 0 ? "above" : "below") + " the entry (the stop is " + (sign > 0 ? "below" : "above") + " it)."; }
-      else { tpPips = clean(Math.abs(tp - entry) / pip); rr = tpPips / slPips; }
-    }
-    if(risk > SOURCE_RISK.AJ.max) warns.push("Above your " + SOURCE_RISK.AJ.max + "% hard cap per idea.");
-    if(slPips > OWN_PREM_STOP) warns.push("Stop is " + slPips.toFixed(1) + " pips — over AJ's " + OWN_PREM_STOP + "-pip max.");
-    if(rr !== null && rr < sz.ajRR) warns.push("Only " + rr.toFixed(2) + "R to the take profit — the AJ plan needs at least " + sz.ajRR + "R.");
-
-    var exact = bal * risk / 100 / (slPips * usd);
-    var perLeg = Math.floor(exact / ajcLegs * 100 + 1e-9) / 100;
-    var buffered = round2(Math.max(perLeg - 0.01, 0));
-    function moneyPct(lotsTotal){
-      var r = riskDollars(lotsTotal, slPips, usd);
-      return fmtMoney(-r) + ' <span class="neutral">(' + (bal > 0 ? (r / bal * 100).toFixed(1) : "—") + "%)</span>";
-    }
-    function reward(lotsTotal){ return tpPips === null ? "—" : fmtMoney(round2(lotsTotal * tpPips * usd)); }
-    var legWord = ajcLegs > 1 ? '<br><span class="neutral">each × ' + ajcLegs + "</span>" : "";
-    var cards =
-      statCard("ajcDir", "Direction", '<span class="' + (sign > 0 ? "pos" : "neg") + '">' + dir + "</span>") +
-      statCard("ajcSl", "Stop loss", slPips.toFixed(1) + " pips", fmtUsd(round2(slPips * usd)) + " per 1 lot") +
-      statCard("ajcTp", "Take profit", tpPips === null ? "—" : tpPips.toFixed(1) + " pips") +
-      statCard("ajcRR", "Reward : risk", rr === null ? "—" : '<span class="' + (rr >= sz.ajRR ? "pos" : "neg") + '">' + rr.toFixed(2) + "R</span>") +
-      statCard("ajcBE", "Stop to BE at", fmtPrice(entry + sign * slPips * sz.ajBE * pip, spec), sz.ajBE + "R · +" + clean(slPips * sz.ajBE).toFixed(1) + " pips");
-    var rows;
-    if(perLeg < 0.01){
-      rows = '<div class="warn">Below 0.01 lots' + (ajcLegs > 1 ? " per entry — use 1 entry" : "") + " at " + risk + "% with a " + slPips.toFixed(1) + "-pip stop. 0.01 would risk " +
-        escapeHtml(fmtUsd(riskDollars(0.01 * ajcLegs, slPips, usd))) + ".</div>";
-    }else{
-      rows = '<table class="mini-table ajc-table"><thead><tr><th></th><th>Lots</th><th>Risk</th><th>At TP</th></tr></thead><tbody>' +
-        '<tr class="ajc-go"><td><strong>Enter with</strong><br><span class="neutral">−0.01 buffer</span></td><td><strong>' + fmtLots(buffered < 0.01 ? 0.01 : buffered) + "</strong>" + legWord + "</td><td>" +
-          moneyPct((buffered < 0.01 ? 0.01 : buffered) * ajcLegs) + "</td><td>" + reward((buffered < 0.01 ? 0.01 : buffered) * ajcLegs) + "</td></tr>" +
-        "<tr><td>Full " + risk + "%<br><span class=\"neutral\">rounded down</span></td><td>" + fmtLots(perLeg) + legWord + "</td><td>" + moneyPct(perLeg * ajcLegs) + "</td><td>" + reward(perLeg * ajcLegs) + "</td></tr>" +
-        (check !== null && check > 0 ? "<tr><td>Your lots</td><td>" + fmtLots(check) + " total</td><td>" + moneyPct(check) + "</td><td>" + reward(check) + "</td></tr>" : "") +
-        "</tbody></table>";
-      if(buffered < 0.01) warns.push("0.01 is the smallest size, so the buffer can't come off here.");
-    }
-    show(balLine + '<div class="stats-grid ajc-stats">' + cards + "</div>" +
-      (warns.length ? '<div class="warn-list">' + warns.map(function(w){ return '<div class="warn">' + escapeHtml(w) + "</div>"; }).join("") + "</div>" : "") +
-      '<div class="mini-scroll field-gap">' + rows + "</div>");
-  }
-  ["entry", "sl", "tp", "risk", "lots"].forEach(function(k){ elAjc[k].addEventListener("input", renderAJCalc); });
-  elAjc.legs.addEventListener("click", function(ev){
-    var b = ev.target.closest("button[data-legs]");
-    if(!b) return;
-    ajcLegs = Number(b.dataset.legs);
-    Array.prototype.forEach.call(elAjc.legs.querySelectorAll("button"), function(x){ x.classList.toggle("on", x === b); });
-    renderAJCalc();
-  });
-  document.getElementById("ajc-clear").addEventListener("click", function(){
-    ["entry", "sl", "tp", "risk", "lots"].forEach(function(k){ elAjc[k].value = ""; });
-    renderAJCalc();
-    elAjc.entry.focus();
-  });
-
-  // AJ: fixed reward:risk, no partial ladder.
-  function renderAJ(p, usd){
-    var sz = settings.sizing, st = OWN_PREM_STOP;
-    document.getElementById("aj-intro").innerHTML =
-      "Take profit at <strong>" + sz.ajRR + "R</strong> (" + clean(st * sz.ajRR) + " pips on a " + st + "-pip stop) · stop to breakeven at <strong>" +
-      sz.ajBE + "R</strong> (" + clean(st * sz.ajBE) + " pips). Breakeven win rate at " + sz.ajRR + "R: <strong>" + fmtPct(1 / (1 + sz.ajRR)) +
-      "</strong> — win more often than that and it makes money. The Log Trade form shows the BE and TP prices for every AJ trade.";
-    function row(label, plan){
-      if(!plan || plan.tooSmall) return "<tr><td>" + label + '</td><td colspan="4" class="neutral">Below 0.01 lots at this balance</td></tr>';
-      var tpPips = st * sz.ajRR;
-      var reward = round2(plan.lots * sum(plan.legs.map(function(l){ return tpPips + l.offset; })) * usd);
-      return "<tr><td>" + label + "</td><td>" + fmtLots(plan.lots) + (plan.legs.length > 1 ? " each" : " lots") + "</td>" +
-        "<td>" + fmtMoney(-plan.risk) + "</td><td>+" + clean(st * sz.ajBE) + " pips</td>" +
-        "<td>" + fmtMoney(reward) + ' <span class="neutral">(+' + clean(tpPips) + " pips from the 1st entry)</span></td></tr>";
-    }
-    document.getElementById("aj-table").innerHTML = '<table class="mini-table rr-table">' +
-      "<thead><tr><th>AJ plan</th><th>Lots</th><th>Stop loss</th><th>Stop to BE at</th><th>Take profit</th></tr></thead><tbody>" +
-      row("1 entry", p.aj.single) + row("3 entries", p.aj.three) + "</tbody></table>";
-  }
 
   function renderProtocol(prot, a){
     var el = document.getElementById("protocol-panel");
@@ -3273,10 +3006,7 @@
     grindSignal: "Signal risk must be between 0.1% and 20%.",
     inst: "Signal risk must be between 0.1% and 20%.",
     layer: "The layer gap must be 20–25 pips (3 entries in a 50-pip zone).",
-    instStop: "IT stop must be 10–100 pips.",
-    aj: "AJ risk must be between 0.1% and 20%.",
-    ajRR: "AJ's take profit must be between 0.5R and 10R.",
-    ajBE: "AJ's breakeven point must be between 0.25R and 5R."
+    instStop: "IT stop must be 10–100 pips."
   };
   function setSizing(key, value){
     var n = num(value);
