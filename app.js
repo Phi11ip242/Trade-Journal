@@ -3070,16 +3070,26 @@
     return trades.filter(function(t){ return accountIdOf(t, settings) === id; }).length +
       (settings.cashFlows || []).filter(function(f){ return f.account === id; }).length;
   }
+  var acctConfirm = null;   // id of the account whose delete is being confirmed
   function renderAccountRows(){
     var only = settings.accounts.length === 1;
     elAcctRows.innerHTML = settings.accounts.map(function(a){
       var used = accountUse(a.id);
+      var nT = trades.filter(function(t){ return accountIdOf(t, settings) === a.id; }).length;
+      var nF = (settings.cashFlows || []).filter(function(f){ return f.account === a.id; }).length;
+      var confirmBox = acctConfirm === a.id ?
+        '<div class="a-confirm">Delete <strong>' + escapeHtml(a.name) + "</strong> for good, with its " +
+          nT + " trade" + (nT === 1 ? "" : "s") + " and " + nF + " deposit" + (nF === 1 ? "" : "s") + "/withdrawal" + (nF === 1 ? "" : "s") +
+          "? It can't be undone — Export JSON first if you might want it back." +
+          '<div class="a-confirm-acts"><button type="button" class="danger a-confirm-yes">Delete ' + escapeHtml(a.name) + '</button>' +
+          '<button type="button" class="ghost a-confirm-no">Cancel</button></div></div>' : "";
       return '<div class="pair-row" data-id="' + escapeHtml(a.id) + '">' +
         '<div class="field"><label>Account</label><input type="text" class="a-name" value="' + escapeHtml(a.name) + '" aria-label="Account name"></div>' +
         '<div class="field"><label>Starting deposit ($)</label><input type="number" step="any" inputmode="decimal" class="a-dep" value="' + a.startingDeposit + '"></div>' +
         '<div class="field"><label>Adjustment ($)</label><input type="number" step="any" inputmode="decimal" class="a-adj" value="' + a.adjustment + '"></div>' +
         '<button type="button" class="p-remove a-remove" aria-label="Remove ' + escapeHtml(a.name) + '"' +
-          (only ? ' disabled title="At least one account is needed"' : used ? ' disabled title="Has trades or deposits — can\'t be removed"' : ' title="Remove this account"') + ">&times;</button>" +
+          (only ? ' disabled title="At least one account is needed"' : used ? ' title="Delete this account and everything on it"' : ' title="Remove this account"') + ">&times;</button>" +
+        confirmBox +
       "</div>";
     }).join("");
   }
@@ -3116,12 +3126,30 @@
     afterAccountChange();
   });
   elAcctRows.addEventListener("click", function(ev){
+    var row = ev.target.closest(".pair-row"); if(!row) return;
+    var id = row.dataset.id;
+    if(ev.target.closest(".a-confirm-no")){ acctConfirm = null; renderAccountRows(); return; }
+    if(ev.target.closest(".a-confirm-yes")){ deleteAccount(id); return; }
     var btn = ev.target.closest(".a-remove"); if(!btn || btn.disabled) return;
-    var id = btn.closest(".pair-row").dataset.id;
-    if(accountUse(id) || settings.accounts.length <= 1) return;
+    if(settings.accounts.length <= 1) return;
+    if(accountUse(id)){ acctConfirm = id; renderAccountRows(); return; }
     settings.accounts = settings.accounts.filter(function(a){ return a.id !== id; });
     afterAccountChange();
   });
+  // Removes an account with every trade and deposit/withdrawal on it. Trades
+  // go first: a trade whose account no longer exists would otherwise fall
+  // back to the first account and land in its balance.
+  function deleteAccount(id){
+    if(settings.accounts.length <= 1 || !accountById(settings, id)) return;
+    trades = trades.filter(function(t){ return accountIdOf(t, settings) !== id; });
+    settings.cashFlows = (settings.cashFlows || []).filter(function(f){ return f.account !== id; });
+    settings.accounts = settings.accounts.filter(function(a){ return a.id !== id; });
+    if(activeAccount === id) activeAccount = "";
+    acctConfirm = null;
+    saveTrades();
+    afterAccountChange();
+    renderTable();
+  }
   function addAccount(){
     var name = elAcctNew.value.trim();
     if(!name) return showErr(elAcctError, "Type the account name first.");
