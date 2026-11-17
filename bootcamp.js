@@ -1653,6 +1653,31 @@ window.BOOTCAMPS = {
           "<strong>Use — both:</strong> trendline liquidity is one of the Rulebook's five liquidity types (stops under/over the line, usually a trap price comes back for). AJ uses it the same way, as something to trade through, not to bounce from.",
           "<strong>Drawing rule</strong> (top-down along highs, bottom-up along lows, never from the underside) isn't in the Rulebook — worth adding if you agree with it."
         ]
+      },
+      {
+        num: 13,
+        label: "1.13",
+        phase: 1,
+        title: "Fibonacci pt 1",
+        tagline: "1:47 video. The Fibonacci retracement as one more place other traders enter.",
+        lessons: [
+          {
+            code: "Fib",
+            title: "Where retracement traders get in",
+            html:
+              "<ul>" +
+              "<li>An old, common strategy based on <strong>retracements within a range</strong> (bullish or bearish).</li>" +
+              "<li><strong>Example — 1H bearish range:</strong> price comes down, retraces up, comes down, retraces — typically into the <strong>0.618 to 0.716 region</strong>. That's where retracement traders expect to go short.</li>" +
+              "<li>In the example a <strong>5M supply</strong> sat in the same area, so several strategies were all selling from there.</li>" +
+              "<li>For AJ it's <strong>another indicator of where other traders will enter</strong>. In this example price got wicks on the 1M at that area, then <strong>blew straight through</strong> it.</li>" +
+              "<li>pt 2 promises an example where it holds or pulls back, and how they use it against those traders.</li>" +
+              "</ul>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Fib levels — AJ:</strong> the retracement zone 0.618–0.716 (where others sell in a bearish range). <strong>Rulebook:</strong> Fibonacci is optional confluence only, used for the 0.5 premium/discount split (sell above 0.5 in a bearish range, buy below), never an entry trigger. The Beginner Bootcamp (Module 7) mentions 50–61.8%.",
+          "<strong>How it's used — AJ:</strong> a crowd's entry zone, so a source of liquidity to trade against. <strong>Rulebook:</strong> premium = where you look for your own sells. Opposite way of using the same area; worth deciding after pt 2 shows AJ's version."
+        ]
       }
     ]
   }
