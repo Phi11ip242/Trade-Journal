@@ -1584,6 +1584,37 @@ window.BOOTCAMPS = {
           "<strong>Touches:</strong> Rulebook: a level is valid at 2 touches, strong at 3+, and that's where the stops are. AJ: the more touches, the more liquidity, the more likely it breaks. Same logic.",
           "<strong>Still to see:</strong> how AJ actually enters when targeting the level (1.16 LTF Liquidity Entry Model) vs the Rulebook's sweep → CHoCH → retest."
         ]
+      },
+      {
+        num: 11,
+        label: "1.11",
+        phase: 1,
+        title: "Support and Resistance pt 2",
+        tagline: "2:39 video. How many touches make a level worth targeting, and stacking S/R with trendlines and supply/demand.",
+        lessons: [
+          {
+            code: "Touches",
+            title: "Three touches = target it",
+            html:
+              "<ul>" +
+              "<li>Example resistance: a wick high retested <strong>four times</strong>.</li>" +
+              "<li><strong>Three touches</strong> of a resistance or support = a good time to <strong>target it as liquidity</strong> (for resistance: look to buy into it at the right time). <strong>Four</strong> = a definite indicator he wants to trade through it.</li>" +
+              "<li>Touches alone aren't enough: you need <strong>other factors</strong> in the trade, and the skill is choosing where to execute (shown later in the bootcamp).</li>" +
+              "</ul>"
+          },
+          {
+            code: "Example",
+            title: "What happened",
+            html:
+              "<p>Each time price rejected the resistance, a big influx of sellers came in, and more sellers joined at every retest. Price came back up, slowed down below the level, then <strong>blew through it</strong> (even retested it again afterwards) and took all that liquidity.</p>" +
+              '<div class="rb-box"><p><strong>Their edge, as they put it:</strong> trade <em>against</em> the support/resistance, trendline and supply/demand traders. Stacking several of those \"equations\" into the entry model is what they say drives the win rate. More advanced S/R comes later in the bootcamp.</p></div>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>Touch count — AJ:</strong> 3 touches = target it, 4 = definitely. <strong>Rulebook:</strong> a level is valid at 2 touches and strong at 3+. Close; AJ waits for one more touch before treating it as a target.",
+          "<strong>Same core idea:</strong> repeated rejections stack up stops, and price goes to take them. The Rulebook expresses it as equal highs/lows and liquidity pools, with the sweep as the event to wait for.",
+          "<strong>Win-rate claim:</strong> \"you'll be surprised with the win rate\" has no numbers behind it yet. Judge it on your own journal data once you trade it."
+        ]
       }
     ]
   }
