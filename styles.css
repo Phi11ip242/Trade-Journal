@@ -671,6 +671,9 @@ footer{
   font-size: 15px;
 }
 .pair-row .p-remove:hover:not(:disabled){ color: var(--red); border-color: var(--red); }
+.a-confirm{ grid-column: 1 / -1; border: 1px solid var(--red); border-radius: var(--radius); padding: 10px 12px; font-size: 13px; line-height: 1.45; }
+.a-confirm-acts{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.a-confirm button.danger{ background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
 button:disabled{ opacity: .35; cursor: not-allowed; }
 .pair-add{
   display: flex;
