@@ -1741,6 +1741,80 @@ window.BOOTCAMPS = {
           "<strong>Role of the sweep — Rulebook:</strong> wait for the sweep, then a CHoCH, then enter (Nick's model; also an OB quality criterion). <strong>AJ so far:</strong> the sweep is a possibility to be aware of for trade management; his main idea is trading toward the side with the most liquidity. Compare properly with 1.16.",
           "<strong>Same principle:</strong> both say price is drawn to the bigger pool of liquidity."
         ]
+      },
+      {
+        num: 16,
+        label: "1.16",
+        phase: 1,
+        title: "LTF Liquidity Entry Model",
+        tagline: "7:06 video. Their entry model, shown on a real gold buy: find the side with the most lower-timeframe liquidity, wait for the crowd's trigger the other way, and enter against it.",
+        lessons: [
+          {
+            code: "Context",
+            title: "The setup on gold",
+            html:
+              "<ul>" +
+              "<li><strong>4H:</strong> a very bearish range, stepping down aggressively, then price <strong>slowed down and consolidated</strong> (maybe into a demand zone, no other clear reason).</li>" +
+              "<li>These slow pockets are often better to trade: <strong>liquidity builds up</strong> while price slows.</li>" +
+              "<li><strong>Below:</strong> almost nothing — price stepped up evenly, maybe a 1M demand.</li>" +
+              "<li><strong>Above (clear on the 5M):</strong> a resistance with 3 touches, a 5M supply retested several times and never broken, another supply formed from it, loads of <strong>equal highs</strong>, and local resistance levels. Very heavy on liquidity → the reasonable target.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Entry",
+            title: "The trigger and the entry",
+            html:
+              "<ul>" +
+              "<li>The resistance kept getting retested over a stretched period, then price gave a <strong>5M break of structure to the downside</strong> (taking out a local low).</li>" +
+              "<li>That break is the signal for resistance traders and retail traders to <strong>go short</strong> — they think the resistance will hold.</li>" +
+              "<li>Because more liquidity sits above than below, they <strong>enter long on that break</strong>, against the crowd. Result: an instant reaction up toward the resistance.</li>" +
+              "<li><strong>Stop loss:</strong> below the <strong>most significant low of the range you're working in</strong> — the level where, if price went lower, you'd have to change your whole bias. (In the example that low was also a demand zone.)</li>" +
+              "</ul>" +
+              '<p class="muted">My reading of the transcript: the 5M break is bearish and the trade is a buy into it. Check against the video that the entry is at the break itself and not after a pullback.</p>'
+          },
+          {
+            code: "Target",
+            title: "Where to take profit",
+            html:
+              "<ul>" +
+              "<li>Target = the <strong>wick high</strong> — the last liquidity before price would come back into the <strong>imbalance</strong> between the supply and that wick (the last point price can tap before a reversal). Could also have targeted the supply above.</li>" +
+              "<li>That target was <strong>2.87 times the risk</strong> — \"more than enough\".</li>" +
+              "<li>At <strong>2R or more</strong>, consider taking the profit — \"you should be happy with that every day\".</li>" +
+              "</ul>"
+          },
+          {
+            code: "Manage",
+            title: "Managing the trade",
+            html:
+              "<ol>" +
+              "<li>After the entry reaction and a slight pullback, he'd <strong>move the stop to the low of this smaller range</strong> to cut the chance of a full loss — \"which we do not ever want\".</li>" +
+              "<li>Once price has <strong>swept all the marked liquidity</strong>, a reversal is more likely. If you then see a sweep plus an internal break down, slow pullback and push down: <strong>consider exiting</strong>, or at least move the stop to <strong>breakeven</strong>.</li>" +
+              "<li>Or <strong>trail the stop to the new higher low</strong> (price stepped up: new higher low, higher high) — if structure is respected you still lock in profit.</li>" +
+              "<li>In the example price played around, then took the target.</li>" +
+              "</ol>"
+          },
+          {
+            code: "Model",
+            title: "The model in one list",
+            html:
+              '<div class="rb-box"><ol>' +
+              "<li>Find a slow / consolidating pocket on the higher timeframe.</li>" +
+              "<li>On the LTF (5M), mark liquidity on both sides: resistance/support (3+ touches), supply/demand, equal highs/lows, trendlines.</li>" +
+              "<li>Pick the side with <strong>much more</strong> liquidity as the target.</li>" +
+              "<li>Wait for the crowd's trigger <em>toward the thin side</em> (a 5M break of structure that tells retail to enter).</li>" +
+              "<li>Enter against it, stop beyond the significant range low/high that would change your bias.</li>" +
+              "<li>Target the stacked liquidity (here the wick before the imbalance); 2R+ is a good trade.</li>" +
+              "<li>Manage: tighten to the small range low on a pullback, BE or trail to the new swing once liquidity is swept, consider exiting at 2R+ if a reversal shows.</li>" +
+              "</ol></div>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Direction of the entry — the biggest difference so far.</strong> <strong>Rulebook:</strong> wait for the sweep, then a CHoCH <em>in your trade's direction</em> (body close) and enter on its retest. <strong>AJ:</strong> enter <em>against</em> the LTF break of structure — the break is the crowd's signal, not yours. In Rulebook terms AJ buys at the sweep of the local low, before any bullish CHoCH.",
+          "<strong>Stop — AJ:</strong> beyond the significant range low that would flip your bias. <strong>Rulebook:</strong> just beyond the sweep wick / CHoCH structure, planned at 100 pips (120 Grind Room). AJ's real signals so far had small stops ($5 = 50 pips on gold).",
+          "<strong>Targets — AJ:</strong> one target at the stacked liquidity, ~2–3R, take it or consider exiting at 2R+. <strong>Rulebook:</strong> partials at TP1–TP6 (20/40/60/100/150/200 pips) with the rest running to HTF liquidity.",
+          "<strong>Stop management — AJ:</strong> tighten early (small range low on a pullback), BE or trail to the new higher low once liquidity is swept. <strong>Rulebook / your own rule:</strong> BE after TP1 (20 pips) and then nothing — no trailing. Opposite approaches; a key decision for AJ trades.",
+          "<strong>Same foundation:</strong> both read structure top-down, target liquidity pools, and treat retail levels as fuel. AJ's model can be logged in the journal as an AJ trade with its own stop and one target — which matches the Module 10 note about logging each signal's own SL/TP."
+        ]
       }
     ]
   }
