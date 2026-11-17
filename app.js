@@ -675,17 +675,17 @@
   // Personal plan, all sources, counted per IDEA (fully closed ideas only):
   //  - A loss: keep the SAME lot sizes (sized from the balance before that
   //    loss) for the next 2 ideas. Both win -> back to normal sizing.
-  //  - A second loss inside those 2 ideas (double loss): HALF risk and done
-  //    for that day. Back to full risk after 2 winning ideas.
+  //  - Another loss inside those 2 ideas restarts the count, sized from the
+  //    balance before that latest loss. (No half-risk stage — removed 17 Nov.)
   //  - Own trades: a full stop-loss on an own trade = no more own trades that
   //    day (signals still allowed).
   // An idea within ±1% of the balance before it is a scratch (BE) and counts
   // as neither a win nor a loss.
   var SCRATCH_PCT = 0.01;
-  var HOLD_IDEAS = 2, HALF_WINS_NEEDED = 2;
+  var HOLD_IDEAS = 2;
   function lossProtocol(derived, today){
-    var state = "normal", holdLeft = 0, holdBalance = null, halfWins = 0;
-    var doubleLossDay = null, ownStopDay = {}, log = [];
+    var state = "normal", holdLeft = 0, holdBalance = null;
+    var ownStopDay = {}, log = [];
     derived.ideas.forEach(function(idea){
       if(idea.closedCount < idea.tradeIds.length) return;   // still open
       if(idea.source === "Own Trade" && idea.hitSL && idea.pl < 0) ownStopDay[idea.date] = true;
@@ -693,15 +693,8 @@
       var r = b ? idea.pl / b : 0;
       var res = r <= -SCRATCH_PCT ? "loss" : r >= SCRATCH_PCT ? "win" : "scratch";
       if(res === "scratch") return;
-      if(state === "normal"){
-        if(res === "loss"){ state = "hold"; holdLeft = HOLD_IDEAS; holdBalance = b; }
-      }else if(state === "hold"){
-        if(res === "win"){ holdLeft--; if(holdLeft <= 0){ state = "normal"; holdBalance = null; } }
-        else { state = "half"; halfWins = 0; holdBalance = null; doubleLossDay = idea.date; }
-      }else if(state === "half"){
-        if(res === "win"){ halfWins++; if(halfWins >= HALF_WINS_NEEDED){ state = "normal"; halfWins = 0; } }
-        else { halfWins = 0; doubleLossDay = idea.date; }
-      }
+      if(res === "loss"){ state = "hold"; holdLeft = HOLD_IDEAS; holdBalance = b; }
+      else if(state === "hold"){ holdLeft--; if(holdLeft <= 0){ state = "normal"; holdBalance = null; } }
       log.push({ id: idea.id, date: idea.date, source: idea.source, pl: idea.pl, res: res, state: state });
     });
     var balance = derived.account.balance;
@@ -709,11 +702,9 @@
     return {
       state: state,
       holdLeft: holdLeft,
-      halfWinsLeft: state === "half" ? HALF_WINS_NEEDED - halfWins : 0,
       sizingBalance: sizingBalance,
-      riskMult: state === "half" ? 0.5 : 1,
+      riskMult: 1,
       heldPct: state === "hold" && balance > 0 ? sizingBalance / balance : 1,
-      doneToday: state === "half" && doubleLossDay === today,
       ownDoneToday: !!ownStopDay[today],
       recent: log.slice(-5).reverse()
     };
@@ -2262,8 +2253,7 @@
     }
     if(!editingTrade()){
       var protW = lossProtocol(formDerived, todayStr());
-      if(protW.doneToday) warnings.push("Double loss today — loss protocol says done for the day.");
-      else if(draft.source === "Own Trade" && protW.ownDoneToday) warnings.push("Own trade hit a full stop today — no more own trades today (signals are fine).");
+      if(draft.source === "Own Trade" && protW.ownDoneToday) warnings.push("Own trade hit a full stop today — no more own trades today (signals are fine).");
     }
     elWarnings.innerHTML = warnings.map(function(w){
       return '<div class="warn">' + escapeHtml(w) + "</div>";
@@ -2284,7 +2274,7 @@
       elSizeHint.innerHTML =
         "1 entry: <strong>" + (size ? fmtLots(size.lots) + " lots · " + escapeHtml(fmtUsd(size.risk)) + " risk" : "—") + "</strong> " +
         "(" + riskPct + "% of " + (multiAccount() ? escapeHtml(accountName(formAcc)) + "'s " : "") + escapeHtml(fmtUsd(prot.sizingBalance)) + " at " + calc.stopDistance.toFixed(1) + " pips" +
-        (prot.state === "hold" ? " — same lots as before the loss" : prot.state === "half" ? " — half risk after a double loss" : "") + ")" +
+        (prot.state === "hold" ? " — same lots as before the loss" : "") + ")" +
         (layered ? " · " + escapeHtml(layered) + " (Position Sizing has the full plan)" : "");
     }
 
@@ -3160,7 +3150,6 @@
     }
     var balLine = '<div class="hint">Sizing from <strong>' + escapeHtml(fmtUsd(bal)) + "</strong>" +
       (ajcCtx.acc ? " (" + escapeHtml(ajcCtx.acc) + ")" : "") +
-      (ajcCtx.mult !== 1 ? " · loss protocol on half risk, so the default is " + defRisk + "%" : "") +
       (typedRisk === null ? " · using AJ's " + defRisk + "%" : "") + ".</div>";
     if(entry === null || sl === null){ show(balLine); return; }
     if(entry === sl){ err = "The stop can't be at the entry price."; show(balLine); return; }
@@ -3250,13 +3239,8 @@
       head = "Recovery — same lots for " + prot.holdLeft + " more idea" + (prot.holdLeft === 1 ? "" : "s");
       text = "After a loss you keep the lot sizes from before it. Sizes below use " + fmtUsd(prot.sizingBalance) +
         " (balance before the loss). If " + (prot.holdLeft === 1 ? "this idea wins" : "both win") +
-        ", you're back to normal sizing. Another loss first = double loss.";
+        ", you're back to normal sizing. Another loss first restarts the count from the balance before that loss.";
       if(prot.heldPct > 1.25) text += " Heads-up: held sizes are " + Math.round((prot.heldPct - 1) * 100) + "% bigger than your current balance supports.";
-    }else if(prot.state === "half"){
-      cls = "proto-half";
-      head = prot.doneToday ? "Double loss today — done for the day" : "Half risk — " + prot.halfWinsLeft + " winning idea" + (prot.halfWinsLeft === 1 ? "" : "s") + " to go";
-      text = "Capital first. Every risk % below is halved (signals 10%, own 5% by default). " +
-        "Back to full risk after " + HALF_WINS_NEEDED + " winning ideas in a row; a loss resets the count.";
     }else{
       cls = "proto-normal";
       head = "Normal — full risk";
@@ -3273,7 +3257,7 @@
       '<details class="proto-rules"><summary>The rules</summary><ul>' +
         "<li><strong>Own trades:</strong> a full stop-loss = done with own trades for the day. Signals still allowed.</li>" +
         "<li><strong>1 loss</strong> (any source): keep the same lot sizes for the next " + HOLD_IDEAS + " ideas. Both win → back to normal sizing from the balance, and the cycle repeats.</li>" +
-        "<li><strong>Double loss</strong> (a loss inside those " + HOLD_IDEAS + " ideas): half risk and done for the day. Back to full after " + HALF_WINS_NEEDED + " winning ideas.</li>" +
+        "<li><strong>Another loss</strong> inside those " + HOLD_IDEAS + " ideas: the count restarts, with lots from the balance before that loss.</li>" +
         "<li>Counted per idea once it's fully closed. Within ±1% of the balance = breakeven, doesn't count either way.</li>" +
       "</ul></details>";
   }
