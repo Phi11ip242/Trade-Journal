@@ -1547,6 +1547,43 @@ window.BOOTCAMPS = {
           "<strong>Same concept:</strong> imbalance = FVG in the Rulebook. AJ: price is expected to come back and fill it at some point. <strong>Rulebook:</strong> FVGs are drawn with the exact 3-candle wick-to-wick rule, only once candle 3 has closed; they're entry zones for continuation in the trend's direction, a wick tap activates them, a body close through invalidates them (becomes an iFVG), and not every FVG fills. AJ hasn't given a drawing rule or an invalidation rule yet.",
           "<strong>Zone link:</strong> AJ's demand zone = where price slowed before the imbalance. The Rulebook's OB = last opposite candle before the impulse, with an FVG in the leg as one of the four quality criteria. Very close ideas."
         ]
+      },
+      {
+        num: 10,
+        label: "1.10",
+        phase: 1,
+        title: "Support and Resistance pt 1",
+        tagline: "3:19 video. Support and resistance as a build-up of liquidity — something to target, not something to trade off.",
+        lessons: [
+          {
+            code: "S/R",
+            title: "A build-up of liquidity",
+            html:
+              "<ul>" +
+              "<li><strong>Resistance</strong> (top side): price comes up and gets pushed down from the same area several times — the market movers can push price down there because a lot of money is held in that area.</li>" +
+              "<li><strong>Support</strong> (bottom side): price keeps being held at the same low.</li>" +
+              "<li>S/R traders sell at resistance and buy at support because they've seen it reject. For AJ and Joshua the same level is <strong>an area of liquidity</strong>, used on many timeframes.</li>" +
+              "<li>You don't always get both — sometimes only a resistance forms, sometimes price gets stuck between the two.</li>" +
+              "<li>If a resistance is forming and targeting it makes sense together with other liquidity, they <strong>buy toward it to take it out</strong>.</li>" +
+              "</ul>"
+          },
+          {
+            code: "Example",
+            title: "5M example: trading against the support buyers",
+            html:
+              "<ul>" +
+              "<li><strong>Resistance:</strong> price rejected the same area, stepped down, came back up near it, pushed down, again and again.</li>" +
+              "<li><strong>Support:</strong> one wick low that price never broke below, but retested several times — \"not a coincidence\".</li>" +
+              "<li>If price comes off that support again and breaks structure up, support traders see their confirmation and <strong>go long there</strong>. Joshua would instead <strong>look to target that support</strong> — the stops under it.</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>The rule of thumb:</strong> the more touches build up, the more liquidity sits there, and the more likely price goes through it to take those traders out.</p></div>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>Closer than it looks:</strong> the Rulebook removed support/resistance as an entry tool and only explains it under Liquidity (\"why we don't trade S/R\": equal highs/lows are liquidity pools, often traps). AJ does the same thing — S/R is liquidity to target or take out, not a level to buy or sell from. Mostly a naming difference.",
+          "<strong>Touches:</strong> Rulebook: a level is valid at 2 touches, strong at 3+, and that's where the stops are. AJ: the more touches, the more liquidity, the more likely it breaks. Same logic.",
+          "<strong>Still to see:</strong> how AJ actually enters when targeting the level (1.16 LTF Liquidity Entry Model) vs the Rulebook's sweep → CHoCH → retest."
+        ]
       }
     ]
   }
