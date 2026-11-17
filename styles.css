@@ -1021,44 +1021,6 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .flow-add #cf-account{ flex: 0 0 130px; }
 .plan-hint[hidden]{ display: none; }
 
-/* ---------- Bootcamps ---------- */
-.bootcamp .muted{ color: var(--text-faint); font-size: 12.5px; }
-.bc-progress{ color: var(--text-dim); font-size: 13px; }
-.rb-toc a.bc-done{ color: var(--accent); border-color: var(--accent-dim); }
-.bc-roadmap{ margin-top: 12px; font-size: 13px; color: var(--text-dim); }
-.bc-roadmap summary{ cursor: pointer; color: var(--text-dim); }
-.bc-roadmap ul{ margin: 8px 0 0; padding-left: 20px; }
-.bc-roadmap li{ margin-bottom: 4px; }
-.bc-tagline{ color: var(--text-dim); font-size: 13.5px !important; font-style: italic; margin-top: 4px; }
-.bc-code{ color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; margin-right: 4px; }
-.bc-lesson p{ margin: 0 0 10px; }
-.bc-lesson .rb-box{ margin: 6px 0 12px; }
-.bc-tick{ color: var(--accent); font-size: 12px; font-weight: 600; margin-left: 6px; }
-.bc-table{ width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 10px; }
-.bc-table th{ text-align: left; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-faint); padding: 6px 8px; border-bottom: 1px solid var(--border); }
-.bc-table td{ padding: 8px; border-bottom: 1px solid var(--border-soft); vertical-align: top; line-height: 1.45; }
-.bc-table td:nth-child(2){ color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
-.bc-table td:first-child{ font-weight: 600; }
-.bc-vs ul{ margin: 0; }
-.bc-vs li:last-child{ margin-bottom: 0; }
-.bc-task p{ margin: 0 0 10px; }
-.bc-notes-label{ display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
-.bc-notes{ width: 100%; min-height: 120px; line-height: 1.5; font-size: 13.5px; box-sizing: border-box; }
-.bc-task-foot{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
-.bc-empty p{ margin: 0 0 6px; }
-.bc-plain td:nth-child(2){ color: var(--text); font-family: inherit; white-space: normal; }
-.bc-table.bc-plain td:first-child{ white-space: nowrap; }
-.bc-quiz{ display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.bc-q{ border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel-2); }
-.bc-q > summary{ cursor: pointer; padding: 9px 12px; font-size: 13.5px; font-weight: 600; list-style: none; }
-.bc-q > summary::-webkit-details-marker{ display: none; }
-.bc-q > summary::after{ content: "Show answer"; float: right; font-weight: 400; font-size: 12px; color: var(--accent); margin-left: 10px; }
-.bc-q[open] > summary::after{ content: "Hide"; }
-.bc-q > p{ margin: 0 !important; padding: 0 12px 10px; color: var(--text-dim); }
-.bc-table.bc-num td{ font-size: 12.5px; padding: 7px 6px; }
-.bc-table.bc-num td:first-child{ white-space: normal; min-width: 110px; }
-.bc-table.bc-num td:nth-child(n+3){ white-space: nowrap; }
-.bc-vs-note{ color: var(--text-dim); font-size: 12.5px !important; margin: -2px 0 8px !important; }
 
 /* ---- backtest tab ---- */
 .bt-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1077,12 +1039,3 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .bt-empty{ color: var(--text-dim); text-align: left !important; }
 @media (max-width: 760px){ .bt-breakdowns{ grid-template-columns: minmax(0, 1fr); } }
 
-/* AJ pip calculator */
-.ajc-out .hint{ margin-bottom: 8px; }
-.ajc-stats{ margin-top: 4px; }
-.ajc-table td{ vertical-align: top; }
-.ajc-table td .neutral{ font-size: 11.5px; }
-.ajc-table tr.ajc-go td{ background: rgba(79,195,247,0.08); }
-.ajc-table tr.ajc-go strong{ color: var(--text); }
-.bc-phase{ font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 22px 4px 8px; }
-.bc-road-phase{ list-style: none; margin: 10px 0 4px -20px; color: var(--accent); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; }
