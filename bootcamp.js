@@ -1678,6 +1678,30 @@ window.BOOTCAMPS = {
           "<strong>Fib levels — AJ:</strong> the retracement zone 0.618–0.716 (where others sell in a bearish range). <strong>Rulebook:</strong> Fibonacci is optional confluence only, used for the 0.5 premium/discount split (sell above 0.5 in a bearish range, buy below), never an entry trigger. The Beginner Bootcamp (Module 7) mentions 50–61.8%.",
           "<strong>How it's used — AJ:</strong> a crowd's entry zone, so a source of liquidity to trade against. <strong>Rulebook:</strong> premium = where you look for your own sells. Opposite way of using the same area; worth deciding after pt 2 shows AJ's version."
         ]
+      },
+      {
+        num: 14,
+        label: "1.14",
+        phase: 1,
+        title: "Fibonacci pt 2",
+        tagline: "1:18 video. An example where the Fibonacci zone does hold — because the liquidity was on the other side.",
+        lessons: [
+          {
+            code: "Example",
+            title: "When it plays out",
+            html:
+              "<ul>" +
+              "<li>Price retraced into the Fibonacci range and the sell played out — but there were other reasons too. The main one: a <strong>support level below</strong> that price was being drawn to take out.</li>" +
+              "<li><strong>5M:</strong> rejection on a low, a pullback (a 1M break of structure to the upside — the support buyers' signal), then <strong>short through</strong> that support.</li>" +
+              "<li>He says it works <strong>really well on gold</strong>.</li>" +
+              "</ul>" +
+              '<div class="rb-box"><p><strong>How the two Fibonacci lessons fit together:</strong> the zone isn\'t a reason on its own. Price goes where the bigger liquidity is. In pt 1 the liquidity was above, so price blew through the zone; in pt 2 it was below (the support), so the zone held and price went down. Use the fib to see where retail traders enter, then ask which side holds more liquidity.</p></div>'
+          }
+        ],
+        vsRulebook: [
+          "<strong>This one lines up with the Rulebook:</strong> sell from the retracement (premium) toward the liquidity below — similar to Nick's bias → pool → sweep → target-the-opposing-pool idea. The difference is the level: 0.618–0.716 for AJ, the 0.5 premium/discount line for the Rulebook.",
+          "<strong>Decision for the end:</strong> keep Fibonacci as optional confluence (Rulebook) and whether to mark the 0.618–0.716 zone as well. Either way, both sources agree it's never the reason for a trade on its own."
+        ]
       }
     ]
   }
