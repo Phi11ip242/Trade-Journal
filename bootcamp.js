@@ -1702,6 +1702,45 @@ window.BOOTCAMPS = {
           "<strong>This one lines up with the Rulebook:</strong> sell from the retracement (premium) toward the liquidity below — similar to Nick's bias → pool → sweep → target-the-opposing-pool idea. The difference is the level: 0.618–0.716 for AJ, the 0.5 premium/discount line for the Rulebook.",
           "<strong>Decision for the end:</strong> keep Fibonacci as optional confluence (Rulebook) and whether to mark the 0.618–0.716 zone as well. Either way, both sources agree it's never the reason for a trade on its own."
         ]
+      },
+      {
+        num: 15,
+        label: "1.15",
+        phase: 1,
+        title: "Liquidity and Liquidity Sweeps",
+        tagline: "4:24 video. Liquidity can hold, get swept and reverse, or get taken and continue — know all three so you can manage the trade.",
+        lessons: [
+          {
+            code: "Outcomes",
+            title: "Three things liquidity can do",
+            html:
+              "<p>Support/resistance, supply/demand and trendlines are all liquidity, but price doesn't always just run through them. Three outcomes:</p>" +
+              "<ol>" +
+              "<li><strong>Held</strong> — the strategy is respected: the support supports, the supply holds.</li>" +
+              "<li><strong>Swept, then reversed</strong> — price goes just beyond the level, takes the stops, and turns the other way.</li>" +
+              "<li><strong>Taken, and continues</strong> — price goes through and keeps going.</li>" +
+              "</ol>" +
+              '<div class="rb-box"><p><strong>What decides it:</strong> where the <em>most</em> liquidity is. More liquidity further beyond the level → price more likely keeps going. If this is the only liquidity in that region and much more sits on the other side → price heads to the other side.</p></div>' +
+              "<p>You need to know all three so you can <strong>manage the trade accordingly</strong> (taught in the advanced part).</p>"
+          },
+          {
+            code: "Sweep",
+            title: "What a sweep is, with examples",
+            html:
+              "<p><strong>Sweep</strong> = price comes just above a high (or below a low), so anyone with stops there is out of the market, then reverses.</p>" +
+              "<ul>" +
+              "<li><strong>1H supply:</strong> clear supply (slowed before a push down, with a break of structure). Price came up into it, respected the high at first, then swept above it and reversed.</li>" +
+              "<li><strong>Support with 4 touches</strong> (one he'd normally target): swept through, collected the liquidity, then built back up and went higher.</li>" +
+              "<li><strong>Trendline, 3 touches, bearish:</strong> line taken, but price carried on down.</li>" +
+              "<li><strong>Trendline, 3 touches, in an uptrend:</strong> price came down, took the trendline liquidity, then moved to its destination on the upside.</li>" +
+              "</ul>"
+          }
+        ],
+        vsRulebook: [
+          "<strong>Sweep definition — Rulebook:</strong> a wick beyond the level with the <strong>body closing back inside</strong>; a body close through is a break/run, not a sweep. <strong>AJ:</strong> price \"comes above that point\" and reverses — no wick/body rule given. Same open question as in the structure lessons.",
+          "<strong>Role of the sweep — Rulebook:</strong> wait for the sweep, then a CHoCH, then enter (Nick's model; also an OB quality criterion). <strong>AJ so far:</strong> the sweep is a possibility to be aware of for trade management; his main idea is trading toward the side with the most liquidity. Compare properly with 1.16.",
+          "<strong>Same principle:</strong> both say price is drawn to the bigger pool of liquidity."
+        ]
       }
     ]
   }
