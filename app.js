@@ -222,8 +222,13 @@
   var BT_RESULTS = ["TP hit", "SL hit", "Breakeven", "Closed manually"];
   var BT_KEYS = ["id", "createdAt", "updatedAt", "date", "time", "pair", "direction", "session", "model", "bias",
     "confluences", "confirmation", "confirmationNote", "entry", "stopLoss", "takeProfit", "result", "exit", "mfePips",
-    "mistakes", "lessons", "link", "status", "beAt", "notes"];
+    "mistakes", "lessons", "link", "status", "beAt", "notes", "grade", "taken", "mistakeTags", "maePips"];
   var BT_STATUSES = ["Closed", "Open"];
+  var BT_GRADES = ["A+", "A", "B"];
+  var BT_TAKEN = ["Replay / study", "Taken live", "Missed live"];
+  // The patterns from the journal notes, as tags so they can be counted.
+  var BT_MISTAKES = ["Hesitated / fear", "Entered early", "Chased price", "No confirmation", "Against bias",
+    "BE too early", "Closed too early", "Moved SL", "Wrong lot size", "Overtraded"];
   function normalizeBacktest(b){
     b = (b && typeof b === "object") ? b : {};
     var bias = (b.bias && typeof b.bias === "object") ? b.bias : {};
@@ -250,7 +255,11 @@
       mistakes: str(b.mistakes), lessons: str(b.lessons), link: str(b.link),
       status: b.status === "Open" ? "Open" : "Closed",   // Open = still playing out; left out of the stats
       beAt: num(b.beAt),                                  // price where the stop would go to breakeven
-      notes: str(b.notes)
+      notes: str(b.notes),
+      grade: BT_GRADES.indexOf(b.grade) === -1 ? "" : b.grade,
+      taken: BT_TAKEN.indexOf(b.taken) === -1 ? "Replay / study" : b.taken,
+      mistakeTags: Array.isArray(b.mistakeTags) ? b.mistakeTags.filter(function(m){ return BT_MISTAKES.indexOf(m) !== -1; }) : [],
+      maePips: num(b.maePips)                             // how far it went against before the result
     });
   }
   // Derived numbers for one backtest: stop and result in pips, R, planned R:R,
@@ -273,8 +282,25 @@
     // Breakeven trigger: how far in favour (pips and R) the stop goes to entry.
     var bePips = (b.entry !== null && b.beAt !== null) ? (b.beAt - b.entry) * dir / spec.pipSize : null;
     var beR = (bePips !== null && stopPips) ? bePips / stopPips : null;
+    // "Managed R": the same trade run with your partials ladder (10% at
+    // 20/40/60, 20% at 100, 10% at 150/200 pips) and the BE point; the rest
+    // (40%) exits with the trade — at TP, at BE once BE was reached, at the
+    // stop otherwise, or at the manual exit. Uses max pips in favour.
+    var managedR = null;
+    if(!isOpen && stopPips && r !== null){
+      var mfe = b.mfePips !== null ? Math.max(0, b.mfePips) : Math.max(0, resultPips);
+      var tpPips = b.result === "TP hit" && resultPips > 0 ? resultPips : null;
+      var cap = tpPips !== null ? Math.min(mfe, tpPips) : mfe;
+      var banked = 0, left = 1;
+      PARTIAL_LADDER.forEach(function(lv){ if(lv.pct !== null && lv.pips <= cap){ banked += lv.pct * lv.pips; left -= lv.pct; } });
+      var beHit = bePips !== null && bePips > 0 && mfe >= bePips;
+      var restExit = b.result === "TP hit" ? resultPips :
+        b.result === "SL hit" ? (beHit ? 0 : resultPips) :
+        b.result === "Breakeven" ? 0 : resultPips;
+      managedR = (banked + left * restExit) / stopPips;
+    }
     return { stopPips: stopPips, resultPips: resultPips, r: r, plannedRR: plannedRR, aligned: aligned, outcome: outcome,
-      isOpen: isOpen, bePips: bePips, beR: beR };
+      isOpen: isOpen, bePips: bePips, beR: beR, managedR: managedR };
   }
 
   function normalizeSizing(v){
@@ -1419,7 +1445,8 @@
       model: $("bt-model"), confirmation: $("bt-confirmation"), confirmationNote: $("bt-confirmation-note"),
       entry: $("bt-entry"), stopLoss: $("bt-sl"), takeProfit: $("bt-tp"), result: $("bt-result"), exit: $("bt-exit"),
       mfePips: $("bt-mfe"), mistakes: $("bt-mistakes"), lessons: $("bt-lessons"), link: $("bt-link"),
-      status: $("bt-status"), beAt: $("bt-be"), notes: $("bt-notes")
+      status: $("bt-status"), beAt: $("bt-be"), notes: $("bt-notes"),
+      grade: $("bt-grade"), taken: $("bt-taken"), maePips: $("bt-mae")
     };
     var biasSel = Array.prototype.slice.call(form.querySelectorAll("[data-bias]"));
     var elChips = $("bt-confluences"), elErr = $("bt-error"), elTitle = $("bt-form-title");
@@ -1436,6 +1463,21 @@
     f.confirmation.innerHTML = opts(BT_CONFIRMATIONS);
     f.result.innerHTML = opts(BT_RESULTS);
     f.status.innerHTML = opts(BT_STATUSES);
+    f.grade.innerHTML = opts(BT_GRADES, "—");
+    f.taken.innerHTML = opts(BT_TAKEN);
+    var elMis = $("bt-mistake-tags"), mis = [];
+    function renderMis(){
+      elMis.innerHTML = BT_MISTAKES.map(function(m){
+        var on = mis.indexOf(m) !== -1;
+        return '<button type="button" class="chip bt-chip' + (on ? " on" : "") + '" aria-pressed="' + on + '" data-m="' + escapeHtml(m) + '">' + escapeHtml(m) + "</button>";
+      }).join("");
+    }
+    elMis.addEventListener("click", function(ev){
+      var b = ev.target.closest("[data-m]"); if(!b) return;
+      var m = b.dataset.m, i = mis.indexOf(m);
+      if(i === -1) mis.push(m); else mis.splice(i, 1);
+      renderMis();
+    });
     function syncStatus(){
       var open = f.status.value === "Open";
       f.result.disabled = open; f.exit.disabled = open;
@@ -1467,7 +1509,8 @@
         confluences: chosen.slice(), confirmation: f.confirmation.value, confirmationNote: f.confirmationNote.value.trim(),
         entry: f.entry.value, stopLoss: f.stopLoss.value, takeProfit: f.takeProfit.value, result: f.result.value,
         exit: f.exit.value, mfePips: f.mfePips.value, mistakes: f.mistakes.value.trim(), lessons: f.lessons.value.trim(),
-        link: f.link.value.trim(), status: f.status.value, beAt: f.beAt.value, notes: f.notes.value.trim()
+        link: f.link.value.trim(), status: f.status.value, beAt: f.beAt.value, notes: f.notes.value.trim(),
+        grade: f.grade.value, taken: f.taken.value, maePips: f.maePips.value, mistakeTags: mis.slice()
       });
     }
     function fmtR(v){ return v === null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2) + "R"; }
@@ -1480,6 +1523,7 @@
         "<span>BE at <strong>" + (c.bePips === null ? "—" : fmtPips(c.bePips) + " pips" + (c.beR === null ? "" : " (" + c.beR.toFixed(2) + "R)")) + "</strong></span>" +
         "<span>Result <strong>" + (c.isOpen ? "open" : c.resultPips === null ? "—" : fmtPips(c.resultPips) + " pips") + "</strong></span>" +
         '<span>R <strong class="' + (c.r > 0.05 ? "pos" : c.r < -0.05 ? "neg" : "") + '">' + fmtR(c.r) + "</strong></span>" +
+        '<span>With your partials <strong class="' + (c.managedR > 0.05 ? "pos" : c.managedR < -0.05 ? "neg" : "") + '">' + fmtR(c.managedR) + "</strong></span>" +
         "<span>Bias aligned <strong>" + c.aligned + "/4</strong></span>";
     }
     form.addEventListener("input", updateReadout);
@@ -1492,7 +1536,7 @@
       if(keepPair && settings.pairs.some(function(p){ return p.pair === keepPair; })) f.pair.value = keepPair;
       if(keepModel) f.model.value = keepModel;
       f.date.value = todayStr();
-      chosen = []; editingId = null;
+      chosen = []; editingId = null; mis = []; renderMis();
       syncStatus();
       elTitle.textContent = "Log a backtest"; elSave.textContent = "Save backtest";
       elCancel.hidden = true; elErr.hidden = true;
@@ -1504,6 +1548,7 @@
       Object.keys(f).forEach(function(k){ f[k].value = b[k] === null || b[k] === undefined ? "" : b[k]; });
       biasSel.forEach(function(sel){ sel.value = b.bias[sel.dataset.bias] || ""; });
       chosen = b.confluences.slice(); editingId = b.id;
+      mis = (b.mistakeTags || []).slice(); renderMis();
       syncStatus();
       elTitle.textContent = "Edit backtest"; elSave.textContent = "Save changes";
       elCancel.hidden = false; elErr.hidden = true;
@@ -1538,7 +1583,9 @@
       var rs = done.map(function(r){ return r.c.r; });
       var gw = sum(W.map(function(r){ return r.c.r; })), gl = -sum(L.map(function(r){ return r.c.r; }));
       var mfe = rows.map(function(r){ return r.b.mfePips; }).filter(function(v){ return v !== null; });
+      var ms = done.map(function(r){ return r.c.managedR; }).filter(function(v){ return v !== null; });
       return { n: rows.length, done: done.length, wins: W.length, losses: L.length, be: done.length - W.length - L.length,
+        avgManaged: ms.length ? mean(ms) : null, totalManaged: ms.length ? sum(ms) : null,
         winRate: W.length + L.length ? W.length / (W.length + L.length) : null,
         totalR: rs.length ? sum(rs) : null, avgR: rs.length ? mean(rs) : null,
         avgWin: W.length ? gw / W.length : null, avgLoss: L.length ? -gl / L.length : null,
@@ -1550,12 +1597,13 @@
       var keys = (order || Object.keys(groups).sort()).filter(function(k){ return groups[k]; });
       if(!keys.length) return "";
       return '<div class="bt-break"><h3>' + escapeHtml(title) + '</h3><div class="mini-scroll"><table class="mini-table">' +
-        "<thead><tr><th></th><th>Trades</th><th>Win %</th><th>Avg R</th><th>Total R</th></tr></thead><tbody>" +
+        "<thead><tr><th></th><th>Trades</th><th>Win %</th><th>Avg R</th><th>Total R</th><th>Avg R, partials</th></tr></thead><tbody>" +
         keys.map(function(k){
           var s = summary(groups[k]);
           return "<tr><td>" + escapeHtml(k) + "</td><td>" + s.n + "</td><td>" + fmtPct(s.winRate) + "</td>" +
             '<td class="' + (s.avgR > 0 ? "pos" : s.avgR < 0 ? "neg" : "") + '">' + fmtR(s.avgR) + "</td>" +
-            '<td class="' + (s.totalR > 0 ? "pos" : s.totalR < 0 ? "neg" : "") + '">' + fmtR(s.totalR) + "</td></tr>";
+            '<td class="' + (s.totalR > 0 ? "pos" : s.totalR < 0 ? "neg" : "") + '">' + fmtR(s.totalR) + "</td>" +
+            '<td class="' + (s.avgManaged > 0 ? "pos" : s.avgManaged < 0 ? "neg" : "") + '">' + fmtR(s.avgManaged) + "</td></tr>";
         }).join("") + "</tbody></table></div></div>";
     }
 
@@ -1572,11 +1620,22 @@
         statCard("btTotal", "Total R", fmtR(s.totalR)) +
         statCard("btWL", "Avg win / avg loss", fmtR(s.avgWin) + " / " + fmtR(s.avgLoss)) +
         statCard("btPF", "Profit factor", s.pf === null ? "—" : s.pf.toFixed(2)) +
-        statCard("btMfe", "Avg max pips in favour", s.avgMfe === null ? "—" : s.avgMfe.toFixed(0));
+        statCard("btMfe", "Avg max pips in favour", s.avgMfe === null ? "—" : s.avgMfe.toFixed(0)) +
+        statCard("btMan", "Held vs your partials", fmtR(s.avgR) + " / " + fmtR(s.avgManaged), "avg R per trade: held to the result / with your partials + BE") +
+        (function(){
+          var missed = rows.filter(function(r){ return r.b.taken === "Missed live" && r.c.r !== null; });
+          return missed.length ? statCard("btMissed", "Missed live setups", String(missed.length), fmtR(sum(missed.map(function(r){ return r.c.r; }))) + " left on the table") : "";
+        })();
       $("bt-breakdowns").innerHTML = rows.length ?
         (m ? "" : breakdown("By model", rows, function(r){ return r.b.model; }, BT_MODELS)) +
         breakdown("By confirmation", rows, function(r){ return r.b.confirmation; }, BT_CONFIRMATIONS) +
         breakdown("By session", rows, function(r){ return r.b.session || "—"; }, SESSIONS.concat(["—"])) +
+        breakdown("By setup grade", rows, function(r){ return r.b.grade || "—"; }, BT_GRADES.concat(["—"])) +
+        breakdown("Taken live / missed / replay", rows, function(r){ return r.b.taken; }, BT_TAKEN) +
+        breakdown("By weekday", rows, function(r){ return r.b.date ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][new Date(r.b.date + "T12:00:00").getDay()] : "—"; }, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "—"]) +
+        breakdown("By mistake (trades that had it)", [].concat.apply([], rows.map(function(r){
+          return (r.b.mistakeTags || []).map(function(m){ return { b: r.b, c: r.c, k: m }; });
+        })), function(r){ return r.k; }, BT_MISTAKES) +
         breakdown("By bias aligned", rows, function(r){ return r.c.aligned + "/4"; }, ["4/4", "3/4", "2/4", "1/4", "0/4"]) +
         breakdown("By confluence (trades that had it)", [].concat.apply([], rows.map(function(r){
           return r.b.confluences.map(function(c){ return { b: r.b, c: r.c, k: c }; });
@@ -1584,7 +1643,7 @@
         : '<div class="hint">No backtests yet. Log your first one above.</div>';
 
       elTable.innerHTML = rows.length ?
-        "<thead><tr><th>Date</th><th>Model</th><th>Dir</th><th>Session</th><th>Bias</th><th>Confirmation</th><th>Stop</th><th>BE at</th><th>Result</th><th>R</th><th>Max fav.</th><th>Notes</th><th></th></tr></thead><tbody>" +
+        "<thead><tr><th>Date</th><th>Model</th><th>Dir</th><th>Session</th><th>Bias</th><th>Confirmation</th><th>Grade</th><th>Stop</th><th>BE at</th><th>Result</th><th>R</th><th>Partials R</th><th>Max fav. / against</th><th>Notes</th><th></th></tr></thead><tbody>" +
         rows.map(function(r){
           var b = r.b, c = r.c;
           return '<tr data-id="' + escapeHtml(b.id) + '">' +
@@ -1592,12 +1651,14 @@
             "<td>" + escapeHtml(b.model) + "</td><td>" + b.direction + "</td><td>" + escapeHtml(b.session || "—") + "</td>" +
             "<td>" + c.aligned + "/4</td>" +
             '<td title="' + escapeHtml(b.confluences.join(", ") + (b.confirmationNote ? " — " + b.confirmationNote : "")) + '">' + escapeHtml(b.confirmation) + "</td>" +
+            "<td>" + escapeHtml(b.grade || "—") + (b.taken === "Missed live" ? ' <span class="bt-missed">missed</span>' : b.taken === "Taken live" ? ' <span class="bt-live">live</span>' : "") + "</td>" +
             "<td>" + (c.stopPips === null ? "—" : c.stopPips.toFixed(0)) + "</td>" +
             "<td>" + (c.bePips === null ? "—" : fmtPips(c.bePips)) + "</td>" +
             "<td>" + (c.isOpen ? '<span class="bt-open">Open</span>' : escapeHtml(b.result) + (c.resultPips === null ? "" : " (" + fmtPips(c.resultPips) + ")")) + "</td>" +
             '<td class="' + (c.r > 0.05 ? "pos" : c.r < -0.05 ? "neg" : "") + '">' + fmtR(c.r) + "</td>" +
-            "<td>" + (b.mfePips === null ? "—" : Math.round(b.mfePips)) + "</td>" +
-            '<td class="bt-lesson">' + [["Mistake", b.mistakes], ["Lesson", b.lessons], ["Note", b.notes]].filter(function(x){ return x[1]; })
+            '<td class="' + (c.managedR > 0.05 ? "pos" : c.managedR < -0.05 ? "neg" : "") + '">' + fmtR(c.managedR) + "</td>" +
+            "<td>" + (b.mfePips === null ? "—" : Math.round(b.mfePips)) + " / " + (b.maePips === null ? "—" : Math.round(b.maePips)) + "</td>" +
+            '<td class="bt-lesson">' + ((b.mistakeTags || []).length ? '<div class="bt-tags">' + b.mistakeTags.map(function(m){ return '<span class="bt-tag">' + escapeHtml(m) + "</span>"; }).join("") + "</div>" : "") + [["Mistake", b.mistakes], ["Lesson", b.lessons], ["Note", b.notes]].filter(function(x){ return x[1]; })
               .map(function(x){ return "<div><strong>" + x[0] + ":</strong> " + escapeHtml(x[1]) + "</div>"; }).join("") + (b.link ? ' <a href="' + escapeHtml(b.link) + '" target="_blank" rel="noopener">chart</a>' : "") + "</td>" +
             '<td class="bt-acts"><button type="button" class="ghost small" data-act="edit">Edit</button> <button type="button" class="ghost small danger" data-act="delete">Delete</button></td>' +
           "</tr>";
