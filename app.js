@@ -2182,6 +2182,7 @@
 
   function resetForm(){
     editingId = null;
+    fillSeg(elSource, SOURCES);
     form.reset();
     clearInvalid();
     elDate.value = todayStr();
@@ -2205,6 +2206,8 @@
     refreshPairOptions(t.pair);
     segSet(elDirection, t.direction);
     segSet(elSession, t.session);
+    // An old source (e.g. AJ) is offered only while editing a trade that has it.
+    fillSeg(elSource, OLD_SOURCES.indexOf(t.source) !== -1 ? SOURCES.concat([t.source]) : SOURCES);
     segSet(elSource, t.source);
     refreshAccountChoices();
     segSet(elAccount, accountIdOf(t, settings));
