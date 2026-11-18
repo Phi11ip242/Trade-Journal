@@ -410,7 +410,8 @@
   // status). Anything derived (pips, P/L, idea, balance) is recalculated on
   // render and never stored.
   var TRADE_KEYS = ["id", "createdAt", "updatedAt", "date", "session", "pair", "direction", "source", "account", "bias",
-    "confirmation", "entry", "stopLoss", "closes", "lesson", "newIdea"];
+    "confirmation", "entry", "stopLoss", "closes", "lesson", "newIdea", "grade"];
+  var GRADES = ["A+", "A", "B"];
   var STATUSES = ["Open", "Closed"];
 
   function normalizeTrade(t){
@@ -443,7 +444,8 @@
         return Object.assign(extraFields(c, ["type", "price", "lots"]), { type: str(c.type), price: num(c.price), lots: num(c.lots) });
       }),
       lesson: str(t.lesson),
-      newIdea: t.newIdea === true   // ticked: this trade starts a new idea even if it sits close to the last one
+      newIdea: t.newIdea === true,  // ticked: this trade starts a new idea even if it sits close to the last one
+      grade: GRADES.indexOf(t.grade) === -1 ? "" : t.grade   // own trades: setup quality A+ / A / B
     });
   }
 
@@ -898,6 +900,20 @@
         net: round2(sum(list)), avg: mean(list) };
     });
 
+    // Own trades by setup grade (an idea's grade = the first graded leg).
+    var ownIdeas = closedIdeas.filter(function(i){ return i.source === "Own Trade"; });
+    function ideaGrade(i){
+      for(var k = 0; k < i.tradeIds.length; k++){ var r = derived.byId[i.tradeIds[k]]; if(r && r.trade.grade) return r.trade.grade; }
+      return "Not graded";
+    }
+    var byGrade = GRADES.concat(["Not graded"]).map(function(name){
+      var list = ownIdeas.filter(function(i){ return ideaGrade(i) === name; }).map(function(i){ return i.pl; });
+      var wins = list.filter(function(v){ return ideaResult(v) === "W"; }).length;
+      var losses = list.filter(function(v){ return ideaResult(v) === "L"; }).length;
+      return { name: name, ideas: list.length, wins: wins, losses: losses, be: list.length - wins - losses,
+        winRate: (wins + losses) ? wins / (wins + losses) : null, net: round2(sum(list)), avg: mean(list) };
+    });
+
     // Point 0 is the balance before any trade; then one point per closed trade.
     var equity = [{ n: 0, balance: derived.account.base }].concat(closed.map(function(r, i){
       return { n: i + 1, balance: r.balanceAfter };
@@ -907,6 +923,7 @@
       core: core,
       bySession: group(SESSIONS, "session"),
       bySource: bySource,
+      byGrade: byGrade,
       equity: equity
     };
   }
@@ -2007,6 +2024,8 @@
   buildSeg(elSession, SESSIONS, false);
   buildSeg(elSource, SOURCES, false);
   buildSeg(elStatus, STATUSES, false);
+  var elGrade = document.getElementById("f-grade"), elGradeWrap = document.getElementById("f-grade-wrap");
+  buildSeg(elGrade, GRADES, true);
   BIAS_FRAMES.forEach(function(frame){
     var label = document.createElement("span");
     label.className = "label";
@@ -2110,7 +2129,8 @@
         };
       }),
       lesson: elLesson.value.trim(),
-      newIdea: elNewIdea.checked
+      newIdea: elNewIdea.checked,
+      grade: segGet(elSource) === "Own Trade" ? segGet(elGrade) : ""
     };
   }
 
@@ -2152,6 +2172,7 @@
   }
 
   function updateLive(){
+    elGradeWrap.hidden = segGet(elSource) !== "Own Trade";
     var draft = readForm();
     // Loss protocol and lot sizes come from the trade's own account.
     var formAcc = draft.account || sizingAccount();
@@ -2248,7 +2269,7 @@
     clearInvalid();
     elDate.value = todayStr();
     refreshPairOptions("");
-    [elDirection, elSession, elSource].forEach(function(seg){ segSet(seg, ""); });
+    [elDirection, elSession, elSource, elGrade].forEach(function(seg){ segSet(seg, ""); });
     refreshAccountChoices();
     segSet(elAccount, validActive() || (settings.accounts.length === 1 ? settings.accounts[0].id : ""));
     segSet(elStatus, "Open");
@@ -2270,6 +2291,7 @@
     // An old source (e.g. AJ) is offered only while editing a trade that has it.
     fillSeg(elSource, OLD_SOURCES.indexOf(t.source) !== -1 ? SOURCES.concat([t.source]) : SOURCES);
     segSet(elSource, t.source);
+    segSet(elGrade, t.grade || "");
     refreshAccountChoices();
     segSet(elAccount, accountIdOf(t, settings));
     segSet(elStatus, tradeCalc(t, settings).isOpen ? "Open" : "Closed");
@@ -2481,7 +2503,7 @@
         '<td class="col-date">' + escapeHtml(t.date) + "</td>" +
         "<td>" + escapeHtml(t.session) + "</td>" +
         '<td class="' + (t.direction === "Buy" ? "dir-buy" : "dir-sell") + '">' + escapeHtml(t.direction) + "</td>" +
-        "<td>" + escapeHtml(t.source) +
+        "<td>" + escapeHtml(t.source) + (t.grade ? ' <span class="grade-tag">' + escapeHtml(t.grade) + "</span>" : "") +
           (multiAccount() && !validActive() ? '<span class="acct-tag">' + escapeHtml(accountName(r.account)) + "</span>" : "") + "</td>" +
         "<td>" + biasChips(t.bias) + "</td>" +
         '<td class="r">' + fmtPrice(t.entry, c.spec) + "</td>" +
@@ -2824,6 +2846,14 @@
     renderReturns(d);
 
     groupTable(document.getElementById("dash-session"), "Session", s.bySession);
+
+    var gradeRows = s.byGrade.filter(function(g){ return g.ideas || g.name !== "Not graded"; });
+    document.getElementById("dash-grade").innerHTML =
+      "<thead><tr><th>Grade</th><th>Ideas</th><th>Wins</th><th>Losses</th><th>BE</th><th>Win rate (excl. BE)</th><th>Net P/L</th><th>Avg P/L</th></tr></thead>" +
+      "<tbody>" + gradeRows.map(function(g){
+        return "<tr><td>" + escapeHtml(g.name) + "</td><td>" + g.ideas + "</td><td>" + g.wins + "</td><td>" + g.losses + "</td><td>" + g.be + "</td>" +
+          "<td>" + fmtPct(g.winRate) + "</td><td>" + (g.ideas ? fmtMoney(g.net) : "—") + "</td><td>" + (g.ideas ? fmtMoney(round2(g.avg)) : "—") + "</td></tr>";
+      }).join("") + "</tbody>";
 
     document.getElementById("dash-source").innerHTML =
       "<thead><tr><th>Source</th><th>Ideas</th><th>Wins</th><th>Losses</th><th>BE</th><th title='Wins ÷ (wins + losses); breakeven ideas (within $1 of zero) are left out'>Win rate (excl. BE)</th><th>Net P/L</th><th>Avg P/L</th></tr></thead>" +
