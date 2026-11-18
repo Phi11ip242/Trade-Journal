@@ -298,12 +298,18 @@
             <div class="field"><label for="bt-result">Result</label><select id="bt-result"></select></div>
             <div class="field"><label for="bt-exit">Exit price (if closed manually)</label><input type="number" step="any" inputmode="decimal" id="bt-exit"></div>
             <div class="field"><label for="bt-mfe">Max pips in favour</label><input type="number" step="any" inputmode="decimal" id="bt-mfe" placeholder="how far it ran"></div>
+            <div class="field"><label for="bt-mae">Max pips against</label><input type="number" step="any" inputmode="decimal" id="bt-mae" placeholder="heat before it went"></div>
           </div>
           <div class="bt-readout field-gap" id="bt-readout"></div>
         </fieldset>
         <fieldset>
           <legend>Review</legend>
           <div class="grid">
+            <div class="field"><label for="bt-grade">Setup grade</label><select id="bt-grade"></select></div>
+            <div class="field"><label for="bt-taken">Was it…</label><select id="bt-taken"></select></div>
+          </div>
+          <div class="field field-gap"><span class="label">Mistakes (tap all that apply)</span><div class="bt-chips" id="bt-mistake-tags"></div></div>
+          <div class="grid field-gap">
             <div class="field"><label for="bt-mistakes">Mistakes</label><textarea id="bt-mistakes" placeholder="What would I have done wrong?"></textarea></div>
             <div class="field"><label for="bt-lessons">Lessons</label><textarea id="bt-lessons" placeholder="What does this setup teach me?"></textarea></div>
             <div class="field"><label for="bt-notes">Notes</label><textarea id="bt-notes" placeholder="Anything else — what I saw, what I'd add to the model, ideas to test"></textarea></div>
