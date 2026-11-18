@@ -1042,3 +1042,15 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .bt-empty{ color: var(--text-dim); text-align: left !important; }
 @media (max-width: 760px){ .bt-breakdowns{ grid-template-columns: minmax(0, 1fr); } }
 
+
+/* Trade log: ideas risk check */
+.idea-summary{ font-size: 13px; margin: 0 0 10px; line-height: 1.6; }
+.idea-summary:empty{ display: none; }
+.chk{ display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.chk.ok{ color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+.chk.over{ color: var(--red); background: color-mix(in srgb, var(--red) 14%, transparent); }
+.res{ font-weight: 600; } .res-win{ color: var(--green); } .res-loss{ color: var(--red); } .res-be, .res-open{ color: var(--text-dim); }
+.idea-table td, .idea-table th{ white-space: nowrap; }
+/* Backtest: open trades */
+.bt-open{ display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--accent); border: 1px solid var(--accent); }
+.bt-lesson div + div{ margin-top: 3px; }

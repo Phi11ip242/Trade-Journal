@@ -222,7 +222,8 @@
   var BT_RESULTS = ["TP hit", "SL hit", "Breakeven", "Closed manually"];
   var BT_KEYS = ["id", "createdAt", "updatedAt", "date", "time", "pair", "direction", "session", "model", "bias",
     "confluences", "confirmation", "confirmationNote", "entry", "stopLoss", "takeProfit", "result", "exit", "mfePips",
-    "mistakes", "lessons", "link"];
+    "mistakes", "lessons", "link", "status", "beAt", "notes"];
+  var BT_STATUSES = ["Closed", "Open"];
   function normalizeBacktest(b){
     b = (b && typeof b === "object") ? b : {};
     var bias = (b.bias && typeof b.bias === "object") ? b.bias : {};
@@ -246,7 +247,10 @@
       entry: num(b.entry), stopLoss: num(b.stopLoss), takeProfit: num(b.takeProfit),
       result: BT_RESULTS.indexOf(b.result) === -1 ? "Closed manually" : b.result,
       exit: num(b.exit), mfePips: num(b.mfePips),
-      mistakes: str(b.mistakes), lessons: str(b.lessons), link: str(b.link)
+      mistakes: str(b.mistakes), lessons: str(b.lessons), link: str(b.link),
+      status: b.status === "Open" ? "Open" : "Closed",   // Open = still playing out; left out of the stats
+      beAt: num(b.beAt),                                  // price where the stop would go to breakeven
+      notes: str(b.notes)
     });
   }
   // Derived numbers for one backtest: stop and result in pips, R, planned R:R,
@@ -255,7 +259,8 @@
     var spec = pairSpec(settings, b.pair);
     var dir = b.direction === "Sell" ? -1 : 1;
     var stopPips = (b.entry !== null && b.stopLoss !== null) ? Math.abs(b.entry - b.stopLoss) / spec.pipSize : null;
-    var exitPrice = b.exit !== null ? b.exit
+    var isOpen = b.status === "Open";
+    var exitPrice = isOpen ? null : b.exit !== null ? b.exit
       : b.result === "TP hit" ? b.takeProfit
       : b.result === "SL hit" ? b.stopLoss
       : b.result === "Breakeven" ? b.entry : null;
@@ -265,7 +270,11 @@
     var want = dir === 1 ? "Bullish" : "Bearish";
     var aligned = ["daily", "h4", "h1", "m15"].filter(function(k){ return b.bias[k] === want; }).length;
     var outcome = r === null ? "open" : r > 0.05 ? "win" : r < -0.05 ? "loss" : "be";
-    return { stopPips: stopPips, resultPips: resultPips, r: r, plannedRR: plannedRR, aligned: aligned, outcome: outcome };
+    // Breakeven trigger: how far in favour (pips and R) the stop goes to entry.
+    var bePips = (b.entry !== null && b.beAt !== null) ? (b.beAt - b.entry) * dir / spec.pipSize : null;
+    var beR = (bePips !== null && stopPips) ? bePips / stopPips : null;
+    return { stopPips: stopPips, resultPips: resultPips, r: r, plannedRR: plannedRR, aligned: aligned, outcome: outcome,
+      isOpen: isOpen, bePips: bePips, beR: beR };
   }
 
   function normalizeSizing(v){
@@ -659,43 +668,18 @@
     });
   }
 
-  // ---- loss protocol ----
-  // Personal plan, all sources, counted per IDEA (fully closed ideas only):
-  //  - A loss: keep the SAME lot sizes (sized from the balance before that
-  //    loss) for the next 2 ideas. Both win -> back to normal sizing.
-  //  - Another loss inside those 2 ideas restarts the count, sized from the
-  //    balance before that latest loss. (No half-risk stage — removed 17 Nov.)
-  //  - Own trades: a full stop-loss on an own trade = no more own trades that
-  //    day (signals still allowed).
-  // An idea within ±1% of the balance before it is a scratch (BE) and counts
-  // as neither a win nor a loss.
-  var SCRATCH_PCT = 0.01;
-  var HOLD_IDEAS = 2;
+
+  // ---- sizing balance + own-trade daily stop ----
+  // Fixed risk on the current balance (the loss protocol was removed on
+  // 18 Nov). One rule stays: a full stop-loss on an own trade = no more own
+  // trades that day (signals still allowed).
   function lossProtocol(derived, today){
-    var state = "normal", holdLeft = 0, holdBalance = null;
-    var ownStopDay = {}, log = [];
+    var ownStopDay = {};
     derived.ideas.forEach(function(idea){
-      if(idea.closedCount < idea.tradeIds.length) return;   // still open
+      if(idea.closedCount < idea.tradeIds.length) return;
       if(idea.source === "Own Trade" && idea.hitSL && idea.pl < 0) ownStopDay[idea.date] = true;
-      var b = idea.balanceBefore > 0 ? idea.balanceBefore : null;
-      var r = b ? idea.pl / b : 0;
-      var res = r <= -SCRATCH_PCT ? "loss" : r >= SCRATCH_PCT ? "win" : "scratch";
-      if(res === "scratch") return;
-      if(res === "loss"){ state = "hold"; holdLeft = HOLD_IDEAS; holdBalance = b; }
-      else if(state === "hold"){ holdLeft--; if(holdLeft <= 0){ state = "normal"; holdBalance = null; } }
-      log.push({ id: idea.id, date: idea.date, source: idea.source, pl: idea.pl, res: res, state: state });
     });
-    var balance = derived.account.balance;
-    var sizingBalance = state === "hold" && holdBalance ? holdBalance : balance;
-    return {
-      state: state,
-      holdLeft: holdLeft,
-      sizingBalance: sizingBalance,
-      riskMult: 1,
-      heldPct: state === "hold" && balance > 0 ? sizingBalance / balance : 1,
-      ownDoneToday: !!ownStopDay[today],
-      recent: log.slice(-5).reverse()
-    };
+    return { state: "normal", sizingBalance: derived.account.balance, riskMult: 1, ownDoneToday: !!ownStopDay[today] };
   }
 
   // Every plan of the Position Sizing tab for a balance.
@@ -1434,7 +1418,8 @@
       date: $("bt-date"), time: $("bt-time"), pair: $("bt-pair"), direction: $("bt-direction"), session: $("bt-session"),
       model: $("bt-model"), confirmation: $("bt-confirmation"), confirmationNote: $("bt-confirmation-note"),
       entry: $("bt-entry"), stopLoss: $("bt-sl"), takeProfit: $("bt-tp"), result: $("bt-result"), exit: $("bt-exit"),
-      mfePips: $("bt-mfe"), mistakes: $("bt-mistakes"), lessons: $("bt-lessons"), link: $("bt-link")
+      mfePips: $("bt-mfe"), mistakes: $("bt-mistakes"), lessons: $("bt-lessons"), link: $("bt-link"),
+      status: $("bt-status"), beAt: $("bt-be"), notes: $("bt-notes")
     };
     var biasSel = Array.prototype.slice.call(form.querySelectorAll("[data-bias]"));
     var elChips = $("bt-confluences"), elErr = $("bt-error"), elTitle = $("bt-form-title");
@@ -1450,6 +1435,12 @@
     f.model.innerHTML = opts(BT_MODELS);
     f.confirmation.innerHTML = opts(BT_CONFIRMATIONS);
     f.result.innerHTML = opts(BT_RESULTS);
+    f.status.innerHTML = opts(BT_STATUSES);
+    function syncStatus(){
+      var open = f.status.value === "Open";
+      f.result.disabled = open; f.exit.disabled = open;
+    }
+    f.status.addEventListener("change", syncStatus);
     biasSel.forEach(function(sel){ sel.innerHTML = opts(["Bullish", "Bearish"], "—"); });
     elFilter.innerHTML = '<option value="">All models</option>' + opts(BT_MODELS);
 
@@ -1476,7 +1467,7 @@
         confluences: chosen.slice(), confirmation: f.confirmation.value, confirmationNote: f.confirmationNote.value.trim(),
         entry: f.entry.value, stopLoss: f.stopLoss.value, takeProfit: f.takeProfit.value, result: f.result.value,
         exit: f.exit.value, mfePips: f.mfePips.value, mistakes: f.mistakes.value.trim(), lessons: f.lessons.value.trim(),
-        link: f.link.value.trim()
+        link: f.link.value.trim(), status: f.status.value, beAt: f.beAt.value, notes: f.notes.value.trim()
       });
     }
     function fmtR(v){ return v === null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2) + "R"; }
@@ -1486,7 +1477,8 @@
       elReadout.innerHTML =
         "<span>Stop <strong>" + (c.stopPips === null ? "—" : c.stopPips.toFixed(1) + " pips") + "</strong></span>" +
         "<span>Planned <strong>" + (c.plannedRR === null ? "—" : "1 : " + c.plannedRR.toFixed(2)) + "</strong></span>" +
-        "<span>Result <strong>" + (c.resultPips === null ? "—" : fmtPips(c.resultPips) + " pips") + "</strong></span>" +
+        "<span>BE at <strong>" + (c.bePips === null ? "—" : fmtPips(c.bePips) + " pips" + (c.beR === null ? "" : " (" + c.beR.toFixed(2) + "R)")) + "</strong></span>" +
+        "<span>Result <strong>" + (c.isOpen ? "open" : c.resultPips === null ? "—" : fmtPips(c.resultPips) + " pips") + "</strong></span>" +
         '<span>R <strong class="' + (c.r > 0.05 ? "pos" : c.r < -0.05 ? "neg" : "") + '">' + fmtR(c.r) + "</strong></span>" +
         "<span>Bias aligned <strong>" + c.aligned + "/4</strong></span>";
     }
@@ -1501,6 +1493,7 @@
       if(keepModel) f.model.value = keepModel;
       f.date.value = todayStr();
       chosen = []; editingId = null;
+      syncStatus();
       elTitle.textContent = "Log a backtest"; elSave.textContent = "Save backtest";
       elCancel.hidden = true; elErr.hidden = true;
       renderChips(); updateReadout();
@@ -1511,6 +1504,7 @@
       Object.keys(f).forEach(function(k){ f[k].value = b[k] === null || b[k] === undefined ? "" : b[k]; });
       biasSel.forEach(function(sel){ sel.value = b.bias[sel.dataset.bias] || ""; });
       chosen = b.confluences.slice(); editingId = b.id;
+      syncStatus();
       elTitle.textContent = "Edit backtest"; elSave.textContent = "Save changes";
       elCancel.hidden = false; elErr.hidden = true;
       renderChips(); updateReadout();
@@ -1523,7 +1517,8 @@
       var err = !b.date ? "Pick the date." :
         b.entry === null || b.stopLoss === null ? "Enter the entry and the stop loss." :
         b.entry === b.stopLoss ? "Entry and stop can't be the same price." :
-        (b.result === "Closed manually" && b.exit === null) ? "Closed manually — enter the exit price." : "";
+        (b.status === "Closed" && b.result === "Closed manually" && b.exit === null) ? "Closed manually — enter the exit price." :
+        (b.beAt !== null && (b.beAt - b.entry) * (b.direction === "Buy" ? 1 : -1) <= 0) ? "The BE price has to be in profit — above the entry for a buy, below it for a sell." : "";
       if(!err && (b.stopLoss - b.entry) * (b.direction === "Buy" ? 1 : -1) > 0) err = "The stop is on the wrong side for a " + b.direction.toLowerCase() + ".";
       if(err){ elErr.textContent = err; elErr.hidden = false; return; }
       if(editingId){
@@ -1571,7 +1566,7 @@
         .sort(function(x, y){ return x.b.date < y.b.date ? 1 : x.b.date > y.b.date ? -1 : y.b.createdAt - x.b.createdAt; });
       var s = summary(rows);
       $("bt-stats").innerHTML =
-        statCard("btN", "Backtests", String(s.n)) +
+        statCard("btN", "Backtests", String(s.n), (s.n - s.done) ? (s.n - s.done) + " still open" : "") +
         statCard("btWin", "Win rate", fmtPct(s.winRate), s.wins + " W · " + s.losses + " L · " + s.be + " BE") +
         statCard("btAvg", "Avg R per trade", fmtR(s.avgR), "expectancy") +
         statCard("btTotal", "Total R", fmtR(s.totalR)) +
@@ -1589,7 +1584,7 @@
         : '<div class="hint">No backtests yet. Log your first one above.</div>';
 
       elTable.innerHTML = rows.length ?
-        "<thead><tr><th>Date</th><th>Model</th><th>Dir</th><th>Session</th><th>Bias</th><th>Confirmation</th><th>Stop</th><th>Result</th><th>R</th><th>Max fav.</th><th>Lesson</th><th></th></tr></thead><tbody>" +
+        "<thead><tr><th>Date</th><th>Model</th><th>Dir</th><th>Session</th><th>Bias</th><th>Confirmation</th><th>Stop</th><th>BE at</th><th>Result</th><th>R</th><th>Max fav.</th><th>Notes</th><th></th></tr></thead><tbody>" +
         rows.map(function(r){
           var b = r.b, c = r.c;
           return '<tr data-id="' + escapeHtml(b.id) + '">' +
@@ -1598,10 +1593,12 @@
             "<td>" + c.aligned + "/4</td>" +
             '<td title="' + escapeHtml(b.confluences.join(", ") + (b.confirmationNote ? " — " + b.confirmationNote : "")) + '">' + escapeHtml(b.confirmation) + "</td>" +
             "<td>" + (c.stopPips === null ? "—" : c.stopPips.toFixed(0)) + "</td>" +
-            "<td>" + escapeHtml(b.result) + (c.resultPips === null ? "" : " (" + fmtPips(c.resultPips) + ")") + "</td>" +
+            "<td>" + (c.bePips === null ? "—" : fmtPips(c.bePips)) + "</td>" +
+            "<td>" + (c.isOpen ? '<span class="bt-open">Open</span>' : escapeHtml(b.result) + (c.resultPips === null ? "" : " (" + fmtPips(c.resultPips) + ")")) + "</td>" +
             '<td class="' + (c.r > 0.05 ? "pos" : c.r < -0.05 ? "neg" : "") + '">' + fmtR(c.r) + "</td>" +
             "<td>" + (b.mfePips === null ? "—" : Math.round(b.mfePips)) + "</td>" +
-            '<td class="bt-lesson">' + escapeHtml(b.lessons || b.mistakes || "") + (b.link ? ' <a href="' + escapeHtml(b.link) + '" target="_blank" rel="noopener">chart</a>' : "") + "</td>" +
+            '<td class="bt-lesson">' + [["Mistake", b.mistakes], ["Lesson", b.lessons], ["Note", b.notes]].filter(function(x){ return x[1]; })
+              .map(function(x){ return "<div><strong>" + x[0] + ":</strong> " + escapeHtml(x[1]) + "</div>"; }).join("") + (b.link ? ' <a href="' + escapeHtml(b.link) + '" target="_blank" rel="noopener">chart</a>' : "") + "</td>" +
             '<td class="bt-acts"><button type="button" class="ghost small" data-act="edit">Edit</button> <button type="button" class="ghost small danger" data-act="delete">Delete</button></td>' +
           "</tr>";
         }).join("") + "</tbody>"
@@ -2136,7 +2133,7 @@
       elSizeHint.innerHTML =
         "1 entry: <strong>" + (size ? fmtLots(size.lots) + " lots · " + escapeHtml(fmtUsd(size.risk)) + " risk" : "—") + "</strong> " +
         "(" + riskPct + "% of " + (multiAccount() ? escapeHtml(accountName(formAcc)) + "'s " : "") + escapeHtml(fmtUsd(prot.sizingBalance)) + " at " + calc.stopDistance.toFixed(1) + " pips" +
-        (prot.state === "hold" ? " — same lots as before the loss" : "") + ")" +
+        ")" +
         (layered ? " · " + escapeHtml(layered) + " (Position Sizing has the full plan)" : "");
     }
 
@@ -2352,7 +2349,7 @@
   fillFilter(ffDirection, DIRECTIONS);
   fillFilter(ffResult, RESULTS);
 
-  [ffSession, ffSource, ffDirection, ffResult, ffFrom, ffTo].forEach(function(el){
+  [ffSession, ffSource, ffDirection, ffResult, ffFrom, ffTo, document.getElementById("ff-view")].forEach(function(el){
     el.addEventListener("change", renderTable);
   });
   ffClear.addEventListener("click", function(){
@@ -2488,8 +2485,82 @@
     );
   }
 
+  // ---------- trade log: ideas view ----------
+  // One row per idea: how big the idea really was against the plan risk for
+  // its source. Uses the same filters (Result filters the idea's result).
+  var ffView = document.getElementById("ff-view");
+  var ideaWrap = document.getElementById("idea-wrap");
+  var ideaBody = document.getElementById("idea-body");
+  var ideaSummary = document.getElementById("idea-summary");
+  function ideaRows(d){
+    var map = {}, order = [];
+    d.rows.forEach(function(r){
+      var t = r.trade;
+      if(ffSession.value && t.session !== ffSession.value) return;
+      if(ffSource.value && t.source !== ffSource.value) return;
+      if(ffDirection.value && t.direction !== ffDirection.value) return;
+      if(ffFrom.value && t.date < ffFrom.value) return;
+      if(ffTo.value && t.date > ffTo.value) return;
+      var g = map[r.idea];
+      if(!g){ g = map[r.idea] = { id: r.idea, date: t.date, source: t.source, dir: t.direction, legs: 0, lots: 0, riskSL: 0, pl: 0, open: false }; order.push(g); }
+      g.legs++;
+      g.lots += r.calc.lots || 0;
+      if(r.calc.slPips !== null && r.calc.slPips < 0) g.riskSL += Math.abs(r.calc.slPips) * (r.calc.lots || 0) * r.calc.spec.usdPerPip;
+      if(r.calc.pl === null) g.open = true; else g.pl += r.calc.pl;
+    });
+    return order.map(function(g){
+      var idea = d.ideaById[g.id] || {};
+      var bal = idea.balanceBefore > 0 ? idea.balanceBefore : null;
+      g.plan = riskPctForSource(g.source, settings);
+      g.riskPct = bal ? g.riskSL / bal * 100 : null;
+      g.plPct = bal ? g.pl / bal * 100 : null;
+      g.r = g.riskSL > 0 && !g.open ? g.pl / g.riskSL : null;
+      g.result = g.open ? "Open" : g.pl > 0 ? "Win" : g.pl < 0 ? "Loss" : "BE";
+      // Over plan: the stop risked more than the plan, or the loss was bigger
+      // than it (0.5% slack for rounding).
+      var lim = g.plan === null ? null : g.plan + 0.5;
+      g.over = lim !== null && ((g.riskPct !== null && g.riskPct > lim) || (g.plPct !== null && -g.plPct > lim));
+      return g;
+    }).filter(function(g){ return !ffResult.value || g.result === ffResult.value; });
+  }
+  function renderIdeas(d){
+    var list = ideaRows(d).reverse();
+    var pct = function(v){ return v === null ? "—" : v.toFixed(1) + "%"; };
+    ideaBody.innerHTML = list.map(function(g){
+      var check = g.plan === null ? '<span class="neutral">—</span>' :
+        g.over ? '<span class="chk over">Over plan</span>' : '<span class="chk ok">Within plan</span>';
+      return "<tr>" +
+        '<td class="r">' + g.id + "</td>" +
+        '<td class="col-date">' + escapeHtml(g.date) + "</td>" +
+        "<td>" + escapeHtml(g.source) + "</td>" +
+        "<td>" + escapeHtml(g.dir) + "</td>" +
+        '<td class="r">' + g.legs + "</td>" +
+        '<td class="r">' + fmtLots(round2(g.lots)) + "</td>" +
+        '<td class="r">' + (g.plan === null ? "—" : g.plan + "%") + "</td>" +
+        '<td class="r">' + (g.riskSL > 0 ? escapeHtml(fmtUsd(round2(g.riskSL))) + ' <span class="neutral">' + pct(g.riskPct) + "</span>" : '<span class="neutral">—</span>') + "</td>" +
+        '<td class="r">' + (g.open ? '<span class="neutral">open</span>' : fmtMoney(round2(g.pl)) + ' <span class="neutral">' + pct(g.plPct) + "</span>") + "</td>" +
+        '<td class="r">' + (g.r === null ? "—" : (g.r > 0 ? "+" : "") + g.r.toFixed(2) + "R") + "</td>" +
+        '<td><span class="res res-' + g.result.toLowerCase() + '">' + g.result + "</span></td>" +
+        "<td>" + check + "</td>" +
+      "</tr>";
+    }).join("");
+    var W = list.filter(function(g){ return g.result === "Win"; }).length,
+        L = list.filter(function(g){ return g.result === "Loss"; }).length,
+        B = list.filter(function(g){ return g.result === "BE"; }).length,
+        O = list.filter(function(g){ return g.over; }).length;
+    ideaSummary.innerHTML = list.length ? "<strong>" + list.length + "</strong> ideas · " + W + " won · " + L + " lost · " + B + " BE · " +
+      (O ? '<span class="chk over">' + O + " over plan</span>" : '<span class="chk ok">all within plan</span>') +
+      '<span class="neutral"> — risk at SL uses the stop logged on each leg; plan % is your current setting for that source.</span>' : "";
+    ideaWrap.hidden = list.length === 0;
+    emptyState.hidden = list.length !== 0;
+    emptyState.textContent = list.length ? "" : (d.rows.length ? "No ideas match these filters." : 'No trades logged yet. Log your first trade from the "+ Log Trade" tab.');
+  }
+
   function renderTable(){
     var d = deriveView();
+    var ideasMode = ffView.value === "ideas";
+    if(ideasMode){ tableWrap.hidden = true; renderIdeas(d); return; }
+    ideaWrap.hidden = true; ideaSummary.innerHTML = "";
     // Newest first; the # column keeps the chronological number from derive().
     var list = d.rows.filter(matchesFilters).reverse();
 
@@ -2920,7 +2991,9 @@
     var pair = settings.pairs.length ? settings.pairs[0].pair : "";
     var usd = pairSpec(settings, pair).usdPerPip;
     var prot = lossProtocol(d, todayStr());
-    renderProtocol(prot, a);
+    var protEl = document.getElementById("protocol-panel");
+    protEl.hidden = !prot.ownDoneToday;
+    protEl.innerHTML = prot.ownDoneToday ? '<div class="warn">Own trade hit a full stop today — no more own trades today. Signals are fine.</div>' : "";
     var p = sizingPlans(prot.sizingBalance, settings, usd, prot.riskMult);
     var sz = settings.sizing;
     var L = sz.layer;
@@ -2971,36 +3044,6 @@
   }
 
 
-  function renderProtocol(prot, a){
-    var el = document.getElementById("protocol-panel");
-    var head, cls, text;
-    if(prot.state === "hold"){
-      cls = "proto-hold";
-      head = "Recovery — same lots for " + prot.holdLeft + " more idea" + (prot.holdLeft === 1 ? "" : "s");
-      text = "After a loss you keep the lot sizes from before it. Sizes below use " + fmtUsd(prot.sizingBalance) +
-        " (balance before the loss). If " + (prot.holdLeft === 1 ? "this idea wins" : "both win") +
-        ", you're back to normal sizing. Another loss first restarts the count from the balance before that loss.";
-      if(prot.heldPct > 1.25) text += " Heads-up: held sizes are " + Math.round((prot.heldPct - 1) * 100) + "% bigger than your current balance supports.";
-    }else{
-      cls = "proto-normal";
-      head = "Normal — full risk";
-      text = "Sizes come from your current balance. After a loss you'll keep the same lots for the next " + HOLD_IDEAS + " ideas.";
-    }
-    var own = prot.ownDoneToday ? '<div class="warn">Own trade hit a full stop today — no more own trades today. Signals are fine.</div>' : "";
-    var recent = prot.recent.length ? '<div class="proto-recent">Last counted ideas: ' + prot.recent.map(function(r){
-      return '<span class="' + (r.res === "win" ? "pos" : "neg") + '">#' + r.id + " " + escapeHtml(r.source) + " " + (r.pl >= 0 ? "+" : "−") + escapeHtml(fmtUsd(Math.abs(r.pl))) + "</span>";
-    }).join(" · ") + "</div>" : "";
-    el.className = "panel protocol " + cls;
-    el.innerHTML = '<h2 class="panel-title">Loss protocol</h2>' +
-      '<div class="proto-head">' + escapeHtml(head) + "</div>" +
-      '<div class="hint">' + escapeHtml(text) + "</div>" + own + recent +
-      '<details class="proto-rules"><summary>The rules</summary><ul>' +
-        "<li><strong>Own trades:</strong> a full stop-loss = done with own trades for the day. Signals still allowed.</li>" +
-        "<li><strong>1 loss</strong> (any source): keep the same lot sizes for the next " + HOLD_IDEAS + " ideas. Both win → back to normal sizing from the balance, and the cycle repeats.</li>" +
-        "<li><strong>Another loss</strong> inside those " + HOLD_IDEAS + " ideas: the count restarts, with lots from the balance before that loss.</li>" +
-        "<li>Counted per idea once it's fully closed. Within ±1% of the balance = breakeven, doesn't count either way.</li>" +
-      "</ul></details>";
-  }
 
   function sizingError(msg){
     elSzError.textContent = msg;
