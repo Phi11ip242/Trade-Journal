@@ -184,6 +184,10 @@
   <section id="view-list" class="view">
     <div class="filter-bar">
       <div class="field">
+        <label for="ff-view">Show</label>
+        <select id="ff-view"><option value="trades">Trades</option><option value="ideas">Ideas — risk check</option></select>
+      </div>
+      <div class="field">
         <label for="ff-session">Session</label>
         <select id="ff-session"></select>
       </div>
@@ -232,6 +236,19 @@
         <tbody id="table-body"></tbody>
       </table>
     </div>
+    <div class="idea-summary" id="idea-summary"></div>
+    <div class="table-wrap" id="idea-wrap" hidden>
+      <table class="trade-table idea-table">
+        <thead>
+          <tr>
+            <th class="r">Idea</th><th class="col-date">Date</th><th>Source</th><th>Dir</th>
+            <th class="r">Legs</th><th class="r">Lots</th><th class="r">Plan</th><th class="r">Risk at SL</th>
+            <th class="r">P/L</th><th class="r">R</th><th>Result</th><th>Risk check</th>
+          </tr>
+        </thead>
+        <tbody id="idea-body"></tbody>
+      </table>
+    </div>
     <div class="panel empty-state" id="empty-state" hidden></div>
   </section>
 
@@ -276,6 +293,8 @@
             <div class="field"><label for="bt-entry">Entry</label><input type="number" step="any" inputmode="decimal" id="bt-entry"></div>
             <div class="field"><label for="bt-sl">Stop loss</label><input type="number" step="any" inputmode="decimal" id="bt-sl"></div>
             <div class="field"><label for="bt-tp">Take profit (planned)</label><input type="number" step="any" inputmode="decimal" id="bt-tp"></div>
+            <div class="field"><label for="bt-status">Status</label><select id="bt-status"></select></div>
+            <div class="field"><label for="bt-be">Stop to BE at (price)</label><input type="number" step="any" inputmode="decimal" id="bt-be" placeholder="where I'd go breakeven"></div>
             <div class="field"><label for="bt-result">Result</label><select id="bt-result"></select></div>
             <div class="field"><label for="bt-exit">Exit price (if closed manually)</label><input type="number" step="any" inputmode="decimal" id="bt-exit"></div>
             <div class="field"><label for="bt-mfe">Max pips in favour</label><input type="number" step="any" inputmode="decimal" id="bt-mfe" placeholder="how far it ran"></div>
@@ -287,6 +306,7 @@
           <div class="grid">
             <div class="field"><label for="bt-mistakes">Mistakes</label><textarea id="bt-mistakes" placeholder="What would I have done wrong?"></textarea></div>
             <div class="field"><label for="bt-lessons">Lessons</label><textarea id="bt-lessons" placeholder="What does this setup teach me?"></textarea></div>
+            <div class="field"><label for="bt-notes">Notes</label><textarea id="bt-notes" placeholder="Anything else — what I saw, what I'd add to the model, ideas to test"></textarea></div>
           </div>
           <div class="field field-gap"><label for="bt-link">Screenshot link (optional)</label><input type="url" id="bt-link" placeholder="TradingView snapshot link"></div>
         </fieldset>
