@@ -375,7 +375,7 @@
   // status). Anything derived (pips, P/L, idea, balance) is recalculated on
   // render and never stored.
   var TRADE_KEYS = ["id", "createdAt", "updatedAt", "date", "session", "pair", "direction", "source", "account", "bias",
-    "confirmation", "entry", "stopLoss", "closes", "lesson"];
+    "confirmation", "entry", "stopLoss", "closes", "lesson", "newIdea"];
   var STATUSES = ["Open", "Closed"];
 
   function normalizeTrade(t){
@@ -407,7 +407,8 @@
         c = c || {};
         return Object.assign(extraFields(c, ["type", "price", "lots"]), { type: str(c.type), price: num(c.price), lots: num(c.lots) });
       }),
-      lesson: str(t.lesson)
+      lesson: str(t.lesson),
+      newIdea: t.newIdea === true   // ticked: this trade starts a new idea even if it sits close to the last one
     });
   }
 
@@ -517,7 +518,7 @@
   // The gap is compared in price units (80 × 0.1 is exactly 8), so gold
   // groups exactly as it did with the old fixed gap of 8.
   function sameIdea(prev, t, settings){
-    if(!prev) return false;
+    if(!prev || t.newIdea) return false;
     var a = num(prev.entry), b = num(t.entry);
     if(a === null || b === null) return false;
     return prev.date === t.date &&
@@ -1921,6 +1922,7 @@
   var elClosesEmpty = document.getElementById("f-closes-empty");
   var elCloseTotals = document.getElementById("f-close-totals");
   var elLesson = document.getElementById("f-lesson");
+  var elNewIdea = document.getElementById("f-new-idea");
   var elFormError = document.getElementById("form-error");
   var btnSubmit = document.getElementById("btn-submit");
   var btnClear = document.getElementById("btn-clear");
@@ -2049,7 +2051,8 @@
           lots: num(row.querySelector(".c-lots").value)
         };
       }),
-      lesson: elLesson.value.trim()
+      lesson: elLesson.value.trim(),
+      newIdea: elNewIdea.checked
     };
   }
 
@@ -2221,6 +2224,7 @@
     elCloses.innerHTML = "";
     t.closes.forEach(addCloseRow);
     elLesson.value = t.lesson;
+    elNewIdea.checked = !!t.newIdea;
   }
 
   function startEdit(id){
