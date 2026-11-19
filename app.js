@@ -12,7 +12,7 @@
 
   var SESSIONS = ["Asia", "London", "New York"];
   var DIRECTIONS = ["Buy", "Sell"];
-  var SOURCES = ["Premium", "Grind Room", "Institutional", "Own Trade"];
+  var SOURCES = ["Premium", "Grind Room", "Institutional", "Own Trade", "Brother"];
   // Sources no longer traded: old trades keep them so the history and
   // balance stay right, but they can't be picked for new trades.
   var OLD_SOURCES = ["AJ"];
@@ -32,7 +32,8 @@
     "Premium":       { def: 20, max: 30 },
     "Grind Room":    { def: 20, max: 30 },
     "Institutional": { def: 20, max: 30 },
-    "Own Trade":     { def: 5,  max: 20 }
+    "Own Trade":     { def: 5,  max: 20 },
+    "Brother":       { def: 1,  max: 20 }   // trades from my brother's calls
   };
   var CLOSE_TYPES = ["SL", "Force Close", "TP1", "TP2", "TP3", "TP4", "TP5", "TP6", "TP7", "TP8", "TP9", "TP10", "Full TP", "BE"];
 
@@ -55,6 +56,7 @@
   // for the WHOLE idea (all legs together). Signals are capped at 20%.
   var SIZING_DEFAULTS = {
     own: 10,            // Own Trade risk %
+    brother: 1,         // Brother's calls risk %
     premium: 20,        // Premium risk %
     grindLive: 20,      // Grind Room live (Zoom) risk %
     grindSignal: 20,    // Grind Room signal risk %
@@ -63,9 +65,9 @@
     grindLiveStop: 120, // Grind live stop from the worst entry: usually 120, sometimes 130–150
     instStop: 100,      // IT stop from the first entry (he uses 30–100)
   };
-  var SIZING_RISK_KEYS = ["own", "premium", "grindLive", "grindSignal", "inst"];
+  var SIZING_RISK_KEYS = ["own", "brother", "premium", "grindLive", "grindSignal", "inst"];
   var SIZING_LIMITS = {
-    own: [0.1, 30], premium: [0.1, 20], grindLive: [0.1, 20], grindSignal: [0.1, 20], inst: [0.1, 20],
+    own: [0.1, 30], brother: [0.1, 20], premium: [0.1, 20], grindLive: [0.1, 20], grindSignal: [0.1, 20], inst: [0.1, 20],
     layer: [20, 25], grindLiveStop: [100, 150], instStop: [10, 100]
   };
   var OWN_PREM_STOP = 100;          // Own Trade and Premium: 100-pip max stop from the first entry
@@ -635,6 +637,7 @@
   function riskPctForSource(source, settings){
     var sz = (settings && settings.sizing) || SIZING_DEFAULTS;
     if(source === "Own Trade") return sz.own;
+    if(source === "Brother") return sz.brother;
     if(source === "Premium") return sz.premium;
     if(source === "Grind Room") return sz.grindSignal;
     if(source === "Institutional") return sz.inst;
@@ -729,6 +732,7 @@
     var instThree = sz.instStop - 2 * L >= LAST_LEG_MIN_STOP;
     return {
       own: { risk: sz.own, single: single(OWN_PREM_STOP, sz.own), three: three(OWN_PREM_STOP, sz.own) },
+      brother: { risk: sz.brother, single: single(OWN_PREM_STOP, sz.brother), three: three(OWN_PREM_STOP, sz.brother) },
       premium: { risk: sz.premium, single: single(OWN_PREM_STOP, sz.premium), three: three(OWN_PREM_STOP, sz.premium) },
       grindLive: { risk: sz.grindLive, stop: sz.grindLiveStop, plan: ladder(sz.grindLiveStop, GRIND_LIVE_LEGS, sz.grindLive) },
       grindSignal: { risk: sz.grindSignal, stop: GRIND_SIGNAL_STOP, plan: ladder(GRIND_SIGNAL_STOP, GRIND_SIGNAL_LEGS, sz.grindSignal) },
@@ -2130,7 +2134,7 @@
       }),
       lesson: elLesson.value.trim(),
       newIdea: elNewIdea.checked,
-      grade: segGet(elSource) === "Own Trade" ? segGet(elGrade) : ""
+      grade: (segGet(elSource) === "Own Trade" || segGet(elSource) === "Brother") ? segGet(elGrade) : ""
     };
   }
 
@@ -2172,7 +2176,7 @@
   }
 
   function updateLive(){
-    elGradeWrap.hidden = segGet(elSource) !== "Own Trade";
+    elGradeWrap.hidden = segGet(elSource) !== "Own Trade" && segGet(elSource) !== "Brother";
     var draft = readForm();
     // Loss protocol and lot sizes come from the trade's own account.
     var formAcc = draft.account || sizingAccount();
@@ -2209,6 +2213,7 @@
       var size = sizeFor(prot.sizingBalance, riskPct, calc.stopDistance, calc.spec.usdPerPip);
       var plans = sizingPlans(prot.sizingBalance, settings, calc.spec.usdPerPip, prot.riskMult);
       var layered = draft.source === "Own Trade" ? "3 entries: " + fmtLots(plans.own.three.lots) + " each" :
+        draft.source === "Brother" ? "3 entries: " + fmtLots(plans.brother.three.lots) + " each" :
         draft.source === "Premium" ? "3 entries: " + fmtLots(plans.premium.three.lots) + " each" :
         draft.source === "Grind Room" ? "signal 5 legs: " + fmtLots(plans.grindSignal.plan.lots) + " each · live 8 legs: " + fmtLots(plans.grindLive.plan.lots) + " each" :
         draft.source === "Institutional" && plans.inst.three ? "3 entries: " + fmtLots(plans.inst.three.lots) + " each" : "";
@@ -3107,6 +3112,11 @@
         planBlock("1 entry", p.own.single, "Stop 100 pips.") +
         planBlock("3 entries", p.own.three, layerNote)) +
 
+      planCard("brother", "Brother's calls", p.brother.risk,
+        "Same rules as own trades — 100-pip max stop. Take it only when the setup also fits your own model.",
+        planBlock("1 entry", p.brother.single, "Stop 100 pips.") +
+        planBlock("3 entries", p.brother.three, layerNote)) +
+
       planCard("premium", "Premium (Nick)", p.premium.risk,
         "Same as own trades — 100-pip max stop — but up to 20%. Splitting is preferred.",
         planBlock("3 entries", p.premium.three, layerNote, "preferred") +
@@ -3142,6 +3152,7 @@
   }
   var SIZING_MSG = {
     own: "Own-trade risk must be between 0.1% and 30%.",
+    brother: "Brother risk must be between 0.1% and 20%.",
     premium: "Signal risk must be between 0.1% and 20%.",
     grindLive: "Signal risk must be between 0.1% and 20%.",
     grindSignal: "Signal risk must be between 0.1% and 20%.",
