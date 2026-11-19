@@ -106,7 +106,7 @@
             <div class="seg" id="f-source" role="group" aria-label="Source"></div>
           </div>
           <div class="field field-gap" id="f-grade-wrap" hidden>
-            <span class="label">Setup grade (own trades) — A+ = everything lined up, A = good, B = missing something</span>
+            <span class="label">Setup grade (own &amp; brother trades) — A+ = everything lined up, A = good, B = missing something</span>
             <div class="seg" id="f-grade" role="group" aria-label="Setup grade"></div>
           </div>
         </fieldset>
@@ -413,6 +413,7 @@
       <div class="hint">Risk is for the <strong>whole idea</strong> — every entry together, if all of them get stopped. Sizes use your current balance and update as it changes. Signals are capped at 20%.</div>
       <div class="grid field-gap sizing-settings">
         <div class="field"><label for="sz-own">Own trades (%)</label><input type="number" step="any" inputmode="decimal" id="sz-own" data-sizing="own"></div>
+        <div class="field"><label for="sz-brother">Brother's calls (%)</label><input type="number" step="any" inputmode="decimal" id="sz-brother" data-sizing="brother"></div>
         <div class="field"><label for="sz-premium">Premium (%)</label><input type="number" step="any" inputmode="decimal" id="sz-premium" data-sizing="premium"></div>
         <div class="field"><label for="sz-grindLive">Grind Room live (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindLive" data-sizing="grindLive"></div>
         <div class="field"><label for="sz-grindSignal">Grind Room signal (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindSignal" data-sizing="grindSignal"></div>
