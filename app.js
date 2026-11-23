@@ -12,7 +12,7 @@
 
   var SESSIONS = ["Asia", "London", "New York"];
   var DIRECTIONS = ["Buy", "Sell"];
-  var SOURCES = ["Premium", "Grind Room", "Institutional", "Own Trade", "Brother"];
+  var SOURCES = ["Premium", "Grind Room", "Institutional", "Lina", "Own Trade", "Brother"];
   // Sources no longer traded: old trades keep them so the history and
   // balance stay right, but they can't be picked for new trades.
   var OLD_SOURCES = ["AJ"];
@@ -33,6 +33,7 @@
     "Grind Room":    { def: 20, max: 30 },
     "Institutional": { def: 20, max: 30 },
     "Own Trade":     { def: 5,  max: 20 },
+    "Lina":          { def: 5,  max: 20 },  // Grind Room S/R trader, Callisto guideline 5%
     "Brother":       { def: 1,  max: 20 }   // trades from my brother's calls
   };
   var CLOSE_TYPES = ["SL", "Force Close", "TP1", "TP2", "TP3", "TP4", "TP5", "TP6", "TP7", "TP8", "TP9", "TP10", "Full TP", "BE"];
@@ -59,20 +60,25 @@
     brother: 1,         // Brother's calls risk %
     premium: 20,        // Premium risk %
     grindLive: 20,      // Grind Room live (Zoom) risk %
-    grindSignal: 20,    // Grind Room signal risk %
+    grindSignal: 10,    // Grind Room signal risk % (5 entries together, 120-pip stop)
+    lina: 5,            // Lina (Grind Room, support & resistance) risk %
     inst: 20,           // IT / Thomas risk %
     layer: 25,          // pips between layered entries (Own, Premium, IT): 20–25
     grindLiveStop: 120, // Grind live stop from the worst entry: usually 120, sometimes 130–150
     instStop: 100,      // IT stop from the first entry (he uses 30–100)
   };
-  var SIZING_RISK_KEYS = ["own", "brother", "premium", "grindLive", "grindSignal", "inst"];
+  var SIZING_RISK_KEYS = ["own", "brother", "premium", "grindLive", "grindSignal", "inst", "lina"];
   var SIZING_LIMITS = {
-    own: [0.1, 30], brother: [0.1, 20], premium: [0.1, 20], grindLive: [0.1, 20], grindSignal: [0.1, 20], inst: [0.1, 20],
+    own: [0.1, 30], brother: [0.1, 20], premium: [0.1, 20], grindLive: [0.1, 20], grindSignal: [0.1, 20], inst: [0.1, 20], lina: [0.1, 20],
     layer: [20, 25], grindLiveStop: [100, 150], instStop: [10, 100]
   };
   var OWN_PREM_STOP = 100;          // Own Trade and Premium: 100-pip max stop from the first entry
-  var GRIND_SIGNAL_STOP = 120;      // Grind Room signal: 120 from the first (worst) entry
+  var GRIND_SIGNAL_STOP = 130;      // Grind Room signal: Aaron's SL is ~120 from NOW; sized on 130 so a fill a few pips off stays inside the risk
   var GRIND_LIVE_LEGS = 8, GRIND_SIGNAL_LEGS = 5, GRIND_LAYER = 10;
+  // Aaron signals: all 5 positions go in together (at NOW if price is inside
+  // the zone, else limits at the zone edge closest to price), each with its
+  // own TP. Backtest of 174 signals: this beat layering every 10 pips.
+  var GRIND_SIGNAL_TPS = [50, 100, 150, 200, 500];
   var LAST_LEG_MIN_STOP = 50;       // a layered entry must stay at least 50 pips from the stop
 
   // Milestones unlock by themselves from the trades — no targets, no
@@ -641,6 +647,7 @@
     if(source === "Premium") return sz.premium;
     if(source === "Grind Room") return sz.grindSignal;
     if(source === "Institutional") return sz.inst;
+    if(source === "Lina") return sz.lina;
     return null;
   }
 
@@ -648,9 +655,15 @@
   // the idea's risk: lots = balance × risk / (sum of leg stops × $/pip),
   // rounded DOWN to 0.01. stops[i] = pips from leg i's entry to the stop,
   // offsets[i] = pips from the first entry toward the stop.
-  function layerPlan(stops, offsets, balance, riskPct, usdPerPip){
+  function layerPlan(stops, offsets, balance, riskPct, usdPerPip, nearest){
     var total = sum(stops);
     var lots = lotsFor(balance, riskPct, total, usdPerPip);
+    if(nearest){
+      // round to the NEAREST 0.01 (5 small legs would otherwise lose up to
+      // half the risk to rounding down); the table shows the real risk %.
+      var x = balance * (riskPct / 100) / (total * usdPerPip);
+      lots = isFinite(x) && x > 0 ? Math.round(x * 100) / 100 : 0;
+    }
     var risk = riskDollars(lots, total, usdPerPip);
     return {
       legs: stops.map(function(st, i){
@@ -729,13 +742,20 @@
       for(var i = 0; i < legs; i++){ st.push(stop - i * GRIND_LAYER); off.push(i * GRIND_LAYER); }
       return layerPlan(st, off, balance, risk, usdPerPip);
     }
+    function together(stop, tps, risk){
+      var st = tps.map(function(){ return stop; }), off = tps.map(function(){ return 0; });
+      var pl = layerPlan(st, off, balance, risk, usdPerPip, true);
+      pl.legs.forEach(function(l, i){ l.tp = tps[i]; l.together = true; });
+      return pl;
+    }
     var instThree = sz.instStop - 2 * L >= LAST_LEG_MIN_STOP;
     return {
       own: { risk: sz.own, single: single(OWN_PREM_STOP, sz.own), three: three(OWN_PREM_STOP, sz.own) },
       brother: { risk: sz.brother, single: single(OWN_PREM_STOP, sz.brother), three: three(OWN_PREM_STOP, sz.brother) },
       premium: { risk: sz.premium, single: single(OWN_PREM_STOP, sz.premium), three: three(OWN_PREM_STOP, sz.premium) },
       grindLive: { risk: sz.grindLive, stop: sz.grindLiveStop, plan: ladder(sz.grindLiveStop, GRIND_LIVE_LEGS, sz.grindLive) },
-      grindSignal: { risk: sz.grindSignal, stop: GRIND_SIGNAL_STOP, plan: ladder(GRIND_SIGNAL_STOP, GRIND_SIGNAL_LEGS, sz.grindSignal) },
+      grindSignal: { risk: sz.grindSignal, stop: GRIND_SIGNAL_STOP, plan: together(GRIND_SIGNAL_STOP, GRIND_SIGNAL_TPS, sz.grindSignal) },
+      lina: { risk: sz.lina, single: single(OWN_PREM_STOP, sz.lina), three: three(OWN_PREM_STOP, sz.lina) },
       inst: { risk: sz.inst, stop: sz.instStop, single: single(sz.instStop, sz.inst),
         three: instThree ? three(sz.instStop, sz.inst) : null,
         minThreeStop: 2 * L + LAST_LEG_MIN_STOP }
@@ -2215,7 +2235,8 @@
       var layered = draft.source === "Own Trade" ? "3 entries: " + fmtLots(plans.own.three.lots) + " each" :
         draft.source === "Brother" ? "3 entries: " + fmtLots(plans.brother.three.lots) + " each" :
         draft.source === "Premium" ? "3 entries: " + fmtLots(plans.premium.three.lots) + " each" :
-        draft.source === "Grind Room" ? "signal 5 legs: " + fmtLots(plans.grindSignal.plan.lots) + " each · live 8 legs: " + fmtLots(plans.grindLive.plan.lots) + " each" :
+        draft.source === "Lina" ? "3 entries: " + fmtLots(plans.lina.three.lots) + " each" :
+        draft.source === "Grind Room" ? "signal 5 together: " + fmtLots(plans.grindSignal.plan.lots) + " each · live 8 legs: " + fmtLots(plans.grindLive.plan.lots) + " each" :
         draft.source === "Institutional" && plans.inst.three ? "3 entries: " + fmtLots(plans.inst.three.lots) + " each" : "";
       elSizeHint.innerHTML =
         "1 entry: <strong>" + (size ? fmtLots(size.lots) + " lots · " + escapeHtml(fmtUsd(size.risk)) + " risk" : "—") + "</strong> " +
@@ -3006,17 +3027,19 @@
     if(plan.tooSmall){
       return '<div class="warn">Below 0.01 lots per leg at this balance — use fewer entries.</div>';
     }
+    var hasTp = plan.legs.some(function(l){ return l.tp; });
     var rows = plan.legs.map(function(l){
       return "<tr><td>" + l.n + "</td>" +
-        "<td>" + (l.offset === 0 ? "first" : "+" + l.offset + " pips") + "</td>" +
+        "<td>" + (l.together ? "together" : l.offset === 0 ? "first" : "+" + l.offset + " pips") + "</td>" +
         "<td>" + l.stop + " pips</td>" +
+        (hasTp ? "<td>+" + l.tp + " pips</td>" : "") +
         "<td>" + fmtLots(l.lots) + "</td>" +
         "<td>" + escapeHtml(fmtUsd(l.risk)) + "</td></tr>";
     }).join("");
     return '<div class="mini-scroll"><table class="mini-table plan-table">' +
-      "<thead><tr><th>Entry</th><th>Layer</th><th>Stop</th><th>Lots</th><th>Risk $</th></tr></thead>" +
+      "<thead><tr><th>Entry</th><th>Layer</th><th>Stop</th>" + (hasTp ? "<th>TP</th>" : "") + "<th>Lots</th><th>Risk $</th></tr></thead>" +
       "<tbody>" + rows + "</tbody>" +
-      "<tfoot><tr><td colspan=\"3\">" + (plan.legs.length > 1 ? "All " + plan.legs.length + " entries" : "Total") + "</td>" +
+      "<tfoot><tr><td colspan=\"" + (hasTp ? 4 : 3) + "\">" + (plan.legs.length > 1 ? "All " + plan.legs.length + " entries" : "Total") + "</td>" +
       "<td>" + fmtLots(plan.totalLots) + "</td>" +
       "<td>" + escapeHtml(fmtUsd(plan.risk)) + (plan.riskPct !== null ? " · " + fmtPct(plan.riskPct) : "") + "</td></tr></tfoot>" +
       "</table></div>";
@@ -3123,8 +3146,8 @@
         planBlock("1 entry", p.premium.single, "Stop 100 pips.")) +
 
       planCard("grindSignal", "Grind Room — signal (Aaron)", p.grindSignal.risk,
-        GRIND_SIGNAL_LEGS + " entries every " + GRIND_LAYER + " pips into the 50-pip zone; stop " + GRIND_SIGNAL_STOP + " pips from the first (worst) entry.",
-        planBlock(GRIND_SIGNAL_LEGS + " entries", p.grindSignal.plan, "")) +
+        "All " + GRIND_SIGNAL_LEGS + " positions together: at NOW if price is already inside his zone, otherwise limits at the zone edge closest to price (never chase past it). Sized on a " + GRIND_SIGNAL_STOP + "-pip stop (his SL is about 120 — the extra 10 covers a fill a few pips off), each position its own TP. Leave unfilled limits until he closes the trade; BE when he calls it. Signals only — live (Zoom) stays as below.",
+        planBlock(GRIND_SIGNAL_LEGS + " entries together", p.grindSignal.plan, "Lots rounded to the nearest 0.01 — the total shows the real risk.")) +
 
       planCard("grindLive", "Grind Room — live (Zoom)", p.grindLive.risk,
         GRIND_LIVE_LEGS + " entries every " + GRIND_LAYER + " pips; stop measured from the worst entry — usually 120–130, rarely 150.",
@@ -3132,6 +3155,11 @@
         '<div class="seg plan-seg" role="group" aria-label="Live stop">' + [120, 130, 150].map(function(v){
           return '<button type="button" data-live-stop="' + v + '" class="' + (p.grindLive.stop === v ? "on" : "") + '">' + v + " pips</button>";
         }).join("") + "</div>") +
+
+      planCard("lina", "Lina (Grind Room)", p.lina.risk,
+        "Support &amp; resistance trader — new, so 5% (Callisto's Grind Room guideline) until we know her style. Sized on a 100-pip stop; Log Trade sizes from her real stop.",
+        planBlock("1 entry", p.lina.single, "Stop 100 pips.") +
+        planBlock("3 entries", p.lina.three, layerNote)) +
 
       planCard("inst", "IT / Thomas", p.inst.risk,
         "Stop varies (30–100 pips) and he uses a 50-pip zone. Set today's stop: a tight stop = 1 entry; from " +
@@ -3153,6 +3181,7 @@
   var SIZING_MSG = {
     own: "Own-trade risk must be between 0.1% and 30%.",
     brother: "Brother risk must be between 0.1% and 20%.",
+    lina: "Lina risk must be between 0.1% and 20%.",
     premium: "Signal risk must be between 0.1% and 20%.",
     grindLive: "Signal risk must be between 0.1% and 20%.",
     grindSignal: "Signal risk must be between 0.1% and 20%.",
