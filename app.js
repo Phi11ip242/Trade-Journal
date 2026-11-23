@@ -12,7 +12,9 @@
 
   var SESSIONS = ["Asia", "London", "New York"];
   var DIRECTIONS = ["Buy", "Sell"];
-  var SOURCES = ["Premium", "Grind Room", "Institutional", "Lina", "Own Trade", "Brother"];
+  var SOURCES = ["Premium", "Aaron", "Thomas", "Lina", "Own Trade", "Brother"];
+  // Renamed 23 Nov 2026 (all three are Grind Room traders): old stored names map on load.
+  var RENAMED_SOURCES = { "Grind Room": "Aaron", "Institutional": "Thomas" };
   // Sources no longer traded: old trades keep them so the history and
   // balance stay right, but they can't be picked for new trades.
   var OLD_SOURCES = ["AJ"];
@@ -30,8 +32,8 @@
   // starts at, and the most it allows.
   var SOURCE_RISK = {
     "Premium":       { def: 20, max: 30 },
-    "Grind Room":    { def: 20, max: 30 },
-    "Institutional": { def: 20, max: 30 },
+    "Aaron":         { def: 10, max: 30 },
+    "Thomas":        { def: 10, max: 30 },
     "Own Trade":     { def: 5,  max: 20 },
     "Lina":          { def: 5,  max: 20 },  // Grind Room S/R trader, Callisto guideline 5%
     "Brother":       { def: 1,  max: 20 }   // trades from my brother's calls
@@ -436,7 +438,7 @@
       session: str(t.session),
       pair: str(t.pair),
       direction: t.direction === "Sell" ? "Sell" : "Buy",
-      source: str(t.source),
+      source: RENAMED_SOURCES[str(t.source)] || str(t.source),
       account: str(t.account),
       bias: Object.assign(extraFields(bias, ["daily", "h4", "h1", "m15"]), {
         daily: str(bias.daily),
@@ -581,8 +583,8 @@
   // Own Trade 100.
   function planStopPips(source, settings){
     var sz = settings.sizing || SIZING_DEFAULTS;
-    if(source === "Grind Room") return GRIND_SIGNAL_STOP;
-    if(source === "Institutional") return sz.instStop;
+    if(source === "Aaron") return GRIND_SIGNAL_STOP;
+    if(source === "Thomas") return sz.instStop;
     return OWN_PREM_STOP;
   }
 
@@ -645,8 +647,8 @@
     if(source === "Own Trade") return sz.own;
     if(source === "Brother") return sz.brother;
     if(source === "Premium") return sz.premium;
-    if(source === "Grind Room") return sz.grindSignal;
-    if(source === "Institutional") return sz.inst;
+    if(source === "Aaron") return sz.grindSignal;
+    if(source === "Thomas") return sz.inst;
     if(source === "Lina") return sz.lina;
     return null;
   }
@@ -2191,7 +2193,7 @@
   // Grind Room / Institutional plan to 120 pips, the rest to 100.
   // Grind Room live can run to 150; IT/Own/Premium max 100.
   function maxStopFor(source){
-    if(source === "Grind Room") return SIZING_LIMITS.grindLiveStop[1];
+    if(source === "Aaron") return SIZING_LIMITS.grindLiveStop[1];
     return source === "" ? MAX_STOP_PIPS : Math.max(MAX_STOP_PIPS, planStopPips(source, settings));
   }
 
@@ -2236,8 +2238,8 @@
         draft.source === "Brother" ? "3 entries: " + fmtLots(plans.brother.three.lots) + " each" :
         draft.source === "Premium" ? "3 entries: " + fmtLots(plans.premium.three.lots) + " each" :
         draft.source === "Lina" ? "3 entries: " + fmtLots(plans.lina.three.lots) + " each" :
-        draft.source === "Grind Room" ? "signal 5 together: " + fmtLots(plans.grindSignal.plan.lots) + " each · live 8 legs: " + fmtLots(plans.grindLive.plan.lots) + " each" :
-        draft.source === "Institutional" && plans.inst.three ? "3 entries: " + fmtLots(plans.inst.three.lots) + " each" : "";
+        draft.source === "Aaron" ? "signal 5 together: " + fmtLots(plans.grindSignal.plan.lots) + " each · live 8 legs: " + fmtLots(plans.grindLive.plan.lots) + " each" :
+        draft.source === "Thomas" && plans.inst.three ? "3 entries: " + fmtLots(plans.inst.three.lots) + " each" : "";
       elSizeHint.innerHTML =
         "1 entry: <strong>" + (size ? fmtLots(size.lots) + " lots · " + escapeHtml(fmtUsd(size.risk)) + " risk" : "—") + "</strong> " +
         "(" + riskPct + "% of " + (multiAccount() ? escapeHtml(accountName(formAcc)) + "'s " : "") + escapeHtml(fmtUsd(prot.sizingBalance)) + " at " + calc.stopDistance.toFixed(1) + " pips" +
@@ -3145,23 +3147,23 @@
         planBlock("3 entries", p.premium.three, layerNote, "preferred") +
         planBlock("1 entry", p.premium.single, "Stop 100 pips.")) +
 
-      planCard("grindSignal", "Grind Room — signal (Aaron)", p.grindSignal.risk,
+      planCard("grindSignal", "Aaron — signal", p.grindSignal.risk,
         "All " + GRIND_SIGNAL_LEGS + " positions together: at NOW if price is already inside his zone, otherwise limits at the zone edge closest to price (never chase past it). Sized on a " + GRIND_SIGNAL_STOP + "-pip stop (his SL is about 120 — the extra 10 covers a fill a few pips off), each position its own TP. Leave unfilled limits until he closes the trade; BE when he calls it. Signals only — live (Zoom) stays as below.",
         planBlock(GRIND_SIGNAL_LEGS + " entries together", p.grindSignal.plan, "Lots rounded to the nearest 0.01 — the total shows the real risk.")) +
 
-      planCard("grindLive", "Grind Room — live (Zoom)", p.grindLive.risk,
+      planCard("grindLive", "Aaron — live (Zoom)", p.grindLive.risk,
         GRIND_LIVE_LEGS + " entries every " + GRIND_LAYER + " pips; stop measured from the worst entry — usually 120–130, rarely 150.",
         planBlock(GRIND_LIVE_LEGS + " entries · " + p.grindLive.stop + "-pip stop", p.grindLive.plan, ""),
         '<div class="seg plan-seg" role="group" aria-label="Live stop">' + [120, 130, 150].map(function(v){
           return '<button type="button" data-live-stop="' + v + '" class="' + (p.grindLive.stop === v ? "on" : "") + '">' + v + " pips</button>";
         }).join("") + "</div>") +
 
-      planCard("lina", "Lina (Grind Room)", p.lina.risk,
+      planCard("lina", "Lina", p.lina.risk,
         "Support &amp; resistance trader — new, so 5% (Callisto's Grind Room guideline) until we know her style. Sized on a 100-pip stop; Log Trade sizes from her real stop.",
         planBlock("1 entry", p.lina.single, "Stop 100 pips.") +
         planBlock("3 entries", p.lina.three, layerNote)) +
 
-      planCard("inst", "IT / Thomas", p.inst.risk,
+      planCard("inst", "Thomas", p.inst.risk,
         "Stop varies (30–100 pips) and he uses a 50-pip zone. Set today's stop: a tight stop = 1 entry; from " +
           p.inst.minThreeStop + " pips you can layer 3 entries " + L + " pips apart.",
         (p.inst.three ? planBlock("3 entries", p.inst.three, "Layered every " + L + " pips; last entry " + (p.inst.stop - 2 * L) + " pips from the stop.") : "") +

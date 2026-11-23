@@ -415,9 +415,9 @@
         <div class="field"><label for="sz-own">Own trades (%)</label><input type="number" step="any" inputmode="decimal" id="sz-own" data-sizing="own"></div>
         <div class="field"><label for="sz-brother">Brother's calls (%)</label><input type="number" step="any" inputmode="decimal" id="sz-brother" data-sizing="brother"></div>
         <div class="field"><label for="sz-premium">Premium (%)</label><input type="number" step="any" inputmode="decimal" id="sz-premium" data-sizing="premium"></div>
-        <div class="field"><label for="sz-grindLive">Grind Room live (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindLive" data-sizing="grindLive"></div>
-        <div class="field"><label for="sz-grindSignal">Grind Room signal (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindSignal" data-sizing="grindSignal"></div>
-        <div class="field"><label for="sz-inst">IT / Thomas (%)</label><input type="number" step="any" inputmode="decimal" id="sz-inst" data-sizing="inst"></div>
+        <div class="field"><label for="sz-grindLive">Aaron live (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindLive" data-sizing="grindLive"></div>
+        <div class="field"><label for="sz-grindSignal">Aaron signal (%)</label><input type="number" step="any" inputmode="decimal" id="sz-grindSignal" data-sizing="grindSignal"></div>
+        <div class="field"><label for="sz-inst">Thomas (%)</label><input type="number" step="any" inputmode="decimal" id="sz-inst" data-sizing="inst"></div>
         <div class="field"><label for="sz-lina">Lina (%)</label><input type="number" step="any" inputmode="decimal" id="sz-lina" data-sizing="lina"></div>
         <div class="field"><label for="sz-layer">Layer gap (pips, 20–25)</label><input type="number" step="any" inputmode="decimal" id="sz-layer" data-sizing="layer"></div>
       </div>
@@ -764,7 +764,7 @@
     <details class="panel rb-chapter" id="rb-management">
       <summary>10 · Stop loss, take profit &amp; partials</summary>
       <ul>
-        <li><strong>Stop</strong> just beyond the structure the confirmation came from (the sweep wick or the CHoCH swing, on 15M/1H structure). Planned in pips: <strong>100</strong> for own trades and Premium, <strong>120</strong> for Grind Room signals and live trades. On split entries, measured from the worst entry, one stop for the whole basket.</li>
+        <li><strong>Stop</strong> just beyond the structure the confirmation came from (the sweep wick or the CHoCH swing, on 15M/1H structure). Planned in pips: <strong>100</strong> for own trades and Premium, <strong>130</strong> for Aaron's signals (his SL is about 120, plus room for a fill a few pips off) and <strong>120</strong> for his live trades. On split entries, measured from the worst entry, one stop for the whole basket.</li>
         <li><strong>Split entries:</strong> first leg on the confirmation, then add a leg every <strong>20 pips</strong> of drawdown, all sized for the full stop.</li>
         <li><strong>TPs:</strong> TP1 20 · TP2 40 · TP3 60 · TP4 100 pips · TP5 the higher-timeframe liquidity. Liquidity pools and FVGs make good targets.</li>
         <li><strong>Partials:</strong> 10% at TP1, TP2 and TP3, 20% at TP4, the rest runs. Smaller partials when the market is clearly with you; bigger when it looks like turning, volume dies or a reversal shows. Counter-trend trades: bigger, earlier partials.</li>
@@ -784,7 +784,7 @@
       </ul>
       <div class="rb-box">
         <h3>Current phase — scaling</h3>
-        <p>For now risk is higher to scale faster: <strong>20% max per idea</strong> on Callisto signals (Premium, Grind Room, Institutional), own trades about 5% (a guide). Once income averages 5k–10k a month, step down: to 5% and below, then 2%, then 1% and below.</p>
+        <p>For now risk is higher to scale faster: <strong>20% max per idea</strong> on Callisto signals (Premium, Aaron, Thomas, Lina), own trades about 5% (a guide). Once income averages 5k–10k a month, step down: to 5% and below, then 2%, then 1% and below.</p>
       </div>
     </details>
 
