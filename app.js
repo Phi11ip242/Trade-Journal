@@ -11,6 +11,26 @@
   var CONFIGURED = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SUPABASE_URL) && SUPABASE_KEY.length > 20;
 
   var SESSIONS = ["Asia", "London", "New York"];
+  // Session by entry time. Cut-offs are fixed in London time so UK daylight
+  // saving moves them for you: Asia before 07:00, London 07:00–12:59,
+  // New York from 13:00 (London). In SAST that is 09:00 / 15:00 in our
+  // winter (Nov–Mar) and 08:00 / 14:00 while the UK is on summer time.
+  function londonHour(d){
+    try{
+      var h = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(d);
+      return parseInt(h, 10);
+    }catch(e){ return (d.getUTCHours() + 24) % 24; }
+  }
+  function sessionAt(d){
+    var h = londonHour(d || new Date());
+    return h < 7 ? "Asia" : h < 13 ? "London" : "New York";
+  }
+  function sessionCutoffsText(){
+    var now = new Date();
+    var off = (londonHour(now) - now.getHours() + 24) % 24;   // hours London is behind local time
+    function at(lh, m){ var h = (lh - off + 24) % 24; return (h < 10 ? "0" : "") + h + (m || ":00"); }
+    return "Asia before " + at(7) + " · London " + at(7) + "–" + at(12, ":59") + " · New York from " + at(13) + " (your time). Auto-picked for a new trade; change it if you're logging an earlier one.";
+  }
   var DIRECTIONS = ["Buy", "Sell"];
   var SOURCES = ["Premium", "Aaron", "Thomas", "Lina", "Own Trade", "Brother"];
   // Renamed 23 Nov 2026 (all three are Grind Room traders): old stored names map on load.
@@ -420,7 +440,7 @@
   // status). Anything derived (pips, P/L, idea, balance) is recalculated on
   // render and never stored.
   var TRADE_KEYS = ["id", "createdAt", "updatedAt", "date", "session", "pair", "direction", "source", "account", "bias",
-    "confirmation", "entry", "stopLoss", "closes", "lesson", "newIdea", "grade"];
+    "confirmation", "entry", "stopLoss", "closes", "lesson", "newIdea", "grade", "rr"];
   var GRADES = ["A+", "A", "B"];
   var STATUSES = ["Open", "Closed"];
 
@@ -455,7 +475,8 @@
       }),
       lesson: str(t.lesson),
       newIdea: t.newIdea === true,  // ticked: this trade starts a new idea even if it sits close to the last one
-      grade: GRADES.indexOf(t.grade) === -1 ? "" : t.grade   // own trades: setup quality A+ / A / B
+      grade: GRADES.indexOf(t.grade) === -1 ? "" : t.grade,  // own trades: setup quality A+ / A / B
+      rr: num(t.rr) > 0 ? num(t.rr) : null                   // own & brother: planned reward-to-risk (3 = 1:3)
     });
   }
 
@@ -2051,6 +2072,8 @@
   buildSeg(elSource, SOURCES, false);
   buildSeg(elStatus, STATUSES, false);
   var elGrade = document.getElementById("f-grade"), elGradeWrap = document.getElementById("f-grade-wrap");
+  var elRR = document.getElementById("f-rr"), elRRWrap = document.getElementById("f-rr-wrap"), elRRPlan = document.getElementById("f-rr-plan");
+  document.getElementById("f-session-hint").textContent = sessionCutoffsText();
   buildSeg(elGrade, GRADES, true);
   BIAS_FRAMES.forEach(function(frame){
     var label = document.createElement("span");
@@ -2156,7 +2179,8 @@
       }),
       lesson: elLesson.value.trim(),
       newIdea: elNewIdea.checked,
-      grade: (segGet(elSource) === "Own Trade" || segGet(elSource) === "Brother") ? segGet(elGrade) : ""
+      grade: (segGet(elSource) === "Own Trade" || segGet(elSource) === "Brother") ? segGet(elGrade) : "",
+      rr: (segGet(elSource) === "Own Trade" || segGet(elSource) === "Brother") && num(elRR.value) > 0 ? num(elRR.value) : null
     };
   }
 
@@ -2199,6 +2223,7 @@
 
   function updateLive(){
     elGradeWrap.hidden = segGet(elSource) !== "Own Trade" && segGet(elSource) !== "Brother";
+    elRRWrap.hidden = elGradeWrap.hidden;
     var draft = readForm();
     // Loss protocol and lot sizes come from the trade's own account.
     var formAcc = draft.account || sizingAccount();
@@ -2210,6 +2235,7 @@
 
     if(calc.slPips === null) elSLPips.textContent = "—";
     else elSLPips.textContent = (hasDir ? fmtPips(calc.slPips) : calc.stopDistance.toFixed(1)) + " pips";
+    elRRPlan.innerHTML = rrPlanText(draft, calc);
 
     var warnings = [];
     var maxStop = maxStopFor(draft.source);
@@ -2263,6 +2289,19 @@
       "Total: " + fmtLots(calc.lots) + " lots · " + (hasDir ? fmtMoney(calc.pl) : "—");
   }
 
+  // Target and R levels for a planned R:R: where 1R (the usual BE point),
+  // 2R, ... and the target sit for this entry and stop.
+  function rrPlanText(draft, calc){
+    if(!draft.rr) return "Set the R:R you're aiming for (e.g. 3 = 1:3) to see the target and the 1R / 2R levels.";
+    if(!draft.direction || draft.entry === null || !(calc.stopDistance > 0)) return "Target 1:" + draft.rr + " — enter direction, entry and stop to see the levels.";
+    var d = dirSign(draft.direction), step = calc.stopDistance * calc.spec.pipSize, dp = calc.spec.priceDp;
+    var lv = [];
+    for(var r = 1; r < draft.rr && r <= 10; r++) lv.push(r + "R " + (draft.entry + d * r * step).toFixed(dp));
+    var tp = draft.entry + d * draft.rr * step;
+    return "<strong>Target 1:" + draft.rr + " → TP " + tp.toFixed(dp) + "</strong> (" + fmtPips(round2(draft.rr * calc.stopDistance)) + " pips)" +
+      (lv.length ? " · " + escapeHtml(lv.join(" · ")) : "");
+  }
+
   function renderForm(){
     // Keep the chosen pair unless it has since been removed or renamed in
     // Settings (a trade being edited falls back to its own pair).
@@ -2301,6 +2340,7 @@
     refreshAccountChoices();
     segSet(elAccount, validActive() || (settings.accounts.length === 1 ? settings.accounts[0].id : ""));
     segSet(elStatus, "Open");
+    segSet(elSession, sessionAt(new Date()));
     BIAS_FRAMES.forEach(function(frame){ segSet(elBias[frame[0]], ""); });
     elCloses.innerHTML = "";
     slAuto = true;
@@ -2320,6 +2360,7 @@
     fillSeg(elSource, OLD_SOURCES.indexOf(t.source) !== -1 ? SOURCES.concat([t.source]) : SOURCES);
     segSet(elSource, t.source);
     segSet(elGrade, t.grade || "");
+    elRR.value = t.rr === null || t.rr === undefined ? "" : t.rr;
     refreshAccountChoices();
     segSet(elAccount, accountIdOf(t, settings));
     segSet(elStatus, tradeCalc(t, settings).isOpen ? "Open" : "Closed");
@@ -2532,6 +2573,7 @@
         "<td>" + escapeHtml(t.session) + "</td>" +
         '<td class="' + (t.direction === "Buy" ? "dir-buy" : "dir-sell") + '">' + escapeHtml(t.direction) + "</td>" +
         "<td>" + escapeHtml(t.source) + (t.grade ? ' <span class="grade-tag">' + escapeHtml(t.grade) + "</span>" : "") +
+          (t.rr ? ' <span class="grade-tag rr-tag">1:' + escapeHtml(String(t.rr)) + "</span>" : "") +
           (multiAccount() && !validActive() ? '<span class="acct-tag">' + escapeHtml(accountName(r.account)) + "</span>" : "") + "</td>" +
         "<td>" + biasChips(t.bias) + "</td>" +
         '<td class="r">' + fmtPrice(t.entry, c.spec) + "</td>" +
@@ -2752,6 +2794,31 @@
     );
   }
 
+  // Own & brother trades with a planned R:R: what was planned vs what the
+  // closes actually made (in R) and how often the target was reached.
+  function rrSummary(d){
+    var rows = viewTrades(trades, settings, validActive()).filter(function(t){ return t.rr && (t.source === "Own Trade" || t.source === "Brother"); });
+    var done = [];
+    rows.forEach(function(t){
+      var c = tradeCalc(t, settings);
+      if(c.isOpen || !(c.stopDistance > 0)) return;
+      var lots = 0, wp = 0, best = null;
+      c.closes.forEach(function(x){
+        if(x.pips === null || !(num(x.lots) > 0)) return;
+        lots += num(x.lots); wp += x.pips * num(x.lots);
+        best = best === null ? x.pips : Math.max(best, x.pips);
+      });
+      if(!lots) return;
+      done.push({ plan: t.rr, real: wp / lots / c.stopDistance, hit: best !== null && best >= t.rr * c.stopDistance * 0.98 });
+    });
+    if(!done.length) return "<p class=\"hint\">Planned R:R — set a target R:R on own and brother trades in Log Trade and this shows planned vs realised R.</p>";
+    var avg = function(a){ return a.reduce(function(x, y){ return x + y; }, 0) / a.length; };
+    return "<p class=\"hint\"><strong>Planned R:R</strong> (own &amp; brother, " + done.length + " closed trade" + (done.length === 1 ? "" : "s") + "): " +
+      "avg plan 1:" + avg(done.map(function(x){ return x.plan; })).toFixed(1) +
+      " · avg realised " + avg(done.map(function(x){ return x.real; })).toFixed(2) + "R" +
+      " · target reached " + Math.round(100 * done.filter(function(x){ return x.hit; }).length / done.length) + "%</p>";
+  }
+
   function groupTable(el, firstHeader, groups){
     el.innerHTML =
       "<thead><tr><th>" + firstHeader + "</th><th>Trades</th><th>Net P/L</th><th>Avg P/L</th></tr></thead>" +
@@ -2882,6 +2949,8 @@
         return "<tr><td>" + escapeHtml(g.name) + "</td><td>" + g.ideas + "</td><td>" + g.wins + "</td><td>" + g.losses + "</td><td>" + g.be + "</td>" +
           "<td>" + fmtPct(g.winRate) + "</td><td>" + (g.ideas ? fmtMoney(g.net) : "—") + "</td><td>" + (g.ideas ? fmtMoney(round2(g.avg)) : "—") + "</td></tr>";
       }).join("") + "</tbody>";
+
+    document.getElementById("dash-rr").innerHTML = rrSummary(d);
 
     document.getElementById("dash-source").innerHTML =
       "<thead><tr><th>Source</th><th>Ideas</th><th>Wins</th><th>Losses</th><th>BE</th><th title='Wins ÷ (wins + losses); breakeven ideas (within $1 of zero) are left out'>Win rate (excl. BE)</th><th>Net P/L</th><th>Avg P/L</th></tr></thead>" +
