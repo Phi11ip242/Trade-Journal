@@ -3155,17 +3155,18 @@
       if(r.manage){
         return '<tr class="pt-manage"><td>' + r.tp + "</td><td>" + (r.pips === null ? "—" : r.pips) + "</td>" +
           "<td>" + (r.close > 0 ? fmtLots(r.close) + " left" : "nothing left") + "</td>" +
-          "<td>manage it</td></tr>";
+          '<td colspan="2">manage it</td></tr>';
       }
       return "<tr><td>" + r.tp + "</td><td>" + r.pips + "</td>" +
         "<td>" + (r.close > 0 ? fmtLots(r.close) : "— (none left)") + "</td>" +
-        "<td>" + escapeHtml(fmtUsd(r.banked)) + "</td></tr>";
+        "<td>" + (r.close > 0 ? escapeHtml(fmtUsd(r.value)) : "—") + "</td>" +
+        '<td class="muted">' + escapeHtml(fmtUsd(r.banked)) + "</td></tr>";
     }).join("");
     return '<div class="partials-card">' +
       '<div class="plan-block-head"><h4>' + escapeHtml(title) + '</h4><span class="plan-lots">' + fmtLots(lots) + " lots</span></div>" +
       (sub ? '<div class="hint">' + escapeHtml(sub) + "</div>" : "") +
       '<div class="mini-scroll"><table class="mini-table plan-table">' +
-      "<thead><tr><th>TP</th><th>Pips</th><th>Close</th><th>Banked</th></tr></thead>" +
+      "<thead><tr><th>TP</th><th>Pips</th><th>Close</th><th title='What this close makes'>This close</th><th title='Running total of everything closed so far'>Total banked</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table></div>" +
     "</div>";
   }
