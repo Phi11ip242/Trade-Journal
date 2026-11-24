@@ -834,10 +834,11 @@
       if(!idea){
         // Every trade in an idea shares its date, pair, direction and source.
         idea = ideaById[ideaNo] = { id: ideaNo, date: t.date, source: t.source, account: acc, tradeIds: [], closedCount: 0, pl: 0,
-          balanceBefore: round2(base + netFlows + cumulative), hitSL: false };
+          balanceBefore: round2(base + netFlows + cumulative), hitSL: false, allBE: true };
         ideas.push(idea);
       }
       idea.tradeIds.push(t.id);
+      if(!loggedBE(t)) idea.allBE = false;
 
       var balanceAfter = null;
       if(calc.pl !== null){
@@ -879,15 +880,22 @@
     };
   }
 
+  // Every close on the trade is typed BE.
+  function loggedBE(t){
+    return !!(t && t.closes && t.closes.length && t.closes.every(function(c){ return c.type === "BE"; }));
+  }
+
   // ---------- dashboard stats ----------
   function sum(list){ return list.reduce(function(s, v){ return s + v; }, 0); }
   function mean(list){ return list.length ? sum(list) / list.length : null; }
 
   // Win/loss summary of a list of P/L values — used for trades and for ideas.
   // Anything that can't be computed (no wins, no losses) is null, never NaN.
-  function winLossStats(pls){
-    var wins = pls.filter(function(v){ return v > 0; });
-    var losses = pls.filter(function(v){ return v < 0; });
+  // Items are P/L numbers or { pl, allBE } (see ideaResult for the BE rule).
+  function winLossStats(items){
+    var pls = items.map(function(x){ return x !== null && typeof x === "object" ? x.pl : x; });
+    var wins = items.filter(function(x){ return ideaResult(x) === "W"; }).map(function(x){ return typeof x === "object" ? x.pl : x; });
+    var losses = items.filter(function(x){ return ideaResult(x) === "L"; }).map(function(x){ return typeof x === "object" ? x.pl : x; });
     var avgWin = mean(wins), avgLoss = mean(losses);
     var ratio = (avgWin !== null && avgLoss !== null) ? avgWin / Math.abs(avgLoss) : null;
     return {
@@ -895,7 +903,8 @@
       wins: wins.length,
       losses: losses.length,
       be: pls.length - wins.length - losses.length,
-      winRate: pls.length ? wins.length / pls.length : null,
+      // Breakeven ideas cost nothing, so they are left out: wins ÷ (wins + losses).
+      winRate: (wins.length + losses.length) ? wins.length / (wins.length + losses.length) : null,
       avgWin: avgWin,
       avgLoss: avgLoss,
       biggestWin: wins.length ? Math.max.apply(null, wins) : null,
@@ -929,7 +938,7 @@
     var closedIdeas = derived.ideas.filter(ideaClosed);
     var openIdeas = derived.ideas.filter(function(i){ return !ideaClosed(i); });
 
-    var core = winLossStats(closedIdeas.map(function(i){ return i.pl; }));
+    var core = winLossStats(closedIdeas);
     core.closedTrades = pls.length;
     core.net = round2(sum(pls));
     core.balance = derived.account.balance;
@@ -946,10 +955,10 @@
     var bySource = ALL_SOURCES.filter(function(name){
       return SOURCES.indexOf(name) !== -1 || closedIdeas.some(function(i){ return i.source === name; });
     }).map(function(name){
-      var list = closedIdeas.filter(function(i){ return i.source === name; })
-                            .map(function(i){ return i.pl; });
-      var wins = list.filter(function(v){ return ideaResult(v) === "W"; }).length;
-      var losses = list.filter(function(v){ return ideaResult(v) === "L"; }).length;
+      var its = closedIdeas.filter(function(i){ return i.source === name; });
+      var list = its.map(function(i){ return i.pl; });
+      var wins = its.filter(function(v){ return ideaResult(v) === "W"; }).length;
+      var losses = its.filter(function(v){ return ideaResult(v) === "L"; }).length;
       return { name: name, ideas: list.length, wins: wins, losses: losses, be: list.length - wins - losses,
         winRate: (wins + losses) ? wins / (wins + losses) : null,
         net: round2(sum(list)), avg: mean(list) };
@@ -962,9 +971,10 @@
       return "Not graded";
     }
     var byGrade = GRADES.concat(["Not graded"]).map(function(name){
-      var list = ownIdeas.filter(function(i){ return ideaGrade(i) === name; }).map(function(i){ return i.pl; });
-      var wins = list.filter(function(v){ return ideaResult(v) === "W"; }).length;
-      var losses = list.filter(function(v){ return ideaResult(v) === "L"; }).length;
+      var its = ownIdeas.filter(function(i){ return ideaGrade(i) === name; });
+      var list = its.map(function(i){ return i.pl; });
+      var wins = its.filter(function(v){ return ideaResult(v) === "W"; }).length;
+      var losses = its.filter(function(v){ return ideaResult(v) === "L"; }).length;
       return { name: name, ideas: list.length, wins: wins, losses: losses, be: list.length - wins - losses,
         winRate: (wins + losses) ? wins / (wins + losses) : null, net: round2(sum(list)), avg: mean(list) };
     });
@@ -1050,7 +1060,7 @@
       closed: pls.length,
       net: round2(sum(pls)),
       // By idea, over the same fully closed ideas as the dashboard.
-      winRate: winLossStats(Object.keys(ideas).map(function(id){ return derived.ideaById[id].pl; })).winRate
+      winRate: winLossStats(Object.keys(ideas).map(function(id){ return derived.ideaById[id]; })).winRate
     };
   }
 
@@ -1190,8 +1200,16 @@
     });
   }
 
-  function ideaResult(pl){
-    return pl > STREAK_BE_USD ? "W" : (pl < -STREAK_BE_USD ? "L" : "BE");
+  // Win / loss / breakeven for a trade or an idea. Logged as BE (every close
+  // typed "BE") is breakeven whatever the P/L — slippage or a basket that
+  // came out a few dollars either side. Otherwise within $1 of zero is BE.
+  // Takes a P/L number, or an object with .pl and .allBE.
+  function ideaResult(x){
+    if(x !== null && typeof x === "object"){
+      if(x.allBE) return "BE";
+      x = x.pl;
+    }
+    return x > STREAK_BE_USD ? "W" : (x < -STREAK_BE_USD ? "L" : "BE");
   }
 
   // Win / loss streaks over fully closed ideas, oldest first. Breakeven
@@ -1199,7 +1217,7 @@
   function streakStats(ideas){
     var longest = { W: null, L: null }, run = null, be = 0;
     ideas.forEach(function(i){
-      var r = ideaResult(i.pl);
+      var r = ideaResult(i);
       if(r === "BE"){ be++; return; }
       if(run && run.type === r){
         run.count++;
@@ -1226,8 +1244,8 @@
     var recRows = source ? closedRows.filter(function(r){ return r.trade.source === source; }) : closedRows;
     var recIdeas = derived.ideas.filter(function(i){ return ideaClosed(i) && (!source || i.source === source); });
     var pls = recIdeas.map(function(i){ return i.pl; });
-    var wins = pls.filter(function(v){ return ideaResult(v) === "W"; });
-    var losses = pls.filter(function(v){ return ideaResult(v) === "L"; });
+    var wins = recIdeas.filter(function(v){ return ideaResult(v) === "W"; }).map(function(i){ return i.pl; });
+    var losses = recIdeas.filter(function(v){ return ideaResult(v) === "L"; }).map(function(i){ return i.pl; });
 
     return {
       tracks: {
@@ -2518,11 +2536,10 @@
     renderTable();
   });
 
-  function resultOf(calc){
+  function resultOf(calc, t){
     if(calc.pl === null) return "Open";
-    if(calc.pl > 0) return "Win";
-    if(calc.pl < 0) return "Loss";
-    return "BE";
+    var r = ideaResult({ pl: calc.pl, allBE: loggedBE(t) });
+    return r === "W" ? "Win" : r === "L" ? "Loss" : "BE";
   }
 
   function matchesFilters(row){
@@ -2530,7 +2547,7 @@
     if(ffSession.value && t.session !== ffSession.value) return false;
     if(ffSource.value && t.source !== ffSource.value) return false;
     if(ffDirection.value && t.direction !== ffDirection.value) return false;
-    if(ffResult.value && resultOf(row.calc) !== ffResult.value) return false;
+    if(ffResult.value && resultOf(row.calc, row.trade) !== ffResult.value) return false;
     if(ffFrom.value && t.date < ffFrom.value) return false;
     if(ffTo.value && t.date > ffTo.value) return false;
     return true;
@@ -2669,6 +2686,7 @@
       g.lots += r.calc.lots || 0;
       if(r.calc.slPips !== null && r.calc.slPips < 0) g.riskSL += Math.abs(r.calc.slPips) * (r.calc.lots || 0) * r.calc.spec.usdPerPip;
       if(r.calc.pl === null) g.open = true; else g.pl += r.calc.pl;
+      if(!loggedBE(t)) g.notBE = true;
     });
     return order.map(function(g){
       var idea = d.ideaById[g.id] || {};
@@ -2677,7 +2695,8 @@
       g.riskPct = bal ? g.riskSL / bal * 100 : null;
       g.plPct = bal ? g.pl / bal * 100 : null;
       g.r = g.riskSL > 0 && !g.open ? g.pl / g.riskSL : null;
-      g.result = g.open ? "Open" : g.pl > 0 ? "Win" : g.pl < 0 ? "Loss" : "BE";
+      var gr = ideaResult({ pl: g.pl, allBE: !g.notBE });
+      g.result = g.open ? "Open" : gr === "W" ? "Win" : gr === "L" ? "Loss" : "BE";
       // Over plan: the stop risked more than the plan, or the loss was bigger
       // than it (0.5% slack for rounding).
       var lim = g.plan === null ? null : g.plan + 0.5;
@@ -2846,7 +2865,7 @@
       statCard(prefix + "count", countLabel, String(s.count)) +
       statCard(prefix + "wins", "Wins", String(s.wins)) +
       statCard(prefix + "losses", "Losses", String(s.losses)) +
-      statCard(prefix + "winRate", "Win rate", fmtPct(s.winRate))
+      statCard(prefix + "winRate", "Win rate (excl. BE)", fmtPct(s.winRate))
     );
   }
 
@@ -3743,7 +3762,7 @@
 
   // ---------- weekly review ----------
   var weekOffset = 0;   // 0 = this week, -1 = last week, ...
-  var WEEK_WIN_RATE_LABEL = "Win rate (by idea)";
+  var WEEK_WIN_RATE_LABEL = "Win rate (by idea, excl. BE)";
   var btnWkPrev = document.getElementById("wk-prev");
   var btnWkNext = document.getElementById("wk-next");
   var btnWkPdf = document.getElementById("wk-pdf");
@@ -3826,9 +3845,9 @@
       summary: [
         ["Trades", w.trades],
         ["Ideas", w.ideas],
-        ["Wins", pls.filter(function(v){ return v > 0; }).length],
-        ["Losses", pls.filter(function(v){ return v < 0; }).length],
-        ["Breakeven", pls.filter(function(v){ return v === 0; }).length],
+        ["Wins", closed.filter(function(r){ return resultOf(r.calc, r.trade) === "Win"; }).length],
+        ["Losses", closed.filter(function(r){ return resultOf(r.calc, r.trade) === "Loss"; }).length],
+        ["Breakeven", closed.filter(function(r){ return resultOf(r.calc, r.trade) === "BE"; }).length],
         [WEEK_WIN_RATE_LABEL, w.winRate === null ? null : pct1(w.winRate)],
         ["Net P/L ($)", w.closed ? w.net : null],
         ["Best trade ($)", pls.length ? Math.max.apply(null, pls) : null],
@@ -3842,7 +3861,7 @@
           n: r.n, date: t.date, session: t.session, pair: t.pair, direction: t.direction, source: t.source,
           bias: [b.daily, b.h4, b.h1, b.m15].map(function(v){ return BIAS_SHORT[v] || "-"; }).join(" / "),
           entry: t.entry, stop: t.stopLoss, priceDp: c.spec.priceDp, slPips: c.slPips, lots: c.isOpen ? null : c.lots, pl: c.pl,
-          idea: r.idea, result: resultOf(c),
+          idea: r.idea, result: resultOf(c, t),
           confirmation: t.confirmation, lesson: t.lesson,
           closes: c.closes
         };
