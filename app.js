@@ -35,7 +35,8 @@
     var now = new Date();
     var off = (londonHour(now) - now.getHours() + 24) % 24;   // hours London is behind local time
     function at(lh, m){ var h = (lh - off + 24) % 24; return (h < 10 ? "0" : "") + h + (m || ":00"); }
-    return "Asia before " + at(7) + " · London " + at(7) + "–" + at(12, ":59") + " · New York from " + at(13) + " (your time). Set from the entry time above — put in when you actually entered, not when you log it.";
+    return "<strong>Asia</strong> before " + at(7) + " · <strong>London</strong> " + at(7) + "–" + at(12, ":59") + " · <strong>New York</strong> from " + at(13) +
+      "<br>Pick it by when you <em>entered</em> the trade, not when you log it.";
   }
   var DIRECTIONS = ["Buy", "Sell"];
   var SOURCES = ["Premium", "Aaron", "Thomas", "Lina", "Own Trade", "Brother"];
@@ -2030,15 +2031,7 @@
   var form = document.getElementById("trade-form");
   var elFormTitle = document.getElementById("form-title");
   var elDate = document.getElementById("f-date");
-  var elTime = document.getElementById("f-time");
-  // Typing the entry time (or changing the date) picks the session; tapping a
-  // session button afterwards overrides it.
-  function sessionFromTime(){
-    var s2 = sessionForEntry(elDate.value, elTime.value);
-    if(s2) segSet(elSession, s2);
-  }
-  elTime.addEventListener("input", sessionFromTime);
-  elDate.addEventListener("input", sessionFromTime);
+
   var elPair = document.getElementById("f-pair");
   var elDirection = document.getElementById("f-direction");
   var elSession = document.getElementById("f-session");
@@ -2089,7 +2082,7 @@
   buildSeg(elStatus, STATUSES, false);
   var elGrade = document.getElementById("f-grade"), elGradeWrap = document.getElementById("f-grade-wrap");
   var elRR = document.getElementById("f-rr"), elRRWrap = document.getElementById("f-rr-wrap"), elRRPlan = document.getElementById("f-rr-plan");
-  document.getElementById("f-session-hint").textContent = sessionCutoffsText();
+  document.getElementById("f-session-hint").innerHTML = sessionCutoffsText();
   buildSeg(elGrade, GRADES, true);
   BIAS_FRAMES.forEach(function(frame){
     var label = document.createElement("span");
@@ -2176,7 +2169,6 @@
     BIAS_FRAMES.forEach(function(frame){ bias[frame[0]] = segGet(elBias[frame[0]]); });
     return {
       date: elDate.value,
-      time: elTime.value,
       session: segGet(elSession),
       pair: elPair.value,
       direction: segGet(elDirection),
@@ -2357,9 +2349,7 @@
     refreshAccountChoices();
     segSet(elAccount, validActive() || (settings.accounts.length === 1 ? settings.accounts[0].id : ""));
     segSet(elStatus, "Open");
-    var now = new Date();
-    elTime.value = (now.getHours() < 10 ? "0" : "") + now.getHours() + ":" + (now.getMinutes() < 10 ? "0" : "") + now.getMinutes();
-    segSet(elSession, sessionAt(now));
+
     BIAS_FRAMES.forEach(function(frame){ segSet(elBias[frame[0]], ""); });
     elCloses.innerHTML = "";
     slAuto = true;
@@ -2372,7 +2362,6 @@
 
   function fillFormFromTrade(t){
     elDate.value = t.date;
-    elTime.value = t.time || "";
     refreshPairOptions(t.pair);
     segSet(elDirection, t.direction);
     segSet(elSession, t.session);
