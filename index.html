@@ -96,6 +96,7 @@
           <div class="field field-gap">
             <span class="label">Session</span>
             <div class="seg" id="f-session" role="group" aria-label="Session"></div>
+            <div class="hint" id="f-session-hint"></div>
           </div>
           <div class="field field-gap">
             <span class="label">Account</span>
@@ -141,6 +142,11 @@
             <span>Starts a new idea — tick when this is a fresh setup close to the last one (e.g. a re-entry after the last idea closed)</span>
           </label>
           <div class="sl-note" id="f-sl-note"></div>
+          <div class="field field-gap" id="f-rr-wrap" hidden>
+            <label for="f-rr">Target R:R (own &amp; brother) — 1 :</label>
+            <input type="number" step="any" min="0" inputmode="decimal" id="f-rr" placeholder="e.g. 3">
+            <div class="hint num" id="f-rr-plan"></div>
+          </div>
           <label class="sl-apply" id="f-sl-apply-wrap" hidden>
             <input type="checkbox" id="f-sl-apply" checked>
             <span id="f-sl-apply-text"></span>
@@ -388,6 +394,7 @@
         <div class="mini-scroll">
           <table class="mini-table" id="dash-grade"></table>
         </div>
+        <div id="dash-rr"></div>
       </div>
 
       <div class="panel">
@@ -758,6 +765,7 @@
         <li>Asia, London and New York are defined by the <strong>session indicator</strong> (New York time, adjusts for clock changes on its own).</li>
         <li>London often ranges; New York brings the volume and the expansion — that is where FVG entries set up.</li>
         <li>Untested session highs and lows are POIs and liquidity. Mark the Asia range; London and New York often take one side of it.</li>
+        <li><strong>Logging the session</strong> (by entry time, SAST): Asia before <strong>09:00</strong> · London <strong>09:00–14:59</strong> · New York from <strong>15:00</strong> — Nov to Mar. While the UK is on summer time (end of Mar to end of Oct) each cut-off is an hour earlier: 08:00 and 14:00. Log Trade picks it for you.</li>
       </ul>
     </details>
 
