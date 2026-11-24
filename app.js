@@ -21,6 +21,12 @@
       return parseInt(h, 10);
     }catch(e){ return (d.getUTCHours() + 24) % 24; }
   }
+  // Session for an entry date + time on this device's clock (SAST).
+  function sessionForEntry(date, time){
+    if(!date || !/^\d{2}:\d{2}$/.test(time || "")) return "";
+    var d = new Date(date + "T" + time + ":00");
+    return isNaN(d) ? "" : sessionAt(d);
+  }
   function sessionAt(d){
     var h = londonHour(d || new Date());
     return h < 7 ? "Asia" : h < 13 ? "London" : "New York";
@@ -29,7 +35,7 @@
     var now = new Date();
     var off = (londonHour(now) - now.getHours() + 24) % 24;   // hours London is behind local time
     function at(lh, m){ var h = (lh - off + 24) % 24; return (h < 10 ? "0" : "") + h + (m || ":00"); }
-    return "Asia before " + at(7) + " · London " + at(7) + "–" + at(12, ":59") + " · New York from " + at(13) + " (your time). Auto-picked for a new trade; change it if you're logging an earlier one.";
+    return "Asia before " + at(7) + " · London " + at(7) + "–" + at(12, ":59") + " · New York from " + at(13) + " (your time). Set from the entry time above — put in when you actually entered, not when you log it.";
   }
   var DIRECTIONS = ["Buy", "Sell"];
   var SOURCES = ["Premium", "Aaron", "Thomas", "Lina", "Own Trade", "Brother"];
@@ -440,7 +446,7 @@
   // status). Anything derived (pips, P/L, idea, balance) is recalculated on
   // render and never stored.
   var TRADE_KEYS = ["id", "createdAt", "updatedAt", "date", "session", "pair", "direction", "source", "account", "bias",
-    "confirmation", "entry", "stopLoss", "closes", "lesson", "newIdea", "grade", "rr"];
+    "confirmation", "entry", "stopLoss", "closes", "lesson", "newIdea", "grade", "rr", "time"];
   var GRADES = ["A+", "A", "B"];
   var STATUSES = ["Open", "Closed"];
 
@@ -476,7 +482,8 @@
       lesson: str(t.lesson),
       newIdea: t.newIdea === true,  // ticked: this trade starts a new idea even if it sits close to the last one
       grade: GRADES.indexOf(t.grade) === -1 ? "" : t.grade,  // own trades: setup quality A+ / A / B
-      rr: num(t.rr) > 0 ? num(t.rr) : null                   // own & brother: planned reward-to-risk (3 = 1:3)
+      rr: num(t.rr) > 0 ? num(t.rr) : null,                  // own & brother: planned reward-to-risk (3 = 1:3)
+      time: /^\d{2}:\d{2}$/.test(str(t.time)) ? str(t.time) : ""   // entry time (your clock), sets the session
     });
   }
 
@@ -2023,6 +2030,15 @@
   var form = document.getElementById("trade-form");
   var elFormTitle = document.getElementById("form-title");
   var elDate = document.getElementById("f-date");
+  var elTime = document.getElementById("f-time");
+  // Typing the entry time (or changing the date) picks the session; tapping a
+  // session button afterwards overrides it.
+  function sessionFromTime(){
+    var s2 = sessionForEntry(elDate.value, elTime.value);
+    if(s2) segSet(elSession, s2);
+  }
+  elTime.addEventListener("input", sessionFromTime);
+  elDate.addEventListener("input", sessionFromTime);
   var elPair = document.getElementById("f-pair");
   var elDirection = document.getElementById("f-direction");
   var elSession = document.getElementById("f-session");
@@ -2160,6 +2176,7 @@
     BIAS_FRAMES.forEach(function(frame){ bias[frame[0]] = segGet(elBias[frame[0]]); });
     return {
       date: elDate.value,
+      time: elTime.value,
       session: segGet(elSession),
       pair: elPair.value,
       direction: segGet(elDirection),
@@ -2340,7 +2357,9 @@
     refreshAccountChoices();
     segSet(elAccount, validActive() || (settings.accounts.length === 1 ? settings.accounts[0].id : ""));
     segSet(elStatus, "Open");
-    segSet(elSession, sessionAt(new Date()));
+    var now = new Date();
+    elTime.value = (now.getHours() < 10 ? "0" : "") + now.getHours() + ":" + (now.getMinutes() < 10 ? "0" : "") + now.getMinutes();
+    segSet(elSession, sessionAt(now));
     BIAS_FRAMES.forEach(function(frame){ segSet(elBias[frame[0]], ""); });
     elCloses.innerHTML = "";
     slAuto = true;
@@ -2353,6 +2372,7 @@
 
   function fillFormFromTrade(t){
     elDate.value = t.date;
+    elTime.value = t.time || "";
     refreshPairOptions(t.pair);
     segSet(elDirection, t.direction);
     segSet(elSession, t.session);
@@ -2569,7 +2589,7 @@
     return (
       '<tr class="trade-row' + (open ? " open" : "") + '" data-id="' + escapeHtml(t.id) + '">' +
         '<td class="r trade-no">' + r.n + "</td>" +
-        '<td class="col-date">' + escapeHtml(t.date) + "</td>" +
+        '<td class="col-date">' + escapeHtml(t.date) + (t.time ? ' <span class="muted">' + escapeHtml(t.time) + "</span>" : "") + "</td>" +
         "<td>" + escapeHtml(t.session) + "</td>" +
         '<td class="' + (t.direction === "Buy" ? "dir-buy" : "dir-sell") + '">' + escapeHtml(t.direction) + "</td>" +
         "<td>" + escapeHtml(t.source) + (t.grade ? ' <span class="grade-tag">' + escapeHtml(t.grade) + "</span>" : "") +

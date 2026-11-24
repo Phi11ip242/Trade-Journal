@@ -85,6 +85,10 @@
               <input type="date" id="f-date">
             </div>
             <div class="field">
+              <label for="f-time">Entry time</label>
+              <input type="time" id="f-time">
+            </div>
+            <div class="field">
               <label for="f-pair">Pair</label>
               <select id="f-pair"></select>
             </div>
@@ -765,7 +769,7 @@
         <li>Asia, London and New York are defined by the <strong>session indicator</strong> (New York time, adjusts for clock changes on its own).</li>
         <li>London often ranges; New York brings the volume and the expansion — that is where FVG entries set up.</li>
         <li>Untested session highs and lows are POIs and liquidity. Mark the Asia range; London and New York often take one side of it.</li>
-        <li><strong>Logging the session</strong> (by entry time, SAST): Asia before <strong>09:00</strong> · London <strong>09:00–14:59</strong> · New York from <strong>15:00</strong> — Nov to Mar. While the UK is on summer time (end of Mar to end of Oct) each cut-off is an hour earlier: 08:00 and 14:00. Log Trade picks it for you.</li>
+        <li><strong>Logging the session</strong> (by entry time, SAST): Asia before <strong>09:00</strong> · London <strong>09:00–14:59</strong> · New York from <strong>15:00</strong> — Nov to Mar. While the UK is on summer time (end of Mar to end of Oct) each cut-off is an hour earlier: 08:00 and 14:00. Log Trade picks it from the entry time you put in.</li>
       </ul>
     </details>
 
