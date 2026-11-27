@@ -281,6 +281,28 @@
             <div class="field"><label for="bt-model">Model</label><select id="bt-model"></select></div>
           </div>
         </fieldset>
+        <fieldset id="bt-orb" hidden>
+          <legend>Opening range (ORB)</legend>
+          <div class="hint">The range is the <strong>first 15M candle</strong> after the open. The breakout is a <strong>5M candle that closes outside it</strong>. Times are SAST as they are now (early Nov to mid-Mar). From mid-March to early November all three opens are an hour earlier: Asia 02:00, London 08:00, New York 15:30.</div>
+          <div class="grid field-gap">
+            <div class="field"><label for="bt-orb-open">Open</label><select id="bt-orb-open"></select></div>
+            <div class="field"><label for="bt-orb-high">15M candle high</label><input type="number" step="any" inputmode="decimal" id="bt-orb-high"></div>
+            <div class="field"><label for="bt-orb-low">15M candle low</label><input type="number" step="any" inputmode="decimal" id="bt-orb-low"></div>
+            <div class="field"><label for="bt-orb-news">News</label><select id="bt-orb-news"></select></div>
+            <div class="field"><label for="bt-orb-break-time">5M breakout time</label><input type="text" id="bt-orb-break-time" placeholder="e.g. 16:50" inputmode="numeric"></div>
+            <div class="field"><label for="bt-orb-candle">Breakout candle</label><select id="bt-orb-candle"></select></div>
+            <div class="field"><label for="bt-orb-fvg">Left an FVG?</label><select id="bt-orb-fvg"></select></div>
+            <div class="field"><label for="bt-orb-entry">Entry</label><select id="bt-orb-entry"></select></div>
+            <div class="field"><label for="bt-orb-retest">How it retested</label><select id="bt-orb-retest"></select></div>
+            <div class="field"><label for="bt-orb-retest-time">Retest time</label><input type="text" id="bt-orb-retest-time" placeholder="e.g. 17:05" inputmode="numeric"></div>
+            <div class="field"><label for="bt-orb-stop">Stop at</label><select id="bt-orb-stop"></select></div>
+          </div>
+          <div class="bt-orb-sl field-gap">
+            <span class="label">Set the stop for me:</span>
+            <button type="button" class="ghost small" data-orb-sl="mid">At the midpoint</button>
+            <button type="button" class="ghost small" data-orb-sl="side">Other side of the range</button>
+          </div>
+        </fieldset>
         <fieldset>
           <legend>Bias</legend>
           <div class="grid bt-bias">
@@ -342,6 +364,7 @@
       </div>
       <div class="stats-grid" id="bt-stats"></div>
       <div class="bt-breakdowns field-gap" id="bt-breakdowns"></div>
+      <div class="field-gap" id="bt-orb-breakdowns"></div>
     </div>
 
     <div class="panel">

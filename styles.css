@@ -1029,6 +1029,9 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .bt-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
 .bt-chip{ cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 10px; border-radius: 14px; background: transparent; color: var(--text-dim); }
 .bt-chip.on{ background: rgba(53,208,127,0.16); border-color: var(--green); color: var(--green); }
+.bt-orb-sl{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.bt-orb-head{ margin: 10px 0 8px; font-size: 15px; }
+.bt-orb-meta{ font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
 .bt-readout{ display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--text-dim); }
 .bt-readout strong{ color: var(--text); font-variant-numeric: tabular-nums; }
 .bt-readout strong.pos{ color: var(--green); } .bt-readout strong.neg{ color: var(--red); }
