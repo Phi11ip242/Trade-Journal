@@ -253,13 +253,26 @@
   // Practice trades from replay/backtesting. Kept apart from real trades: they
   // never touch balances, P/L or any real stat. Stored with the settings, so
   // they go into the JSON backup too.
-  var BT_MODELS = ["Own (SMC)", "Aaron EMAs", "AMD", "SMT", "Other"];
+  var BT_MODELS = ["Own (SMC)", "Aaron EMAs", "AMD", "SMT", "ORB", "Other"];
+  // ORB (opening range breakout): the first 15M candle after the open is the
+  // range, a 5M candle closing outside it is the breakout, then entry on the
+  // retest or straight on the break. These fields only show for model "ORB".
+  var ORB_OPENS = ["New York 09:30", "London 08:00", "Other"];
+  var ORB_CANDLES = ["Big body (displacement)", "Normal", "Small / wicky"];
+  var ORB_FVG = ["Yes", "No"];
+  var ORB_ENTRIES = ["Retest", "No retest (on the break)"];
+  var ORB_RETESTS = ["Touched the level", "Wicked back inside", "Closed back inside", "Into the FVG"];
+  var ORB_STOPS = ["Range midpoint", "Other side of range", "Breakout candle", "Retest candle / structure"];
+  var ORB_NEWS = ["No red folder", "Red folder day"];
+  var ORB_WIDTHS = ["Under 100", "100–150", "150–200", "200–300", "300+"];   // pips; gold NY median ~170, London ~90
+  function orbWidthBucket(w){ return w === null ? "—" : w < 100 ? "Under 100" : w < 150 ? "100–150" : w < 200 ? "150–200" : w < 300 ? "200–300" : "300+"; }
   var BT_CONFIRMATIONS = ["CHoCH + retest", "CHoCH + engulfing", "iFVG", "Engulfing", "EMA tap", "Other", "None"];
   var BT_CONFLUENCES = ["HTF POI", "Fresh POI", "Liquidity sweep", "Session high/low", "Devil's mark", "SMT", "FVG", "Order block", "EMA tap", "Displacement"];
   var BT_RESULTS = ["TP hit", "SL hit", "Breakeven", "Closed manually"];
   var BT_KEYS = ["id", "createdAt", "updatedAt", "date", "time", "pair", "direction", "session", "model", "bias",
     "confluences", "confirmation", "confirmationNote", "entry", "stopLoss", "takeProfit", "result", "exit", "mfePips",
-    "mistakes", "lessons", "link", "status", "beAt", "notes", "grade", "taken", "mistakeTags", "maePips"];
+    "mistakes", "lessons", "link", "status", "beAt", "notes", "grade", "taken", "mistakeTags", "maePips",
+    "orbOpen", "orbHigh", "orbLow", "orbBreakTime", "orbCandle", "orbFvg", "orbEntry", "orbRetest", "orbRetestTime", "orbStop", "orbNews"];
   var BT_STATUSES = ["Closed", "Open"];
   var BT_GRADES = ["A+", "A", "B"];
   var BT_TAKEN = ["Replay / study", "Taken live", "Missed live"];
@@ -296,7 +309,17 @@
       grade: BT_GRADES.indexOf(b.grade) === -1 ? "" : b.grade,
       taken: BT_TAKEN.indexOf(b.taken) === -1 ? "Replay / study" : b.taken,
       mistakeTags: Array.isArray(b.mistakeTags) ? b.mistakeTags.filter(function(m){ return BT_MISTAKES.indexOf(m) !== -1; }) : [],
-      maePips: num(b.maePips)                             // how far it went against before the result
+      maePips: num(b.maePips),                            // how far it went against before the result
+      orbOpen: ORB_OPENS.indexOf(b.orbOpen) === -1 ? "" : b.orbOpen,
+      orbHigh: num(b.orbHigh), orbLow: num(b.orbLow),       // the 15M opening candle
+      orbBreakTime: str(b.orbBreakTime).slice(0, 10),
+      orbCandle: ORB_CANDLES.indexOf(b.orbCandle) === -1 ? "" : b.orbCandle,
+      orbFvg: ORB_FVG.indexOf(b.orbFvg) === -1 ? "" : b.orbFvg,
+      orbEntry: ORB_ENTRIES.indexOf(b.orbEntry) === -1 ? "" : b.orbEntry,
+      orbRetest: ORB_RETESTS.indexOf(b.orbRetest) === -1 ? "" : b.orbRetest,
+      orbRetestTime: str(b.orbRetestTime).slice(0, 10),
+      orbStop: ORB_STOPS.indexOf(b.orbStop) === -1 ? "" : b.orbStop,
+      orbNews: ORB_NEWS.indexOf(b.orbNews) === -1 ? "" : b.orbNews
     });
   }
   // Derived numbers for one backtest: stop and result in pips, R, planned R:R,
@@ -336,8 +359,16 @@
         b.result === "Breakeven" ? 0 : resultPips;
       managedR = (banked + left * restExit) / stopPips;
     }
+    // ORB: width of the 15M opening candle, its midpoint, and the stop as a
+    // share of that width.
+    var hasRange = b.orbHigh !== null && b.orbLow !== null && b.orbHigh > b.orbLow;
+    var orbWidth = hasRange ? (b.orbHigh - b.orbLow) / spec.pipSize : null;
+    var orbMid = hasRange ? (b.orbHigh + b.orbLow) / 2 : null;
+    var orbStopShare = (orbWidth && stopPips !== null) ? stopPips / orbWidth : null;
+    var dailyBias = !b.bias.daily ? "No daily bias set" : b.bias.daily === want ? "With daily bias" : "Against daily bias";
     return { stopPips: stopPips, resultPips: resultPips, r: r, plannedRR: plannedRR, aligned: aligned, outcome: outcome,
-      isOpen: isOpen, bePips: bePips, beR: beR, managedR: managedR };
+      isOpen: isOpen, bePips: bePips, beR: beR, managedR: managedR,
+      orbWidth: orbWidth, orbMid: orbMid, orbStopShare: orbStopShare, dailyBias: dailyBias };
   }
 
   function normalizeSizing(v){
@@ -1536,8 +1567,12 @@
       entry: $("bt-entry"), stopLoss: $("bt-sl"), takeProfit: $("bt-tp"), result: $("bt-result"), exit: $("bt-exit"),
       mfePips: $("bt-mfe"), mistakes: $("bt-mistakes"), lessons: $("bt-lessons"), link: $("bt-link"),
       status: $("bt-status"), beAt: $("bt-be"), notes: $("bt-notes"),
-      grade: $("bt-grade"), taken: $("bt-taken"), maePips: $("bt-mae")
+      grade: $("bt-grade"), taken: $("bt-taken"), maePips: $("bt-mae"),
+      orbOpen: $("bt-orb-open"), orbHigh: $("bt-orb-high"), orbLow: $("bt-orb-low"), orbBreakTime: $("bt-orb-break-time"),
+      orbCandle: $("bt-orb-candle"), orbFvg: $("bt-orb-fvg"), orbEntry: $("bt-orb-entry"), orbRetest: $("bt-orb-retest"),
+      orbRetestTime: $("bt-orb-retest-time"), orbStop: $("bt-orb-stop"), orbNews: $("bt-orb-news")
     };
+    var elOrb = $("bt-orb");
     var biasSel = Array.prototype.slice.call(form.querySelectorAll("[data-bias]"));
     var elChips = $("bt-confluences"), elErr = $("bt-error"), elTitle = $("bt-form-title");
     var elSave = $("bt-save"), elCancel = $("bt-cancel"), elReadout = $("bt-readout");
@@ -1555,6 +1590,33 @@
     f.status.innerHTML = opts(BT_STATUSES);
     f.grade.innerHTML = opts(BT_GRADES, "—");
     f.taken.innerHTML = opts(BT_TAKEN);
+    f.orbOpen.innerHTML = opts(ORB_OPENS, "—");
+    f.orbCandle.innerHTML = opts(ORB_CANDLES, "—");
+    f.orbFvg.innerHTML = opts(ORB_FVG, "—");
+    f.orbEntry.innerHTML = opts(ORB_ENTRIES, "—");
+    f.orbRetest.innerHTML = opts(ORB_RETESTS, "—");
+    f.orbStop.innerHTML = opts(ORB_STOPS, "—");
+    f.orbNews.innerHTML = opts(ORB_NEWS, "—");
+    // ORB fields show only for the ORB model; retest details only for a retest entry.
+    function syncOrb(){
+      var on = f.model.value === "ORB";
+      elOrb.hidden = !on;
+      var rt = f.orbEntry.value === "Retest";
+      f.orbRetest.disabled = !rt; f.orbRetestTime.disabled = !rt;
+    }
+    f.model.addEventListener("change", syncOrb);
+    f.orbEntry.addEventListener("change", syncOrb);
+    // Quick stop: the range midpoint, or the other side of the range.
+    elOrb.addEventListener("click", function(ev){
+      var btn = ev.target.closest("[data-orb-sl]"); if(!btn) return;
+      var hi = num(f.orbHigh.value), lo = num(f.orbLow.value);
+      if(hi === null || lo === null || hi <= lo){ elErr.textContent = "Enter the 15M candle high and low first."; elErr.hidden = false; return; }
+      elErr.hidden = true;
+      var sl = btn.dataset.orbSl === "mid" ? (hi + lo) / 2 : (f.direction.value === "Sell" ? hi : lo);
+      f.stopLoss.value = round2(sl);
+      f.orbStop.value = btn.dataset.orbSl === "mid" ? "Range midpoint" : "Other side of range";
+      updateReadout();
+    });
     var elMis = $("bt-mistake-tags"), mis = [];
     function renderMis(){
       elMis.innerHTML = BT_MISTAKES.map(function(m){
@@ -1600,7 +1662,10 @@
         entry: f.entry.value, stopLoss: f.stopLoss.value, takeProfit: f.takeProfit.value, result: f.result.value,
         exit: f.exit.value, mfePips: f.mfePips.value, mistakes: f.mistakes.value.trim(), lessons: f.lessons.value.trim(),
         link: f.link.value.trim(), status: f.status.value, beAt: f.beAt.value, notes: f.notes.value.trim(),
-        grade: f.grade.value, taken: f.taken.value, maePips: f.maePips.value, mistakeTags: mis.slice()
+        grade: f.grade.value, taken: f.taken.value, maePips: f.maePips.value, mistakeTags: mis.slice(),
+        orbOpen: f.orbOpen.value, orbHigh: f.orbHigh.value, orbLow: f.orbLow.value, orbBreakTime: f.orbBreakTime.value.trim(),
+        orbCandle: f.orbCandle.value, orbFvg: f.orbFvg.value, orbEntry: f.orbEntry.value, orbRetest: f.orbRetest.value,
+        orbRetestTime: f.orbRetestTime.value.trim(), orbStop: f.orbStop.value, orbNews: f.orbNews.value
       });
     }
     function fmtR(v){ return v === null ? "—" : (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2) + "R"; }
@@ -1614,20 +1679,25 @@
         "<span>Result <strong>" + (c.isOpen ? "open" : c.resultPips === null ? "—" : fmtPips(c.resultPips) + " pips") + "</strong></span>" +
         '<span>R <strong class="' + (c.r > 0.05 ? "pos" : c.r < -0.05 ? "neg" : "") + '">' + fmtR(c.r) + "</strong></span>" +
         '<span>With your partials <strong class="' + (c.managedR > 0.05 ? "pos" : c.managedR < -0.05 ? "neg" : "") + '">' + fmtR(c.managedR) + "</strong></span>" +
-        "<span>Bias aligned <strong>" + c.aligned + "/4</strong></span>";
+        "<span>Bias aligned <strong>" + c.aligned + "/4</strong></span>" +
+        (f.model.value === "ORB" ?
+          "<span>Range <strong>" + (c.orbWidth === null ? "—" : c.orbWidth.toFixed(0) + " pips") + "</strong></span>" +
+          "<span>Midpoint <strong>" + (c.orbMid === null ? "—" : c.orbMid.toFixed(2)) + "</strong></span>" +
+          "<span>Stop vs range <strong>" + (c.orbStopShare === null ? "—" : Math.round(c.orbStopShare * 100) + "%") + "</strong></span>" : "");
     }
     form.addEventListener("input", updateReadout);
     form.addEventListener("change", updateReadout);
 
     function resetForm(){
-      var keepModel = f.model.value, keepPair = f.pair.value;
+      var keepModel = f.model.value, keepPair = f.pair.value, keepOpen = f.orbOpen.value;
       form.reset();
       f.pair.innerHTML = opts(settings.pairs.map(function(p){ return p.pair; }));
       if(keepPair && settings.pairs.some(function(p){ return p.pair === keepPair; })) f.pair.value = keepPair;
       if(keepModel) f.model.value = keepModel;
+      if(keepOpen) f.orbOpen.value = keepOpen;   // backtesting one open day after day
       f.date.value = todayStr();
       chosen = []; editingId = null; mis = []; renderMis();
-      syncStatus();
+      syncStatus(); syncOrb();
       elTitle.textContent = "Log a backtest"; elSave.textContent = "Save backtest";
       elCancel.hidden = true; elErr.hidden = true;
       renderChips(); updateReadout();
@@ -1639,7 +1709,7 @@
       biasSel.forEach(function(sel){ sel.value = b.bias[sel.dataset.bias] || ""; });
       chosen = b.confluences.slice(); editingId = b.id;
       mis = (b.mistakeTags || []).slice(); renderMis();
-      syncStatus();
+      syncStatus(); syncOrb();
       elTitle.textContent = "Edit backtest"; elSave.textContent = "Save changes";
       elCancel.hidden = false; elErr.hidden = true;
       renderChips(); updateReadout();
@@ -1655,6 +1725,7 @@
         (b.status === "Closed" && b.result === "Closed manually" && b.exit === null) ? "Closed manually — enter the exit price." :
         (b.beAt !== null && (b.beAt - b.entry) * (b.direction === "Buy" ? 1 : -1) <= 0) ? "The BE price has to be in profit — above the entry for a buy, below it for a sell." : "";
       if(!err && (b.stopLoss - b.entry) * (b.direction === "Buy" ? 1 : -1) > 0) err = "The stop is on the wrong side for a " + b.direction.toLowerCase() + ".";
+      if(!err && b.model === "ORB" && b.orbHigh !== null && b.orbLow !== null && b.orbHigh <= b.orbLow) err = "The 15M candle high has to be above its low.";
       if(err){ elErr.textContent = err; elErr.hidden = false; return; }
       if(editingId){
         settings.backtests = list().map(function(x){ return x.id === editingId ? normalizeBacktest(Object.assign({}, x, b, { createdAt: x.createdAt, updatedAt: Date.now() })) : x; });
@@ -1731,6 +1802,23 @@
           return r.b.confluences.map(function(c){ return { b: r.b, c: r.c, k: c }; });
         })), function(r){ return r.k; }, BT_CONFLUENCES)
         : '<div class="hint">No backtests yet. Log your first one above.</div>';
+      // ORB: its own breakdowns, from the ORB trades only.
+      var orb = rows.filter(function(r){ return r.b.model === "ORB"; });
+      var blank = function(v){ return v || "—"; };
+      $("bt-orb-breakdowns").innerHTML = orb.length ?
+        '<h3 class="bt-orb-head">ORB — ' + orb.length + " trade" + (orb.length === 1 ? "" : "s") + "</h3>" +
+        '<div class="bt-breakdowns">' +
+        breakdown("Retest or no retest", orb, function(r){ return blank(r.b.orbEntry); }, ORB_ENTRIES.concat(["—"])) +
+        breakdown("Which open", orb, function(r){ return blank(r.b.orbOpen); }, ORB_OPENS.concat(["—"])) +
+        breakdown("15M range width (pips)", orb, function(r){ return orbWidthBucket(r.c.orbWidth); }, ORB_WIDTHS.concat(["—"])) +
+        breakdown("Daily bias", orb, function(r){ return r.c.dailyBias; }, ["With daily bias", "Against daily bias", "No daily bias set"]) +
+        breakdown("Bias aligned", orb, function(r){ return r.c.aligned + "/4"; }, ["4/4", "3/4", "2/4", "1/4", "0/4"]) +
+        breakdown("Breakout candle", orb, function(r){ return blank(r.b.orbCandle); }, ORB_CANDLES.concat(["—"])) +
+        breakdown("Breakout left an FVG", orb, function(r){ return blank(r.b.orbFvg); }, ORB_FVG.concat(["—"])) +
+        breakdown("How it retested", orb.filter(function(r){ return r.b.orbEntry === "Retest"; }), function(r){ return blank(r.b.orbRetest); }, ORB_RETESTS.concat(["—"])) +
+        breakdown("Stop at", orb, function(r){ return blank(r.b.orbStop); }, ORB_STOPS.concat(["—"])) +
+        breakdown("News", orb, function(r){ return blank(r.b.orbNews); }, ORB_NEWS.concat(["—"])) +
+        "</div>" : "";
 
       elTable.innerHTML = rows.length ?
         "<thead><tr><th>Date</th><th>Model</th><th>Dir</th><th>Session</th><th>Bias</th><th>Confirmation</th><th>Grade</th><th>Stop</th><th>BE at</th><th>Result</th><th>R</th><th>Partials R</th><th>Max fav. / against</th><th>Notes</th><th></th></tr></thead><tbody>" +
@@ -1738,7 +1826,7 @@
           var b = r.b, c = r.c;
           return '<tr data-id="' + escapeHtml(b.id) + '">' +
             "<td>" + escapeHtml(fmtDayLabel(b.date)) + (b.time ? " " + escapeHtml(b.time) : "") + "</td>" +
-            "<td>" + escapeHtml(b.model) + "</td><td>" + b.direction + "</td><td>" + escapeHtml(b.session || "—") + "</td>" +
+            "<td>" + escapeHtml(b.model) + (b.model === "ORB" ? '<div class="bt-orb-meta">' + escapeHtml([b.orbOpen, b.orbEntry === "Retest" ? "retest" : b.orbEntry ? "no retest" : "", c.orbWidth === null ? "" : c.orbWidth.toFixed(0) + "p range"].filter(Boolean).join(" · ")) + "</div>" : "") + "</td><td>" + b.direction + "</td><td>" + escapeHtml(b.session || "—") + "</td>" +
             "<td>" + c.aligned + "/4</td>" +
             '<td title="' + escapeHtml(b.confluences.join(", ") + (b.confirmationNote ? " — " + b.confirmationNote : "")) + '">' + escapeHtml(b.confirmation) + "</td>" +
             "<td>" + escapeHtml(b.grade || "—") + (b.taken === "Missed live" ? ' <span class="bt-missed">missed</span>' : b.taken === "Taken live" ? ' <span class="bt-live">live</span>' : "") + "</td>" +
