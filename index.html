@@ -267,6 +267,33 @@
   <!-- ============ BACKTEST VIEW ============ -->
   <section id="view-backtest" class="view hidden">
     <div class="panel">
+      <h2 class="form-title">Replay story</h2>
+      <div class="hint">Pick the date, write what you see on the chart, save. Later we look back over the stories and decide what's worth recording as fields.</div>
+      <form id="bts-form" novalidate>
+        <div class="grid field-gap">
+          <div class="field"><label for="bts-date">Date (on the chart)</label><input type="date" id="bts-date"></div>
+          <div class="field"><label for="bts-model">Strategy</label><select id="bts-model"></select></div>
+        </div>
+        <div class="field field-gap"><label for="bts-story">What I see</label><textarea id="bts-story" class="bts-story" placeholder="e.g. NY open 16:30, 15M candle 4105–4122. 5M broke the high at 16:50 with a big candle, retested the high at 17:05 and wicked back in, then ran 150 pips. Daily bullish..."></textarea></div>
+        <div class="form-error field-gap" id="bts-error" hidden></div>
+        <div class="form-actions field-gap">
+          <button type="submit" class="primary" id="bts-save">Save story</button>
+          <button type="button" class="ghost" id="bts-cancel" hidden>Cancel edit</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="bt-head">
+        <h2 class="panel-title">My stories <span class="hint" id="bts-count"></span></h2>
+        <div class="bts-tools"><label class="bt-filter">Strategy <select id="bts-filter"></select></label><button type="button" class="ghost small" id="bts-copy">Copy all</button></div>
+      </div>
+      <div id="bts-list" class="bts-list"></div>
+    </div>
+
+    <details class="panel bt-full">
+      <summary>Full backtest form, stats and log</summary>
+    <div class="panel">
       <h2 class="form-title" id="bt-form-title">Log a backtest</h2>
       <div class="hint">Practice trades from replay or chart study. They never touch your balance or real stats — this tab is all about the data: setups, confluences, confirmations, R and lessons.</div>
       <form id="bt-form" novalidate>
@@ -371,6 +398,7 @@
       <h2 class="panel-title">Backtest log</h2>
       <div class="mini-scroll"><table class="mini-table bt-table" id="bt-table"></table></div>
     </div>
+    </details>
   </section>
 
   <section id="view-dash" class="view hidden">

@@ -222,7 +222,8 @@
       accounts: DEFAULT_ACCOUNTS.map(function(a){ return Object.assign({}, a); }),
       psychology: defaultBook("psychology"),
       psychReadAt: "",         // last time the Psychology tab was marked as read
-      backtests: []                       // practice trades (Backtest tab)
+      backtests: [],                      // practice trades (Backtest tab)
+      btStories: []                       // quick replay stories (Backtest tab): date + what I saw
     };
   }
 
@@ -247,7 +248,22 @@
   }
 
   var SETTINGS_KEYS = ["startingDeposit", "depositsWithdrawals", "riskOwnPremium", "riskGrindInst", "defaultStop", "maxDrawdown",
-    "splitStopsPremium", "splitStopsGrind", "pairs", "cashFlows", "sizing", "accounts", "psychology", "psychReadAt", "backtests"];
+    "splitStopsPremium", "splitStopsGrind", "pairs", "cashFlows", "sizing", "accounts", "psychology", "psychReadAt", "backtests", "btStories"];
+
+  // ---- quick replay stories ----
+  // The fast way to backtest: pick the date, write what you saw. Structure
+  // (which fields are worth recording) gets decided later from these.
+  function normalizeStory(x){
+    x = x || {};
+    return {
+      id: str(x.id) || makeId(),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(str(x.date)) ? str(x.date) : todayStr(),
+      model: BT_MODELS.indexOf(x.model) === -1 ? "" : x.model,
+      story: str(x.story).slice(0, 20000),
+      createdAt: Number(x.createdAt) || Date.now(),
+      updatedAt: Number(x.updatedAt) || Number(x.createdAt) || Date.now()
+    };
+  }
 
   // ---- backtests ----
   // Practice trades from replay/backtesting. Kept apart from real trades: they
@@ -458,6 +474,7 @@
     d.depositsWithdrawals = round2(sum(accounts.map(function(a){ return a.adjustment; })));
 
     d.backtests = Array.isArray(s.backtests) ? s.backtests.map(normalizeBacktest) : [];
+    d.btStories = Array.isArray(s.btStories) ? s.btStories.map(normalizeStory).filter(function(x){ return x.story; }) : [];
     var book = normalizeBook(s.psychology);
     if(book) d.psychology = book;
     d.psychReadAt = /^\d{4}-\d{2}-\d{2}$/.test(str(s.psychReadAt)) ? str(s.psychReadAt) : "";
@@ -1706,6 +1723,7 @@
       renderChips(); updateReadout();
     }
     function fill(b){
+      var full = document.querySelector(".bt-full"); if(full) full.open = true;   // editing needs the full form visible
       f.pair.innerHTML = opts(settings.pairs.map(function(p){ return p.pair; }).concat(
         settings.pairs.some(function(p){ return p.pair === b.pair; }) ? [] : [b.pair]));
       Object.keys(f).forEach(function(k){ f[k].value = b[k] === null || b[k] === undefined ? "" : b[k]; });
@@ -1859,9 +1877,79 @@
       renderBacktests();
     });
 
+    // ---- quick stories ----
+    var sf = { date: $("bts-date"), model: $("bts-model"), story: $("bts-story") };
+    var sErr = $("bts-error"), sList = $("bts-list"), sFilter = $("bts-filter"), sCount = $("bts-count");
+    var sEditing = null;
+    sf.model.innerHTML = '<option value="">— any —</option>' + opts(BT_MODELS);
+    sFilter.innerHTML = '<option value="">All</option>' + opts(BT_MODELS);
+    function stories(){ return settings.btStories || (settings.btStories = []); }
+    function storyReset(){
+      var keep = sf.model.value;
+      sf.story.value = ""; sEditing = null; sErr.hidden = true;
+      if(!sf.date.value) sf.date.value = todayStr();
+      sf.model.value = keep;
+      $("bts-save").textContent = "Save story"; $("bts-cancel").hidden = true;
+    }
+    function renderStories(){
+      var m = sFilter.value;
+      var rows = stories().filter(function(x){ return !m || x.model === m; })
+        .slice().sort(function(a, b){ return a.date === b.date ? b.createdAt - a.createdAt : (a.date < b.date ? 1 : -1); });
+      sCount.textContent = rows.length + " stor" + (rows.length === 1 ? "y" : "ies");
+      sList.innerHTML = rows.length ? rows.map(function(x){
+        return '<article class="bts-item" data-id="' + escapeHtml(x.id) + '">' +
+          '<div class="bts-meta"><strong>' + escapeHtml(x.date) + "</strong>" + (x.model ? '<span class="bts-pill">' + escapeHtml(x.model) + "</span>" : "") +
+          '<span class="bts-acts"><button type="button" class="ghost small" data-act="edit">Edit</button><button type="button" class="ghost small" data-act="del">Delete</button></span></div>' +
+          '<div class="bts-text">' + escapeHtml(x.story) + "</div></article>";
+      }).join("") : '<div class="hint">No stories yet. Pick the date, write what you saw, save.</div>';
+    }
+    $("bts-form").addEventListener("submit", function(ev){
+      ev.preventDefault();
+      var text = sf.story.value.trim();
+      if(!text){ sErr.textContent = "Write what you saw first."; sErr.hidden = false; sf.story.focus(); return; }
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(sf.date.value)){ sErr.textContent = "Pick the date on the chart."; sErr.hidden = false; return; }
+      var rec = { date: sf.date.value, model: sf.model.value, story: text };
+      if(sEditing){
+        settings.btStories = stories().map(function(x){ return x.id === sEditing ? normalizeStory(Object.assign({}, x, rec, { updatedAt: Date.now() })) : x; });
+      } else {
+        settings.btStories = stories().concat([normalizeStory(Object.assign(rec, { createdAt: Date.now() }))]);
+      }
+      saveSettings(); storyReset(); renderStories();
+    });
+    $("bts-cancel").addEventListener("click", storyReset);
+    sFilter.addEventListener("change", renderStories);
+    sList.addEventListener("click", function(ev){
+      var btn = ev.target.closest("button[data-act]"); if(!btn) return;
+      var id = btn.closest(".bts-item").dataset.id;
+      var x = stories().filter(function(y){ return y.id === id; })[0]; if(!x) return;
+      if(btn.dataset.act === "edit"){
+        sEditing = id; sf.date.value = x.date; sf.model.value = x.model; sf.story.value = x.story;
+        $("bts-save").textContent = "Save changes"; $("bts-cancel").hidden = false;
+        sf.story.focus(); sf.story.scrollIntoView({ block: "center" });
+        return;
+      }
+      if(btn.dataset.armed !== "1"){ btn.dataset.armed = "1"; btn.textContent = "Tap again to delete"; return; }
+      settings.btStories = stories().filter(function(y){ return y.id !== id; });
+      if(sEditing === id) storyReset();
+      saveSettings(); renderStories();
+    });
+    // Copy every story (oldest first) as plain text, ready to paste into a chat.
+    $("bts-copy").addEventListener("click", function(){
+      var m = sFilter.value;
+      var text = stories().filter(function(x){ return !m || x.model === m; }).slice()
+        .sort(function(a, b){ return a.date === b.date ? a.createdAt - b.createdAt : (a.date < b.date ? -1 : 1); })
+        .map(function(x){ return x.date + (x.model ? " · " + x.model : "") + "\n" + x.story; }).join("\n\n---\n\n");
+      var btn = this;
+      var done = function(ok){ btn.textContent = ok ? "Copied" : "Copy failed"; setTimeout(function(){ btn.textContent = "Copy all"; }, 1500); };
+      if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ done(false); });
+      else done(false);
+    });
+
     renderers.backtest = function(){
       if(!editingId) resetForm();
+      if(!sEditing){ if(!sf.date.value) sf.date.value = todayStr(); }
       renderBacktests();
+      renderStories();
     };
   })();
 

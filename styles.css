@@ -1071,3 +1071,19 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 #f-rr{ max-width: 8rem; }
 #f-rr-plan{ margin-top: .35rem; }
 #dash-rr .hint{ margin-top: .6rem; }
+
+/* Backtest: quick replay stories */
+.bts-story{ min-height: 180px; font-size: 16px; line-height: 1.5; }
+.bts-tools{ display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bts-list{ display: grid; gap: 10px; }
+.bts-item{ border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.bts-meta{ display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+.bts-acts{ margin-left: auto; display: flex; gap: 6px; }
+.bts-text{ white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 6px; font-size: 14px; line-height: 1.55; }
+.bt-full{ padding: 0; }
+.bt-full > summary{ cursor: pointer; list-style: none; padding: 14px 18px; font-weight: 700; color: var(--accent); font-size: 14px; }
+.bt-full > summary::-webkit-details-marker{ display: none; }
+.bt-full > summary::after{ content: "+"; float: right; color: var(--text-faint); }
+.bt-full[open] > summary::after{ content: "–"; }
+.bt-full > .panel{ margin: 0 10px 10px; }
+.bts-pill{ font-size: 12px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--border); color: var(--text-dim); }
