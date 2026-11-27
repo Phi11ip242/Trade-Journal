@@ -257,14 +257,17 @@
   // ORB (opening range breakout): the first 15M candle after the open is the
   // range, a 5M candle closing outside it is the breakout, then entry on the
   // retest or straight on the break. These fields only show for model "ORB".
-  var ORB_OPENS = ["New York 09:30", "London 08:00", "Other"];
+  // The three opens, all set on New York time (Asia 20:00, London 02:00, NYSE
+  // 09:30 ET), so in SAST they all move an hour earlier together from mid-March
+  // to early November.
+  var ORB_OPENS = ["Asia (03:00)", "London (09:00)", "New York (16:30)", "Other"];
   var ORB_CANDLES = ["Big body (displacement)", "Normal", "Small / wicky"];
   var ORB_FVG = ["Yes", "No"];
   var ORB_ENTRIES = ["Retest", "No retest (on the break)"];
   var ORB_RETESTS = ["Touched the level", "Wicked back inside", "Closed back inside", "Into the FVG"];
   var ORB_STOPS = ["Range midpoint", "Other side of range", "Breakout candle", "Retest candle / structure"];
   var ORB_NEWS = ["No red folder", "Red folder day"];
-  var ORB_WIDTHS = ["Under 100", "100–150", "150–200", "200–300", "300+"];   // pips; gold NY median ~170, London ~90
+  var ORB_WIDTHS = ["Under 100", "100–150", "150–200", "200–300", "300+"];   // pips; gold 15M open candle median: Asia ~115, London ~95, NY ~170
   function orbWidthBucket(w){ return w === null ? "—" : w < 100 ? "Under 100" : w < 150 ? "100–150" : w < 200 ? "150–200" : w < 300 ? "200–300" : "300+"; }
   var BT_CONFIRMATIONS = ["CHoCH + retest", "CHoCH + engulfing", "iFVG", "Engulfing", "EMA tap", "Other", "None"];
   var BT_CONFLUENCES = ["HTF POI", "Fresh POI", "Liquidity sweep", "Session high/low", "Devil's mark", "SMT", "FVG", "Order block", "EMA tap", "Displacement"];
