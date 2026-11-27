@@ -1087,3 +1087,32 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .bt-full[open] > summary::after{ content: "–"; }
 .bt-full > .panel{ margin: 0 10px 10px; }
 .bts-pill{ font-size: 12px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--border); color: var(--text-dim); }
+
+/* Session backtest */
+.sb-bias{ display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sb-tf{ font: inherit; cursor: pointer; min-width: 68px; min-height: 48px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; padding: 4px 10px; }
+.sb-tf b{ font-size: 14px; }
+.sb-tf.bull{ background: rgba(53,208,127,0.16); border-color: var(--green); color: var(--green); }
+.sb-tf.bear{ background: rgba(255,92,108,0.16); border-color: var(--red); color: var(--red); }
+.sb-call{ font-size: 14px; color: var(--text-dim); margin-left: 4px; }
+.sb-chip, .sb-pool{ min-height: 36px; }
+.sb-pool.above{ background: rgba(255,92,108,0.14); border-color: var(--red); color: var(--red); }
+.sb-pool.below{ background: rgba(53,208,127,0.14); border-color: var(--green); color: var(--green); }
+.sb-hint-pool:not(.on){ border-style: dashed; color: var(--text); }
+.sb-dir-row{ display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.sb-trend{ font-size: 13px; font-weight: 700; }
+.sb-trend.with{ color: var(--green); }
+.sb-trend.counter{ color: #ffb020; }
+.sb-sep{ font-size: 12px; color: var(--text-faint); align-self: center; }
+.sb-kpis{ display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--text-dim); }
+.sb-kpis strong{ color: var(--text); font-size: 15px; }
+.sb-tbls{ display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.sb-tbl h4{ margin: 0 0 6px; font-size: 13px; color: var(--text-dim); }
+.sb-tbl td.pos{ color: var(--green); } .sb-tbl td.neg{ color: var(--red); }
+.sb-line{ margin-top: 6px; font-size: 14px; }
+.sb-line .pos{ color: var(--green); } .sb-line .neg{ color: var(--red); }
+.sb-tags{ display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.sb-tags span{ font-size: 11.5px; padding: 1px 7px; border-radius: 9px; border: 1px solid var(--border); color: var(--text-dim); }
+.sb-more{ margin-top: 6px; }
+.sb-more > summary{ cursor: pointer; font-size: 12.5px; color: var(--accent); }
+.sb-small{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }

@@ -267,6 +267,82 @@
   <!-- ============ BACKTEST VIEW ============ -->
   <section id="view-backtest" class="view hidden">
     <div class="panel">
+      <h2 class="form-title">Session backtest</h2>
+      <div class="hint">One session at a time: tap the bias and liquidity pools, write what you see, then the trade (or "No trade"). Saving keeps the bias, pools and story, so the next trade or session starts filled in.</div>
+      <form id="sb-form" novalidate>
+        <div class="grid field-gap">
+          <div class="field"><label for="sb-date">Date (on the chart)</label><input type="date" id="sb-date"></div>
+          <div class="field"><span class="label">Session</span><div class="bt-chips" id="sb-session"></div></div>
+          <div class="field"><span class="label">Was it…</span><div class="bt-chips" id="sb-taken"></div></div>
+        </div>
+        <fieldset>
+          <legend>Bias</legend>
+          <div class="sb-bias" id="sb-bias"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Liquidity pools</legend>
+          <div class="hint">Tap once = above price (↑), twice = below (↓), three times = off.</div>
+          <div class="bt-chips field-gap" id="sb-pools"></div>
+          <div class="field field-gap"><label for="sb-pools-note">Pools note (optional)</label><input type="text" id="sb-pools-note" placeholder="e.g. PDL, PWL and PML all at the same level"></div>
+        </fieldset>
+        <fieldset>
+          <legend>What I see</legend>
+          <textarea id="sb-story" class="bts-story" placeholder="e.g. Price ranged all Asia, Asia high and low became the liquidity. 07:35 XAU and XAG swept the Asia high, EUR didn't..."></textarea>
+        </fieldset>
+        <fieldset>
+          <legend>Trade</legend>
+          <div class="sb-dir-row"><div class="bt-chips" id="sb-dir"></div><span id="sb-trend" class="sb-trend"></span></div>
+          <div id="sb-trade" hidden>
+            <div class="field field-gap"><span class="label">Confluences</span><div class="bt-chips" id="sb-conf"></div></div>
+            <div class="field field-gap" id="sb-sweep-row" hidden><span class="label">Which liquidity was swept (marked pools are highlighted)</span><div class="bt-chips" id="sb-sweep"></div></div>
+            <div class="field field-gap" id="sb-smt-row" hidden><span class="label">SMT</span><div class="bt-chips" id="sb-smt"></div></div>
+            <div class="field field-gap" id="sb-fvg-row" hidden><span class="label">HTF FVG timeframes</span><div class="bt-chips" id="sb-fvg"></div></div>
+            <div class="field field-gap"><span class="label">LTF obstacles in the way of the entry</span><div class="bt-chips" id="sb-obst"></div></div>
+            <div class="field field-gap"><span class="label">Confirmation</span><div class="bt-chips" id="sb-confirm"></div></div>
+            <div class="grid field-gap">
+              <div class="field"><label for="sb-entry">Entry</label><input type="number" step="any" inputmode="decimal" id="sb-entry"></div>
+              <div class="field"><label for="sb-time">Time</label><input type="text" id="sb-time" inputmode="numeric" placeholder="07:55"></div>
+              <div class="field"><label for="sb-sl">SL</label><input type="number" step="any" inputmode="decimal" id="sb-sl"></div>
+              <div class="field"><label for="sb-tp">TP</label><input type="number" step="any" inputmode="decimal" id="sb-tp"></div>
+            </div>
+            <div class="bt-readout field-gap" id="sb-readout"></div>
+            <div class="field field-gap"><span class="label">SL reason</span><div class="bt-chips" id="sb-slr"></div></div>
+            <div class="field field-gap"><span class="label">TP target (marked pools are highlighted)</span><div class="bt-chips" id="sb-tpt"></div></div>
+            <div class="field field-gap"><label for="sb-plan">Roadblocks and partials plan</label><textarea id="sb-plan" rows="2" placeholder="e.g. HTF FVG or a new LL = partials, extend TP if we get there"></textarea></div>
+          </div>
+        </fieldset>
+        <fieldset id="sb-result-set">
+          <legend>Result</legend>
+          <div class="field"><span class="label">Outcome</span><div class="bt-chips" id="sb-outcome"></div></div>
+          <div class="grid field-gap">
+            <div class="field"><label for="sb-mfe">Max in favour (pips)</label><input type="number" step="any" inputmode="decimal" id="sb-mfe"></div>
+            <div class="field"><label for="sb-mae">Max against (pips)</label><input type="number" step="any" inputmode="decimal" id="sb-mae"></div>
+            <div class="field"><label for="sb-beAt">Moved to BE at (pips)</label><input type="number" step="any" inputmode="decimal" id="sb-beAt"></div>
+            <div class="field"><label for="sb-exit-time">TP / BE / SL hit at</label><input type="text" id="sb-exit-time" inputmode="numeric" placeholder="10:19"></div>
+          </div>
+          <div class="field field-gap"><span class="label">Grade</span><div class="bt-chips" id="sb-grade"></div></div>
+          <div class="field field-gap"><label for="sb-notes">Notes / lesson</label><textarea id="sb-notes" rows="2"></textarea></div>
+        </fieldset>
+        <div class="form-error field-gap" id="sb-error" hidden></div>
+        <div class="form-actions field-gap">
+          <button type="submit" class="primary" id="sb-save">Save</button>
+          <button type="button" class="ghost" id="sb-next">Next session →</button>
+          <button type="button" class="ghost" id="sb-clear">Clear</button>
+          <button type="button" class="ghost" id="sb-cancel" hidden>Cancel edit</button>
+          <span class="hint" id="sb-saved" hidden>Saved ✓ — context kept for the next trade</span>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Session log</h2>
+      <div id="sb-stats"></div>
+      <div id="sb-log" class="bts-list field-gap"></div>
+    </div>
+
+    <details class="panel bt-full">
+      <summary>Quick replay stories</summary>
+    <div class="panel">
       <h2 class="form-title">Replay story</h2>
       <div class="hint">Pick the date, write what you see on the chart, save. Later we look back over the stories and decide what's worth recording as fields.</div>
       <form id="bts-form" novalidate>
@@ -290,6 +366,7 @@
       </div>
       <div id="bts-list" class="bts-list"></div>
     </div>
+    </details>
 
     <details class="panel bt-full">
       <summary>Full backtest form, stats and log</summary>
