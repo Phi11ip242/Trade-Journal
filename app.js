@@ -271,6 +271,7 @@
   // trade taken from it, or "No trade". Lists are tap-chips so a session is
   // logged in under a minute; free text stays for the story.
   var SB_TFS = ["1D", "4H", "1H", "15M"];
+  var SB_BIAS_STATES = ["Bull", "Weak bull", "Bear", "Weak bear"];   // tap order after blank
   var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NY AM high", "NY AM low", "Equal highs", "Equal lows"];
   var SB_CONFLUENCES = ["Liquidity sweep", "SMT", "HTF FVG above/below", "Inside HTF FVG", "Order block", "Breaker block", "IFVG", "Failed FVG"];
   var SB_SMT_PAIRS = ["XAG swept", "XAG held", "EUR swept", "EUR held"];
@@ -285,7 +286,7 @@
   function pickOne(v, list){ return list.indexOf(v) === -1 ? "" : v; }
   function normalizeSB(x){
     x = x || {};
-    var bias = {}; SB_TFS.forEach(function(t){ var v = x.bias && x.bias[t]; bias[t] = v === "Bull" || v === "Bear" ? v : ""; });
+    var bias = {}; SB_TFS.forEach(function(t){ var v = x.bias && x.bias[t]; bias[t] = SB_BIAS_STATES.indexOf(v) !== -1 ? v : ""; });
     var pools = {}; SB_POOLS.forEach(function(p){ var v = x.pools && x.pools[p]; if(v === "above" || v === "below") pools[p] = v; });
     var dir = x.direction === "Buy" || x.direction === "Sell" ? x.direction : "";
     return {
@@ -309,17 +310,38 @@
       plan: str(x.plan).slice(0, 5000),
       outcome: pickOne(x.outcome, SB_OUTCOMES),
       mfe: num(x.mfe), mae: num(x.mae), beAt: num(x.beAt), exitTime: str(x.exitTime).slice(0, 10),
+      mfeOpen: !!x.mfeOpen,                             // still watching how far it runs
       grade: pickOne(x.grade, SB_GRADES),
       notes: str(x.notes).slice(0, 10000),
       createdAt: Number(x.createdAt) || Date.now(),
       updatedAt: Number(x.updatedAt) || Number(x.createdAt) || Date.now()
     };
   }
-  // Bias call from the four timeframes: 1D and 4H lead; 1H/15M break a tie.
-  function sbBiasCall(b){
-    var score = 0, w = { "1D": 2, "4H": 2, "1H": 1, "15M": 1 };
-    SB_TFS.forEach(function(t){ if(b[t] === "Bull") score += w[t]; if(b[t] === "Bear") score -= w[t]; });
-    return score > 0 ? "Buys" : score < 0 ? "Sells" : "";
+  // Bias call from the four timeframes. A WEAK shift isn't confirmed yet, so
+  // it still counts for the old side (weak bull = bearish, weak bear = bullish).
+  // Majority wins; a tie (e.g. 2 v 2) goes to the highest timeframe, flagged
+  // as mixed so you know to be extra careful.
+  function sbTfSide(v){ return v === "Bull" || v === "Weak bear" ? "Buys" : v === "Bear" || v === "Weak bull" ? "Sells" : ""; }
+  function sbBias(b){
+    var buys = 0, sells = 0;
+    SB_TFS.forEach(function(t){ var s = sbTfSide(b[t]); if(s === "Buys") buys++; if(s === "Sells") sells++; });
+    if(!buys && !sells) return { call: "", mixed: false };
+    if(buys !== sells) return { call: buys > sells ? "Buys" : "Sells", mixed: false };
+    for(var i = 0; i < SB_TFS.length; i++){ var s = sbTfSide(b[SB_TFS[i]]); if(s) return { call: s, mixed: true, by: SB_TFS[i] }; }
+    return { call: "", mixed: false };
+  }
+  function sbBiasCall(b){ return sbBias(b).call; }
+  // What's still missing on a logged trade, so it can be finished later.
+  function sbTodo(x){
+    if(!x.direction) return [];
+    var t = [];
+    if(!x.outcome) t.push("outcome");
+    else if(x.outcome === "Still open") t.push("still open");
+    if(x.mfe === null) t.push("max in favour"); else if(x.mfeOpen) t.push("max in favour (still running)");
+    if(x.mae === null) t.push("max against");
+    if(x.outcome === "BE" && x.beAt === null) t.push("BE at");
+    if(x.outcome && x.outcome !== "Still open" && !x.exitTime) t.push("hit time");
+    return t;
   }
   function sbCalc(x){
     var pip = 0.1, sgn = x.direction === "Sell" ? -1 : 1;
@@ -330,7 +352,9 @@
     var trend = !x.direction ? "No trade" : !call ? "No bias" : ((call === "Buys") === (x.direction === "Buy") ? "With trend" : "Counter trend");
     // R: TP = planned R:R, SL = -1, BE = 0; manual closes and open trades aren't counted.
     var r = x.outcome === "TP hit" ? rr : x.outcome === "SL hit" ? -1 : x.outcome === "BE" ? 0 : null;
-    return { slPips: slP, tpPips: tpP, rr: rr, call: call, trend: trend, r: r };
+    var mfeR = (x.mfe !== null && slP > 0) ? x.mfe / slP : null;
+    var bePrice = (x.beAt !== null && x.entry !== null) ? x.entry + sgn * x.beAt * pip : null;
+    return { slPips: slP, tpPips: tpP, rr: rr, call: call, trend: trend, r: r, mfeR: mfeR, bePrice: bePrice };
   }
 
   // ---- backtests ----
@@ -1591,6 +1615,7 @@
   var tabButtons = Array.prototype.slice.call(document.querySelectorAll("nav.tabs button"));
   var tabNav = document.querySelector("nav.tabs");
   var renderers = {};   // view name -> render function, filled in per view
+  var btBadgeHook = null;   // updates the "unfinished backtests" count on the Backtest tab
 
   // ---------- active account ----------
   // Every tab shows one account ("" = all accounts added together). The
@@ -1640,6 +1665,7 @@
       if(active) tabNav.scrollLeft = btn.offsetLeft - (tabNav.clientWidth - btn.offsetWidth) / 2;
     });
     if(renderers[name]) renderers[name]();
+    if(btBadgeHook) btBadgeHook();
   }
   tabButtons.forEach(function(btn){
     btn.addEventListener("click", function(){ showView(btn.dataset.view); });
@@ -2049,11 +2075,14 @@
       var c = sbCalc(st);
       $("sb-session").innerHTML = chips("session", SESSIONS, st.session);
       $("sb-taken").innerHTML = chips("taken", SB_TAKEN, st.taken);
+      var bz = sbBias(st.bias);
       $("sb-bias").innerHTML = SB_TFS.map(function(t){
         var v = st.bias[t];
-        return '<button type="button" class="sb-tf ' + (v === "Bull" ? "bull" : v === "Bear" ? "bear" : "") + '" data-g="tf" data-v="' + t + '">' +
-          t + "<b>" + (v === "Bull" ? "Bull" : v === "Bear" ? "Bear" : "—") + "</b></button>";
-      }).join("") + '<span class="sb-call">' + (c.call ? "Bias: <strong>" + c.call + "</strong>" : "Tap each timeframe: Bull → Bear → —") + "</span>";
+        var cls = v === "Bull" ? "bull" : v === "Bear" ? "bear" : v === "Weak bull" ? "bull weak" : v === "Weak bear" ? "bear weak" : "";
+        return '<button type="button" class="sb-tf ' + cls + '" data-g="tf" data-v="' + t + '">' + t + "<b>" + (v || "—") + "</b>" +
+          (v === "Weak bull" ? "<i>counts bearish</i>" : v === "Weak bear" ? "<i>counts bullish</i>" : "") + "</button>";
+      }).join("") + '<span class="sb-call">' + (bz.call ? "Bias: <strong>" + bz.call + "</strong>" + (bz.mixed ? ' <span class="sb-mixed">mixed: ' + bz.by + " decides, extra caution</span>" : "") :
+        "Tap each timeframe: Bull → Weak bull → Bear → Weak bear → —") + "</span>";
       $("sb-pools").innerHTML = SB_POOLS.map(function(p){
         var v = st.pools[p];
         return '<button type="button" class="bt-chip sb-pool' + (v ? " " + v : "") + '" data-g="pool" data-v="' + escapeHtml(p) + '">' +
@@ -2078,6 +2107,10 @@
         cls: function(p){ return st.pools[p] ? "sb-hint-pool" : ""; } });
       $("sb-outcome").innerHTML = chips("outcome", SB_OUTCOMES, st.outcome);
       $("sb-grade").innerHTML = chips("grade", SB_GRADES, st.grade);
+      $("sb-mfe-open").innerHTML = chips("mfeOpen", ["Still running"], st.mfeOpen ? "Still running" : "");
+      $("sb-be-hint").textContent = c.bePrice !== null ? "= SL to BE when price reached " + c.bePrice.toFixed(2) : "Pips in profit from your entry";
+      var todo = sbTodo(st);
+      $("sb-todo-now").textContent = st.direction && todo.length ? "Not finished yet: " + todo.join(", ") + ". You can save now and finish it later." : "";
       $("sb-readout").innerHTML = "<span>SL <strong>" + fmt(c.slPips) + " pips</strong></span><span>TP <strong>" + fmt(c.tpPips) +
         " pips</strong></span><span>R:R <strong>" + (c.rr === null ? "—" : "1:" + c.rr.toFixed(2)) + "</strong></span>";
     }
@@ -2093,14 +2126,16 @@
       $("sb-time").value = st.time; $("sb-exit-time").value = st.exitTime; $("sb-plan").value = st.plan; $("sb-notes").value = st.notes;
     }
     var MULTI = { conf: "confluences", smt: "smt", fvgTf: "fvgTfs", obst: "obstacles", confirm: "confirms" };
+    var ONE_TOGGLE = { mfeOpen: 1 };
     var ONE = { session: "session", taken: "taken", sweep: "sweep", smtTf: "smtTf", slr: "slReason", tpt: "tpTarget", outcome: "outcome", grade: "grade" };
     form.addEventListener("click", function(ev){
       var b = ev.target.closest("button[data-g]"); if(!b) return;
       readInputs();
       var g = b.dataset.g, v = b.dataset.v;
-      if(g === "tf") st.bias[v] = st.bias[v] === "" ? "Bull" : st.bias[v] === "Bull" ? "Bear" : "";
+      if(g === "tf"){ var cyc = [""].concat(SB_BIAS_STATES); st.bias[v] = cyc[(cyc.indexOf(st.bias[v]) + 1) % cyc.length]; }
       else if(g === "pool") { var p = st.pools[v]; if(!p) st.pools[v] = "above"; else if(p === "above") st.pools[v] = "below"; else delete st.pools[v]; }
       else if(g === "dir") st.direction = v === "No trade" ? "" : v;
+      else if(ONE_TOGGLE[g]) st.mfeOpen = !st.mfeOpen;
       else if(MULTI[g]){
         var arr = st[MULTI[g]], i = arr.indexOf(v);
         if(g === "obst" && v === "None"){ st.obstacles = i === -1 ? ["None"] : []; }
@@ -2113,7 +2148,7 @@
       if(g === "tpt" && v !== "Other" && st.pools[v] === undefined) {/* target need not be marked */}
       render();
     });
-    form.addEventListener("input", function(ev){ if(/sb-(entry|sl|tp)$/.test(ev.target.id)){ readInputs(); render(); } });
+    form.addEventListener("input", function(ev){ if(/sb-(entry|sl|tp|beAt|mfe|mae|exit-time)$/.test(ev.target.id)){ readInputs(); render(); } });
     // Prefill from the latest log of the same date: bias, pools and story carry on.
     function contextFor(date){
       var same = list().filter(function(x){ return x.date === date; }).sort(function(a, b){ return b.createdAt - a.createdAt; })[0];
@@ -2171,21 +2206,70 @@
           return "<tr><td>" + escapeHtml(k) + "</td><td>" + s.n + "</td><td>" + (s.wr === null ? "—" : Math.round(s.wr) + "%") + "</td><td>" + s.be + '</td><td class="' + (s.R > 0 ? "pos" : s.R < 0 ? "neg" : "") + '">' + (s.nR ? (s.R > 0 ? "+" : "") + s.R.toFixed(1) : "—") + "</td></tr>"; }).join("") +
         "</tbody></table></div>";
     }
+    var fFrom = $("sb-from"), fTo = $("sb-to"), fTodo = false;
+    function updateBadge(){
+      var n = list().filter(function(x){ return sbTodo(x).length; }).length;
+      var tab = document.getElementById("tab-backtest");
+      var b = tab && tab.querySelector(".tab-count");
+      if(!tab) return;
+      if(n && !b){ b = document.createElement("span"); b.className = "tab-count"; tab.appendChild(b); }
+      if(b){ if(n){ b.textContent = n; b.title = n + " backtest" + (n === 1 ? "" : "s") + " not finished"; } else b.remove(); }
+    }
+    btBadgeHook = updateBadge;
+    var toasted = false;
+    function toast(){
+      var todo = list().filter(function(x){ return sbTodo(x).length; });
+      var el = $("sb-toast");
+      if(!todo.length || toasted){ return; }
+      toasted = true;
+      el.innerHTML = "<span><strong>" + todo.length + " backtest" + (todo.length === 1 ? "" : "s") + " not finished</strong> — e.g. " +
+        escapeHtml(todo[0].date + " " + todo[0].session + ": " + sbTodo(todo[0]).join(", ")) + '</span><button type="button" class="ghost small" id="sb-toast-show">Show them</button><button type="button" class="ghost small" id="sb-toast-x" aria-label="Close">✕</button>';
+      el.hidden = false;
+      clearTimeout(toast.t); toast.t = setTimeout(function(){ el.hidden = true; }, 9000);
+    }
+    $("sb-toast").addEventListener("click", function(ev){
+      if(ev.target.id === "sb-toast-show"){ fTodo = true; renderLog(); $("sb-log-panel").scrollIntoView({ block: "start" }); }
+      if(ev.target.closest("button")) $("sb-toast").hidden = true;
+    });
+    [fFrom, fTo].forEach(function(e){ e.addEventListener("change", function(){ renderLog(); }); });
+    $("sb-filter").addEventListener("click", function(ev){
+      var b = ev.target.closest("button[data-f]"); if(!b) return;
+      var f = b.dataset.f, today = todayStr();
+      if(f === "todo"){ fTodo = !fTodo; }
+      else if(f === "all"){ fFrom.value = ""; fTo.value = ""; fTodo = false; }
+      else if(f === "today"){ fFrom.value = today; fTo.value = today; }
+      else if(f === "week"){ var d = new Date(today + "T00:00:00"); var dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow);
+        fFrom.value = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); fTo.value = ""; }
+      else if(f === "month"){ fFrom.value = today.slice(0, 8) + "01"; fTo.value = ""; }
+      renderLog();
+    });
     function renderLog(){
-      var rows = list().slice().sort(function(a, b){ return a.date === b.date ? (SESSIONS.indexOf(b.session) - SESSIONS.indexOf(a.session)) || (b.createdAt - a.createdAt) : (a.date < b.date ? 1 : -1); });
+      updateBadge();
+      var all = list(), nTodo = all.filter(function(x){ return sbTodo(x).length; }).length;
+      Array.prototype.forEach.call($("sb-filter").querySelectorAll("button[data-f]"), function(b){
+        if(b.dataset.f === "todo"){ b.textContent = "Not finished (" + nTodo + ")"; b.classList.toggle("on", fTodo); b.setAttribute("aria-pressed", fTodo); }
+      });
+      var from = fFrom.value, to = fTo.value;
+      var rows = all.filter(function(x){ return (!from || x.date >= from) && (!to || x.date <= to) && (!fTodo || sbTodo(x).length); }).sort(function(a, b){ return a.date === b.date ? (SESSIONS.indexOf(b.session) - SESSIONS.indexOf(a.session)) || (b.createdAt - a.createdAt) : (a.date < b.date ? 1 : -1); });
       var s = rowStats(rows);
+      // How far TP trades kept running (max in favour) vs the target they took.
+      var tpRows = rows.filter(function(x){ var c = sbCalc(x); return x.outcome === "TP hit" && c.mfeR !== null && c.rr !== null && !x.mfeOpen; });
+      var runTxt = tpRows.length ? '<span>TP trades: target <strong>' + (tpRows.reduce(function(a, x){ return a + sbCalc(x).rr; }, 0) / tpRows.length).toFixed(1) +
+        "R</strong>, ran to <strong>" + (tpRows.reduce(function(a, x){ return a + sbCalc(x).mfeR; }, 0) / tpRows.length).toFixed(1) + "R</strong> on average (" + tpRows.length + ")</span>" : "";
+      $("sb-shown").textContent = rows.length === all.length ? "" : "Showing " + rows.length + " of " + all.length;
       $("sb-stats").innerHTML = rows.length ?
         '<div class="sb-kpis"><span>Sessions <strong>' + rows.length + "</strong></span><span>Trades <strong>" + s.n + "</strong></span><span>Win rate (excl. BE) <strong>" +
-        (s.wr === null ? "—" : Math.round(s.wr) + "%") + "</strong></span><span>Total R <strong>" + (s.nR ? (s.R > 0 ? "+" : "") + s.R.toFixed(1) : "—") + "</strong></span></div>" +
+        (s.wr === null ? "—" : Math.round(s.wr) + "%") + "</strong></span><span>Total R <strong>" + (s.nR ? (s.R > 0 ? "+" : "") + s.R.toFixed(1) : "—") + "</strong></span>" + runTxt + "</div>" +
         '<div class="sb-tbls">' +
         table("With or counter trend", rows, function(x){ return sbCalc(x).trend; }, ["With trend", "Counter trend", "No bias"]) +
+        table("Bias", rows, function(x){ var b = sbBias(x.bias); return !b.call ? "No bias" : b.mixed ? "Mixed (tie, HTF decided)" : "Clear"; }, ["Clear", "Mixed (tie, HTF decided)", "No bias"]) +
         table("Session", rows, function(x){ return x.session; }, SESSIONS) +
         table("Confluence", rows, function(x){ return x.confluences.length ? x.confluences : "None"; }, SB_CONFLUENCES.concat(["None"])) +
         table("SMT", rows, function(x){ return x.confluences.indexOf("SMT") !== -1 ? "With SMT" : "No SMT"; }, ["With SMT", "No SMT"]) +
         table("Confirmation", rows, function(x){ return x.confirms.length ? x.confirms : "None"; }, SB_CONFIRMS.concat(["None"])) +
         table("LTF obstacles", rows, function(x){ return !x.obstacles.length ? "Not checked" : x.obstacles.indexOf("None") !== -1 ? "Clear" : "Something in the way"; }, ["Clear", "Something in the way", "Not checked"]) +
         table("Grade", rows, function(x){ return x.grade || "No grade"; }, SB_GRADES.concat(["No grade"])) +
-        "</div>" : '<div class="hint">Nothing logged yet.</div>';
+        "</div>" : '<div class="hint">' + (all.length ? "Nothing matches this filter." : "Nothing logged yet.") + "</div>";
       $("sb-log").innerHTML = rows.map(function(x){
         var c = sbCalc(x), biasTxt = SB_TFS.map(function(t){ return t + " " + (x.bias[t] || "—"); }).join(" · ");
         var poolTxt = Object.keys(x.pools).map(function(p){ return (x.pools[p] === "above" ? "↑" : "↓") + p; }).join(" ");
@@ -2194,15 +2278,16 @@
           (x.outcome ? ' · <strong>' + escapeHtml(x.outcome) + "</strong>" : "") + (x.mfe !== null ? " · +" + x.mfe + "p max" : "") : "<em>No trade</em>";
         var tags = [].concat(x.confluences, x.smt.length ? ["SMT: " + x.smt.join(", ") + (x.smtTf ? " " + x.smtTf : "")] : [], x.confirms, x.grade ? ["Grade " + x.grade] : [], x.taken !== "Backtest" ? [x.taken] : []);
         return '<article class="bts-item" data-id="' + escapeHtml(x.id) + '"><div class="bts-meta"><strong>' + escapeHtml(x.date) + "</strong>" +
-          '<span class="bts-pill">' + escapeHtml(x.session) + "</span>" + (c.call ? '<span class="bts-pill">Bias ' + c.call + "</span>" : "") +
+          '<span class="bts-pill">' + escapeHtml(x.session) + "</span>" + (c.call ? '<span class="bts-pill">Bias ' + c.call + (sbBias(x.bias).mixed ? " (mixed)" : "") + "</span>" : "") +
           '<span class="bts-acts"><button type="button" class="ghost small" data-act="edit">Edit</button><button type="button" class="ghost small" data-act="del">Delete</button></span></div>' +
           '<div class="sb-line">' + head + "</div>" +
+          (sbTodo(x).length ? '<div class="sb-todo">To finish: ' + escapeHtml(sbTodo(x).join(", ")) + "</div>" : "") +
           (tags.length ? '<div class="sb-tags">' + tags.map(function(t){ return "<span>" + escapeHtml(t) + "</span>"; }).join("") + "</div>" : "") +
           '<details class="sb-more"><summary>Story and details</summary><div class="sb-small">' + escapeHtml(biasTxt) + (poolTxt ? "<br>Pools: " + escapeHtml(poolTxt) : "") +
           (x.poolsNote ? "<br>" + escapeHtml(x.poolsNote) : "") + "</div>" +
           (x.story ? '<div class="bts-text">' + escapeHtml(x.story) + "</div>" : "") +
           (x.direction ? '<div class="sb-small">SL ' + (x.sl === null ? "—" : x.sl) + (x.slReason ? " (" + escapeHtml(x.slReason) + ")" : "") + " · TP " + (x.tp === null ? "—" : x.tp) + (x.tpTarget ? " (" + escapeHtml(x.tpTarget) + ")" : "") +
-            (x.mae !== null ? " · max against " + x.mae + "p" : "") + (x.beAt !== null ? " · BE at +" + x.beAt + "p" : "") + (x.exitTime ? " · out " + escapeHtml(x.exitTime) : "") +
+            (x.mae !== null ? " · max against " + x.mae + "p" : "") + (x.beAt !== null ? " · BE at +" + x.beAt + "p" + (c.bePrice !== null ? " (" + c.bePrice.toFixed(2) + ")" : "") : "") + (x.exitTime ? " · out " + escapeHtml(x.exitTime) : "") +
             (x.sweep ? " · swept " + escapeHtml(x.sweep) : "") + (x.fvgTfs.length ? " · FVG " + escapeHtml(x.fvgTfs.join("/")) : "") + (x.obstacles.length ? " · LTF: " + escapeHtml(x.obstacles.join(", ")) : "") + "</div>" : "") +
           (x.plan ? '<div class="bts-text"><b>Plan:</b> ' + escapeHtml(x.plan) + "</div>" : "") +
           (x.notes ? '<div class="bts-text"><b>Notes:</b> ' + escapeHtml(x.notes) + "</div>" : "") + "</details></article>";
@@ -2225,7 +2310,7 @@
     renderers.backtest = function(){
       if(prev) prev();
       if(!st){ st = blank(contextFor(todayStr())); writeInputs(); }
-      render(); renderLog();
+      render(); renderLog(); toast();
     };
   })();
 

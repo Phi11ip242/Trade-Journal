@@ -1116,3 +1116,18 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .sb-more{ margin-top: 6px; }
 .sb-more > summary{ cursor: pointer; font-size: 12.5px; color: var(--accent); }
 .sb-small{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+.sb-tf.weak{ border-style: dashed; background: transparent; }
+.sb-tf i{ font-style: normal; font-size: 10.5px; opacity: .85; }
+.sb-mixed{ color: #ffb020; font-size: 12.5px; }
+.sb-mini{ margin-top: 6px; }
+.sb-todo{ font-size: 12.5px; color: #ffb020; margin-top: 6px; }
+.sb-todo:empty{ display: none; }
+.sb-todo-btn.on{ background: rgba(255,176,32,0.16); border-color: #ffb020; color: #ffb020; }
+.sb-filters{ display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-top: 8px; }
+.sb-range{ display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--text-dim); }
+.sb-range label{ display: flex; gap: 6px; align-items: center; }
+.sb-range input{ min-height: 38px; font-size: 16px; }
+.tab-count{ display: inline-block; margin-left: 6px; min-width: 18px; padding: 0 5px; border-radius: 9px; background: #ffb020; color: #111; font-size: 11px; font-weight: 800; line-height: 18px; text-align: center; }
+.sb-toast{ position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 50; width: min(560px, calc(100% - 24px)); display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid #ffb020; box-shadow: 0 8px 24px rgba(0,0,0,.45); font-size: 13.5px; }
+.sb-toast[hidden]{ display: none; }
+.sb-toast span{ flex: 1; }
