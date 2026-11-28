@@ -2097,7 +2097,7 @@
       $("sb-sweep-row").hidden = !has("Liquidity sweep");
       $("sb-sweep").innerHTML = chips("sweep", SB_POOLS, st.sweep, { cls: function(p){ return st.pools[p] ? "sb-hint-pool" : ""; } });
       $("sb-smt-row").hidden = !has("SMT");
-      $("sb-smt").innerHTML = chips("smt", SB_SMT_PAIRS, st.smt) + '<span class="sb-sep">on</span>' + chips("smtTf", ["1M", "3M", "5M", "15M"], st.smtTf);
+      $("sb-smt").innerHTML = chips("smt", SB_SMT_PAIRS, st.smt) + '<span class="sb-sep">on</span>' + chips("smtTf", ["5M", "15M", "1H", "4H"], st.smtTf);
       $("sb-fvg-row").hidden = !(has("HTF FVG above/below") || has("Inside HTF FVG"));
       $("sb-fvg").innerHTML = chips("fvgTf", ["15M", "30M", "1H", "4H"], st.fvgTfs);
       $("sb-obst").innerHTML = chips("obst", SB_OBSTACLES, st.obstacles);
