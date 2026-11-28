@@ -266,6 +266,7 @@
   <!-- ============ DASHBOARD VIEW ============ -->
   <!-- ============ BACKTEST VIEW ============ -->
   <section id="view-backtest" class="view hidden">
+    <div class="sb-toast" id="sb-toast" role="status" hidden></div>
     <div class="panel">
       <h2 class="form-title">Session backtest</h2>
       <div class="hint">One session at a time: tap the bias and liquidity pools, write what you see, then the trade (or "No trade"). Saving keeps the bias, pools and story, so the next trade or session starts filled in.</div>
@@ -315,13 +316,14 @@
           <legend>Result</legend>
           <div class="field"><span class="label">Outcome</span><div class="bt-chips" id="sb-outcome"></div></div>
           <div class="grid field-gap">
-            <div class="field"><label for="sb-mfe">Max in favour (pips)</label><input type="number" step="any" inputmode="decimal" id="sb-mfe"></div>
+            <div class="field"><label for="sb-mfe">Max in favour (pips)</label><input type="number" step="any" inputmode="decimal" id="sb-mfe"><div class="bt-chips sb-mini" id="sb-mfe-open"></div></div>
             <div class="field"><label for="sb-mae">Max against (pips)</label><input type="number" step="any" inputmode="decimal" id="sb-mae"></div>
-            <div class="field"><label for="sb-beAt">Moved to BE at (pips)</label><input type="number" step="any" inputmode="decimal" id="sb-beAt"></div>
+            <div class="field"><label for="sb-beAt">Moved to BE at (pips in)</label><input type="number" step="any" inputmode="decimal" id="sb-beAt"><div class="hint sb-mini" id="sb-be-hint"></div></div>
             <div class="field"><label for="sb-exit-time">TP / BE / SL hit at</label><input type="text" id="sb-exit-time" inputmode="numeric" placeholder="10:19"></div>
           </div>
           <div class="field field-gap"><span class="label">Grade</span><div class="bt-chips" id="sb-grade"></div></div>
           <div class="field field-gap"><label for="sb-notes">Notes / lesson</label><textarea id="sb-notes" rows="2"></textarea></div>
+          <div class="sb-todo field-gap" id="sb-todo-now"></div>
         </fieldset>
         <div class="form-error field-gap" id="sb-error" hidden></div>
         <div class="form-actions field-gap">
@@ -334,9 +336,19 @@
       </form>
     </div>
 
-    <div class="panel">
-      <h2 class="panel-title">Session log</h2>
-      <div id="sb-stats"></div>
+    <div class="panel" id="sb-log-panel">
+      <h2 class="panel-title">Session log <span class="hint" id="sb-shown"></span></h2>
+      <div class="sb-filters">
+        <div class="bt-chips" id="sb-filter">
+          <button type="button" class="bt-chip sb-chip" data-f="all">All</button>
+          <button type="button" class="bt-chip sb-chip" data-f="today">Today</button>
+          <button type="button" class="bt-chip sb-chip" data-f="week">This week</button>
+          <button type="button" class="bt-chip sb-chip" data-f="month">This month</button>
+          <button type="button" class="bt-chip sb-chip sb-todo-btn" data-f="todo" aria-pressed="false">Not finished</button>
+        </div>
+        <div class="sb-range"><label>From <input type="date" id="sb-from"></label><label>To <input type="date" id="sb-to"></label></div>
+      </div>
+      <div id="sb-stats" class="field-gap"></div>
       <div id="sb-log" class="bts-list field-gap"></div>
     </div>
 
