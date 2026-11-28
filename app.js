@@ -272,13 +272,13 @@
   // logged in under a minute; free text stays for the story.
   var SB_TFS = ["1D", "4H", "1H", "15M"];
   var SB_BIAS_STATES = ["Bull", "Weak bull", "Bear", "Weak bear"];   // tap order after blank
-  var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NY high", "NY low", "Equal highs", "Equal lows"];
-  var SB_POOL_RENAME = { "NY AM high": "NY high", "NY AM low": "NY low" };
+  var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NYSE high", "NYSE low", "Equal highs", "Equal lows"];
+  var SB_POOL_RENAME = { "NY AM high": "NYSE high", "NY AM low": "NYSE low", "NY high": "NYSE high", "NY low": "NYSE low" };
   function sbPoolName(p){ return SB_POOL_RENAME[p] || p; }
   // Liquidity as 1st/2nd above and 1st/2nd below price; each can stack several
   // pools at one price (e.g. PDH + Asia high), with the date they formed.
-  var SB_HIGHS = ["PDH", "PWH", "PMH", "Asia high", "London high", "NY high", "Equal highs"];
-  var SB_LOWS = ["PDL", "PWL", "PML", "Asia low", "London low", "NY low", "Equal lows"];
+  var SB_HIGHS = ["PDH", "PWH", "PMH", "Asia high", "London high", "NYSE high", "Equal highs"];
+  var SB_LOWS = ["PDL", "PWL", "PML", "Asia low", "London low", "NYSE low", "Equal lows"];
   var SB_SLOTS = [["a1", "1st above"], ["a2", "2nd above"], ["b1", "1st below"], ["b2", "2nd below"]];
   var SB_SLOT_KEYS = SB_SLOTS.map(function(x){ return x[0]; });
   function sbSlotName(k){ var f = SB_SLOTS.filter(function(x){ return x[0] === k; })[0]; return f ? f[1] : k === "other" ? "Other" : ""; }
