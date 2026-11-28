@@ -311,6 +311,7 @@
       outcome: pickOne(x.outcome, SB_OUTCOMES),
       mfe: num(x.mfe), mae: num(x.mae), beAt: num(x.beAt), exitTime: str(x.exitTime).slice(0, 10),
       mfeOpen: !!x.mfeOpen,                             // still watching how far it runs
+      beClose: num(x.beClose),                          // closest price it came back to after BE (only logged when it came close)
       grade: pickOne(x.grade, SB_GRADES),
       notes: str(x.notes).slice(0, 10000),
       createdAt: Number(x.createdAt) || Date.now(),
@@ -354,7 +355,10 @@
     var r = x.outcome === "TP hit" ? rr : x.outcome === "SL hit" ? -1 : x.outcome === "BE" ? 0 : null;
     var mfeR = (x.mfe !== null && slP > 0) ? x.mfe / slP : null;
     var bePrice = (x.beAt !== null && x.entry !== null) ? x.entry + sgn * x.beAt * pip : null;
-    return { slPips: slP, tpPips: tpP, rr: rr, call: call, trend: trend, r: r, mfeR: mfeR, bePrice: bePrice };
+    // How many pips the pullback after BE stayed away from the entry (BE line).
+    // Positive = it held; 0 or less = the chart itself touched BE.
+    var beGap = (x.beClose !== null && x.entry !== null) ? (x.beClose - x.entry) * sgn / pip : null;
+    return { slPips: slP, tpPips: tpP, rr: rr, call: call, trend: trend, r: r, mfeR: mfeR, bePrice: bePrice, beGap: beGap };
   }
 
   // ---- backtests ----
@@ -2109,6 +2113,10 @@
       $("sb-grade").innerHTML = chips("grade", SB_GRADES, st.grade);
       $("sb-mfe-open").innerHTML = chips("mfeOpen", ["Still running"], st.mfeOpen ? "Still running" : "");
       $("sb-be-hint").textContent = c.bePrice !== null ? "= SL to BE when price reached " + c.bePrice.toFixed(2) : "Pips in profit from your entry";
+      $("sb-beclose-hint").textContent = c.beGap === null ? "Only if it came close to your BE. Leave empty if not." :
+        c.beGap <= 0 ? "The chart touched your BE line — you'd have been out at BE." :
+        "Stayed " + c.beGap.toFixed(1) + " pips from BE" + (st.direction === "Sell" ? " on the chart. Sells close on the ask, so the spread (~3 pips) counts against this." : " (buys close on the bid, which is the chart price).") +
+        (c.beGap <= 5 ? " Close call." : "");
       var todo = sbTodo(st);
       $("sb-todo-now").textContent = st.direction && todo.length ? "Not finished yet: " + todo.join(", ") + ". You can save now and finish it later." : "";
       $("sb-readout").innerHTML = "<span>SL <strong>" + fmt(c.slPips) + " pips</strong></span><span>TP <strong>" + fmt(c.tpPips) +
@@ -2116,13 +2124,13 @@
     }
     function readInputs(){
       st.date = $("sb-date").value; st.story = $("sb-story").value; st.poolsNote = $("sb-pools-note").value;
-      ["entry", "sl", "tp", "mfe", "mae", "beAt"].forEach(function(k){ st[k] = num($("sb-" + k).value); });
+      ["entry", "sl", "tp", "mfe", "mae", "beAt", "beClose"].forEach(function(k){ st[k] = num($("sb-" + k).value); });
       st.time = $("sb-time").value.trim(); st.exitTime = $("sb-exit-time").value.trim();
       st.plan = $("sb-plan").value; st.notes = $("sb-notes").value;
     }
     function writeInputs(){
       $("sb-date").value = st.date; $("sb-story").value = st.story; $("sb-pools-note").value = st.poolsNote;
-      ["entry", "sl", "tp", "mfe", "mae", "beAt"].forEach(function(k){ $("sb-" + k).value = st[k] === null ? "" : st[k]; });
+      ["entry", "sl", "tp", "mfe", "mae", "beAt", "beClose"].forEach(function(k){ $("sb-" + k).value = st[k] === null ? "" : st[k]; });
       $("sb-time").value = st.time; $("sb-exit-time").value = st.exitTime; $("sb-plan").value = st.plan; $("sb-notes").value = st.notes;
     }
     var MULTI = { conf: "confluences", smt: "smt", fvgTf: "fvgTfs", obst: "obstacles", confirm: "confirms" };
@@ -2155,7 +2163,7 @@
       if(g === "tpt" && v !== "Other" && st.pools[v] === undefined) {/* target need not be marked */}
       render();
     });
-    form.addEventListener("input", function(ev){ if(/sb-(entry|sl|tp|beAt|mfe|mae|exit-time)$/.test(ev.target.id)){ readInputs(); render(); } });
+    form.addEventListener("input", function(ev){ if(/sb-(entry|sl|tp|beAt|beClose|mfe|mae|exit-time)$/.test(ev.target.id)){ readInputs(); render(); } });
     // Prefill from the latest log of the same date: bias, pools and story carry on.
     function contextFor(date){
       var same = list().filter(function(x){ return x.date === date; }).sort(function(a, b){ return b.createdAt - a.createdAt; })[0];
@@ -2263,6 +2271,11 @@
       var tpRows = rows.filter(function(x){ var c = sbCalc(x); return x.outcome === "TP hit" && c.mfeR !== null && c.rr !== null && !x.mfeOpen; });
       var runTxt = tpRows.length ? '<span>TP trades: target <strong>' + (tpRows.reduce(function(a, x){ return a + sbCalc(x).rr; }, 0) / tpRows.length).toFixed(1) +
         "R</strong>, ran to <strong>" + (tpRows.reduce(function(a, x){ return a + sbCalc(x).mfeR; }, 0) / tpRows.length).toFixed(1) + "R</strong> on average (" + tpRows.length + ")</span>" : "";
+      var beRows = rows.filter(function(x){ return x.direction && x.beAt !== null; });
+      var closeRows = beRows.filter(function(x){ var g = sbCalc(x).beGap; return g !== null && g <= 5; });
+      var sellSpread = closeRows.filter(function(x){ var g = sbCalc(x).beGap; return x.direction === "Sell" && g > 0 && g <= 3; }).length;
+      if(beRows.length) runTxt += "<span>BE close calls (within 5 pips) <strong>" + closeRows.length + " of " + beRows.length + "</strong>" +
+        (sellSpread ? " — " + sellSpread + " sell" + (sellSpread === 1 ? "" : "s") + " within a 3-pip spread" : "") + "</span>";
       $("sb-shown").textContent = rows.length === all.length ? "" : "Showing " + rows.length + " of " + all.length;
       $("sb-stats").innerHTML = rows.length ?
         '<div class="sb-kpis"><span>Sessions <strong>' + rows.length + "</strong></span><span>Trades <strong>" + s.n + "</strong></span><span>Win rate (excl. BE) <strong>" +
@@ -2282,7 +2295,8 @@
         var poolTxt = Object.keys(x.pools).map(function(p){ return (x.pools[p] === "above" ? "↑" : "↓") + p; }).join(" ");
         var head = x.direction ? '<strong class="' + (x.direction === "Buy" ? "pos" : "neg") + '">' + x.direction + "</strong> " + escapeHtml(c.trend) +
           (x.entry !== null ? " · " + x.entry + (x.time ? " @ " + escapeHtml(x.time) : "") : "") + (c.rr ? " · 1:" + c.rr.toFixed(2) : "") +
-          (x.outcome ? ' · <strong>' + escapeHtml(x.outcome) + "</strong>" : "") + (x.mfe !== null ? " · +" + x.mfe + "p max" : "") : "<em>No trade</em>";
+          (x.outcome ? ' · <strong>' + escapeHtml(x.outcome) + "</strong>" : "") + (x.mfe !== null ? " · +" + x.mfe + "p max" : "") +
+          (c.beGap !== null && c.beGap <= 5 ? ' · <span class="sb-close">BE close call ' + (c.beGap <= 0 ? "(touched)" : c.beGap.toFixed(1) + "p") + "</span>" : "") : "<em>No trade</em>";
         var tags = [].concat(x.confluences, x.smt.length ? ["SMT: " + x.smt.join(", ") + (x.smtTf ? " " + x.smtTf : "")] : [], x.confirms, x.grade ? ["Grade " + x.grade] : [], x.taken !== "Backtest" ? [x.taken] : []);
         return '<article class="bts-item" data-id="' + escapeHtml(x.id) + '"><div class="bts-meta"><strong>' + escapeHtml(x.date) + "</strong>" +
           '<span class="bts-pill">' + escapeHtml(x.session) + "</span>" + (c.call ? '<span class="bts-pill">Bias ' + c.call + (sbBias(x.bias).mixed ? " (mixed)" : "") + "</span>" : "") +
@@ -2294,7 +2308,8 @@
           (x.poolsNote ? "<br>" + escapeHtml(x.poolsNote) : "") + "</div>" +
           (x.story ? '<div class="bts-text">' + escapeHtml(x.story) + "</div>" : "") +
           (x.direction ? '<div class="sb-small">SL ' + (x.sl === null ? "—" : x.sl) + (x.slReason ? " (" + escapeHtml(x.slReason) + ")" : "") + " · TP " + (x.tp === null ? "—" : x.tp) + (x.tpTarget ? " (" + escapeHtml(x.tpTarget) + ")" : "") +
-            (x.mae !== null ? " · max against " + x.mae + "p" : "") + (x.beAt !== null ? " · BE at +" + x.beAt + "p" + (c.bePrice !== null ? " (" + c.bePrice.toFixed(2) + ")" : "") : "") + (x.exitTime ? " · out " + escapeHtml(x.exitTime) : "") +
+            (x.mae !== null ? " · max against " + x.mae + "p" : "") + (x.beAt !== null ? " · BE at +" + x.beAt + "p" + (c.bePrice !== null ? " (" + c.bePrice.toFixed(2) + ")" : "") : "") +
+            (c.beGap !== null ? " · came back to " + x.beClose + " = " + (c.beGap <= 0 ? "touched BE" : c.beGap.toFixed(1) + "p from BE") : "") + (x.exitTime ? " · out " + escapeHtml(x.exitTime) : "") +
             (x.sweep ? " · swept " + escapeHtml(x.sweep) : "") + (x.fvgTfs.length ? " · FVG " + escapeHtml(x.fvgTfs.join("/")) : "") + (x.obstacles.length ? " · LTF: " + escapeHtml(x.obstacles.join(", ")) : "") + "</div>" : "") +
           (x.plan ? '<div class="bts-text"><b>Plan:</b> ' + escapeHtml(x.plan) + "</div>" : "") +
           (x.notes ? '<div class="bts-text"><b>Notes:</b> ' + escapeHtml(x.notes) + "</div>" : "") + "</details></article>";
