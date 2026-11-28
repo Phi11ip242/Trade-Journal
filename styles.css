@@ -1132,3 +1132,9 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .sb-toast[hidden]{ display: none; }
 .sb-toast span{ flex: 1; }
 .sb-close{ color: #ffb020; font-weight: 700; }
+.sb-liq-row{ border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-top: 10px; }
+.sb-liq-row:nth-of-type(odd){ }
+.sb-liq-head{ display: flex; gap: 10px; align-items: baseline; margin-bottom: 6px; font-size: 14px; }
+.sb-liq-in{ display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 8px; font-size: 13px; color: var(--text-dim); }
+.sb-liq-in label{ display: flex; align-items: center; gap: 6px; }
+.sb-liq-in input{ min-height: 38px; font-size: 16px; max-width: 160px; }

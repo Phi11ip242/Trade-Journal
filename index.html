@@ -282,9 +282,28 @@
         </fieldset>
         <fieldset>
           <legend>Liquidity pools</legend>
-          <div class="hint">Tap once = above price (↑), twice = below (↓), three times = off.</div>
-          <div class="bt-chips field-gap" id="sb-pools"></div>
-          <div class="field field-gap"><label for="sb-pools-note">Pools note (optional)</label><input type="text" id="sb-pools-note" placeholder="e.g. PDL, PWL and PML all at the same level"></div>
+          <div class="hint">Tap every pool sitting at that level (e.g. PDH + Asia high), add the price and the day it formed.</div>
+          <div class="sb-liq-row">
+            <div class="sb-liq-head"><strong>2nd above</strong><span class="hint" id="sb-liq-a2-age"></span></div>
+            <div class="bt-chips" id="sb-liq-a2"></div>
+            <div class="sb-liq-in"><label>Price <input type="number" step="any" inputmode="decimal" id="sb-liq-a2-price"></label><label>Formed on <input type="date" id="sb-liq-a2-formed"></label></div>
+          </div>
+          <div class="sb-liq-row">
+            <div class="sb-liq-head"><strong>1st above</strong><span class="hint" id="sb-liq-a1-age"></span></div>
+            <div class="bt-chips" id="sb-liq-a1"></div>
+            <div class="sb-liq-in"><label>Price <input type="number" step="any" inputmode="decimal" id="sb-liq-a1-price"></label><label>Formed on <input type="date" id="sb-liq-a1-formed"></label></div>
+          </div>
+          <div class="sb-liq-row">
+            <div class="sb-liq-head"><strong>1st below</strong><span class="hint" id="sb-liq-b1-age"></span></div>
+            <div class="bt-chips" id="sb-liq-b1"></div>
+            <div class="sb-liq-in"><label>Price <input type="number" step="any" inputmode="decimal" id="sb-liq-b1-price"></label><label>Formed on <input type="date" id="sb-liq-b1-formed"></label></div>
+          </div>
+          <div class="sb-liq-row">
+            <div class="sb-liq-head"><strong>2nd below</strong><span class="hint" id="sb-liq-b2-age"></span></div>
+            <div class="bt-chips" id="sb-liq-b2"></div>
+            <div class="sb-liq-in"><label>Price <input type="number" step="any" inputmode="decimal" id="sb-liq-b2-price"></label><label>Formed on <input type="date" id="sb-liq-b2-formed"></label></div>
+          </div>
+          <div class="field field-gap"><label for="sb-pools-note">Pools note (optional)</label><input type="text" id="sb-pools-note" placeholder="anything else about the liquidity"></div>
         </fieldset>
         <fieldset>
           <legend>What I see</legend>
@@ -295,7 +314,7 @@
           <div class="sb-dir-row"><div class="bt-chips" id="sb-dir"></div><span id="sb-trend" class="sb-trend"></span></div>
           <div id="sb-trade" hidden>
             <div class="field field-gap"><span class="label">Confluences</span><div class="bt-chips" id="sb-conf"></div></div>
-            <div class="field field-gap" id="sb-sweep-row" hidden><span class="label">Which liquidity was swept (marked pools are highlighted)</span><div class="bt-chips" id="sb-sweep"></div></div>
+            <div class="field field-gap" id="sb-sweep-row" hidden><span class="label">Which liquidity was swept</span><div class="bt-chips" id="sb-sweep"></div></div>
             <div class="field field-gap" id="sb-smt-row" hidden><span class="label">SMT</span><div class="bt-chips" id="sb-smt"></div></div>
             <div class="field field-gap" id="sb-fvg-row" hidden><span class="label">HTF FVG timeframes</span><div class="bt-chips" id="sb-fvg"></div></div>
             <div class="field field-gap"><span class="label">LTF obstacles in the way of the entry</span><div class="bt-chips" id="sb-obst"></div></div>
@@ -308,7 +327,7 @@
             </div>
             <div class="bt-readout field-gap" id="sb-readout"></div>
             <div class="field field-gap"><span class="label">SL reason</span><div class="bt-chips" id="sb-slr"></div></div>
-            <div class="field field-gap"><span class="label">TP target (marked pools are highlighted)</span><div class="bt-chips" id="sb-tpt"></div></div>
+            <div class="field field-gap"><span class="label">TP target</span><div class="bt-chips" id="sb-tpt"></div></div>
             <textarea id="sb-plan" hidden aria-hidden="true"></textarea>
           </div>
         </fieldset>
