@@ -272,7 +272,7 @@
   // logged in under a minute; free text stays for the story.
   var SB_TFS = ["1D", "4H", "1H", "15M"];
   var SB_BIAS_STATES = ["Bull", "Weak bull", "Bear", "Weak bear"];   // tap order after blank
-  var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NY AM high", "NY AM low", "Equal highs", "Equal lows"];
+  var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NY AM high", "NY AM low", "NY PM high", "NY PM low", "Equal highs", "Equal lows"];
   var SB_CONFLUENCES = ["Liquidity sweep", "SMT", "HTF FVG above/below", "Inside HTF FVG", "Order block", "Breaker block", "IFVG", "Failed FVG"];
   var SB_SMT_PAIRS = ["XAG swept", "XAG held", "EUR swept", "EUR held"];
   var SB_LTFS = ["1M", "3M", "5M", "15M", "30M", "1H", "4H"];
@@ -2097,7 +2097,7 @@
       $("sb-sweep-row").hidden = !has("Liquidity sweep");
       $("sb-sweep").innerHTML = chips("sweep", SB_POOLS, st.sweep, { cls: function(p){ return st.pools[p] ? "sb-hint-pool" : ""; } });
       $("sb-smt-row").hidden = !has("SMT");
-      $("sb-smt").innerHTML = chips("smt", SB_SMT_PAIRS, st.smt) + '<span class="sb-sep">on</span>' + chips("smtTf", ["1M", "3M", "5M", "15M"], st.smtTf);
+      $("sb-smt").innerHTML = chips("smt", SB_SMT_PAIRS, st.smt) + '<span class="sb-sep">on</span>' + chips("smtTf", ["5M", "15M", "1H", "4H"], st.smtTf);
       $("sb-fvg-row").hidden = !(has("HTF FVG above/below") || has("Inside HTF FVG"));
       $("sb-fvg").innerHTML = chips("fvgTf", ["15M", "30M", "1H", "4H"], st.fvgTfs);
       $("sb-obst").innerHTML = chips("obst", SB_OBSTACLES, st.obstacles);
