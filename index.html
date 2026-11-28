@@ -282,7 +282,7 @@
         </fieldset>
         <fieldset>
           <legend>Liquidity pools</legend>
-          <div class="hint">Tap every pool sitting at that level (e.g. PDH + Asia high), add the price and the day it formed.</div>
+          <div class="hint">Tap every pool sitting at that level (e.g. PDH + Asia high), add the price and the day it formed. Only fill the 2nd row when it's close by.</div>
           <div class="sb-liq-row">
             <div class="sb-liq-head"><strong>2nd above</strong><span class="hint" id="sb-liq-a2-age"></span></div>
             <div class="bt-chips" id="sb-liq-a2"></div>
@@ -310,8 +310,9 @@
           <textarea id="sb-story" class="bts-story" placeholder="e.g. Price ranged all Asia, Asia high and low became the liquidity. 07:35 XAU and XAG swept the Asia high, EUR didn't..."></textarea>
         </fieldset>
         <fieldset>
-          <legend>Trade</legend>
-          <div class="sb-dir-row"><div class="bt-chips" id="sb-dir"></div><span id="sb-trend" class="sb-trend"></span></div>
+          <legend>Trade<span id="sb-entry-no"></span></legend>
+          <div class="sb-mates" id="sb-mates" hidden></div>
+          <div class="sb-dir-row field-gap"><div class="bt-chips" id="sb-dir"></div><span id="sb-trend" class="sb-trend"></span></div>
           <div id="sb-trade" hidden>
             <div class="field field-gap"><span class="label">Confluences</span><div class="bt-chips" id="sb-conf"></div></div>
             <div class="field field-gap" id="sb-sweep-row" hidden><span class="label">Which liquidity was swept</span><div class="bt-chips" id="sb-sweep"></div></div>

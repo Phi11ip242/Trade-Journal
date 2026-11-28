@@ -272,13 +272,13 @@
   // logged in under a minute; free text stays for the story.
   var SB_TFS = ["1D", "4H", "1H", "15M"];
   var SB_BIAS_STATES = ["Bull", "Weak bull", "Bear", "Weak bear"];   // tap order after blank
-  var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NY high", "NY low", "Equal highs", "Equal lows"];
-  var SB_POOL_RENAME = { "NY AM high": "NY high", "NY AM low": "NY low" };
+  var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NYSE high", "NYSE low", "Equal highs", "Equal lows"];
+  var SB_POOL_RENAME = { "NY AM high": "NYSE high", "NY AM low": "NYSE low", "NY high": "NYSE high", "NY low": "NYSE low" };
   function sbPoolName(p){ return SB_POOL_RENAME[p] || p; }
   // Liquidity as 1st/2nd above and 1st/2nd below price; each can stack several
   // pools at one price (e.g. PDH + Asia high), with the date they formed.
-  var SB_HIGHS = ["PDH", "PWH", "PMH", "Asia high", "London high", "NY high", "Equal highs"];
-  var SB_LOWS = ["PDL", "PWL", "PML", "Asia low", "London low", "NY low", "Equal lows"];
+  var SB_HIGHS = ["PDH", "PWH", "PMH", "Asia high", "London high", "NYSE high", "Equal highs"];
+  var SB_LOWS = ["PDL", "PWL", "PML", "Asia low", "London low", "NYSE low", "Equal lows"];
   var SB_SLOTS = [["a1", "1st above"], ["a2", "2nd above"], ["b1", "1st below"], ["b2", "2nd below"]];
   var SB_SLOT_KEYS = SB_SLOTS.map(function(x){ return x[0]; });
   function sbSlotName(k){ var f = SB_SLOTS.filter(function(x){ return x[0] === k; })[0]; return f ? f[1] : k === "other" ? "Other" : ""; }
@@ -2144,6 +2144,7 @@
         c.beGap <= 0 ? "The chart touched your BE line — you'd have been out at BE." :
         "Stayed " + c.beGap.toFixed(1) + " pips from BE" + (st.direction === "Sell" ? " on the chart. Sells close on the ask, so the spread (~3 pips) counts against this." : " (buys close on the bid, which is the chart price).") +
         (c.beGap <= 5 ? " Close call." : "");
+      renderMates();
       var todo = sbTodo(st);
       $("sb-todo-now").textContent = st.direction && todo.length ? "Not finished yet: " + todo.join(", ") + ". You can save now and finish it later." : "";
       $("sb-readout").innerHTML = "<span>SL <strong>" + fmt(c.slPips) + " pips</strong></span><span>TP <strong>" + fmt(c.tpPips) +
@@ -2211,16 +2212,57 @@
       } else if(!st.story.trim()) return err("No trade: write what you saw in the story box.");
       err("");
       var rec = normalizeSB(Object.assign({}, st, { updatedAt: Date.now() }));
+      var sameSession = function(x){ return x.date === rec.date && x.session === rec.session && x.id !== editing; };
+      var mates = list().filter(sameSession);
+      // A "No trade" note in a session that already has entries just updates their shared story.
+      if(!rec.direction && mates.some(function(x){ return x.direction; })){
+        settings.btSessions = list().map(function(x){ return sameSession(x) ? syncSession(x, rec) : x; });
+        if(editing && !list().filter(function(x){ return x.id === editing; })[0].direction) settings.btSessions = list().filter(function(x){ return x.id !== editing; });
+        saveSettings(); editing = null; afterSave(rec); return;
+      }
+      // Bias, pools and story belong to the session: keep every entry in it in step,
+      // and drop an earlier "No trade" note once a real entry exists.
+      settings.btSessions = list().filter(function(x){ return !(rec.direction && sameSession(x) && !x.direction); })
+        .map(function(x){ return sameSession(x) ? syncSession(x, rec) : x; });
       if(editing){ rec.createdAt = (list().filter(function(x){ return x.id === editing; })[0] || {}).createdAt || Date.now(); rec.id = editing;
         settings.btSessions = list().map(function(x){ return x.id === editing ? rec : x; }); }
       else { rec.id = makeId(); rec.createdAt = Date.now(); settings.btSessions = list().concat([rec]); }
       saveSettings();
       editing = null;
-      // keep the session context for the next trade
+      afterSave(rec);
+    });
+    function syncSession(x, rec){
+      return normalizeSB(Object.assign({}, x, { taken: rec.taken, bias: rec.bias, liq: rec.liq, poolsNote: rec.poolsNote, story: rec.story, updatedAt: Date.now() }));
+    }
+    // keep the session context for the next entry
+    function afterSave(rec){
       st = blank({ date: rec.date, session: rec.session, taken: rec.taken, bias: rec.bias, liq: rec.liq, poolsNote: rec.poolsNote, story: rec.story });
       writeInputs(); render(); renderLog();
       $("sb-save").textContent = "Save"; $("sb-cancel").hidden = true;
       $("sb-saved").hidden = false; setTimeout(function(){ $("sb-saved").hidden = true; }, 1800);
+    }
+    // Entries already saved in the session on the form, so a 2nd/3rd entry builds on the story.
+    function renderMates(){
+      var mates = list().filter(function(x){ return x.date === st.date && x.session === st.session && x.direction && x.id !== editing; })
+        .sort(function(a, b){ return (a.time || "") < (b.time || "") ? -1 : (a.time || "") > (b.time || "") ? 1 : a.createdAt - b.createdAt; });
+      var box = $("sb-mates");
+      $("sb-entry-no").textContent = st.direction ? " — entry " + (editing ? (list().filter(function(x){ return x.date === st.date && x.session === st.session && x.direction; })
+        .sort(function(a, b){ return (a.time || "") < (b.time || "") ? -1 : (a.time || "") > (b.time || "") ? 1 : a.createdAt - b.createdAt; })
+        .map(function(x){ return x.id; }).indexOf(editing) + 1 || mates.length + 1) : mates.length + 1) : "";
+      if(!mates.length){ box.hidden = true; box.innerHTML = ""; return; }
+      box.hidden = false;
+      box.innerHTML = "<strong>Already in this session:</strong>" + mates.map(function(x, i){
+        var c = sbCalc(x);
+        return '<div class="sb-mate" data-id="' + escapeHtml(x.id) + '"><span>' + (i + 1) + ". " + x.direction + " " + (x.entry !== null ? x.entry : "") + (x.time ? " @ " + escapeHtml(x.time) : "") +
+          (x.outcome ? " · " + escapeHtml(x.outcome) : "") + (c.rr ? " · 1:" + c.rr.toFixed(2) : "") + '</span><button type="button" class="ghost small" data-mate="' + escapeHtml(x.id) + '">Edit</button></div>';
+      }).join("") + '<div class="hint">The story, bias and pools above are shared by every entry in this session. Fill the trade below for the next entry.</div>';
+    }
+    $("sb-mates").addEventListener("click", function(ev){
+      var b = ev.target.closest("button[data-mate]"); if(!b) return;
+      var x = list().filter(function(y){ return y.id === b.dataset.mate; })[0]; if(!x) return;
+      editing = x.id; st = normalizeSB(JSON.parse(JSON.stringify(x))); writeInputs(); render(); err("");
+      $("sb-save").textContent = "Save changes"; $("sb-cancel").hidden = false;
+      $("sb-dir").scrollIntoView({ block: "center" });
     });
     $("sb-next").addEventListener("click", function(){
       readInputs(); var i = SESSIONS.indexOf(st.session);
@@ -2251,7 +2293,8 @@
           return "<tr><td>" + escapeHtml(k) + "</td><td>" + s.n + "</td><td>" + (s.wr === null ? "—" : Math.round(s.wr) + "%") + "</td><td>" + s.be + '</td><td class="' + (s.R > 0 ? "pos" : s.R < 0 ? "neg" : "") + '">' + (s.nR ? (s.R > 0 ? "+" : "") + s.R.toFixed(1) : "—") + "</td></tr>"; }).join("") +
         "</tbody></table></div>";
     }
-    var fFrom = $("sb-from"), fTo = $("sb-to"), fTodo = false;
+    var fFrom = $("sb-from"), fTo = $("sb-to"), fTodo = false, bdOpen = false;
+    $("sb-stats").addEventListener("toggle", function(ev){ if(ev.target.classList && ev.target.classList.contains("sb-bd")) bdOpen = ev.target.open; }, true);
     function updateBadge(){
       var n = list().filter(function(x){ return sbTodo(x).length; }).length;
       var tab = document.getElementById("tab-backtest");
@@ -2308,9 +2351,9 @@
         (sellSpread ? " — " + sellSpread + " sell" + (sellSpread === 1 ? "" : "s") + " within a 3-pip spread" : "") + "</span>";
       $("sb-shown").textContent = rows.length === all.length ? "" : "Showing " + rows.length + " of " + all.length;
       $("sb-stats").innerHTML = rows.length ?
-        '<div class="sb-kpis"><span>Sessions <strong>' + rows.length + "</strong></span><span>Trades <strong>" + s.n + "</strong></span><span>Win rate (excl. BE) <strong>" +
+        '<div class="sb-kpis"><span>Sessions <strong>' + rows.map(function(x){ return x.date + "|" + x.session; }).filter(function(k, i, a){ return a.indexOf(k) === i; }).length + "</strong></span><span>Trades <strong>" + s.n + "</strong></span><span>Win rate (excl. BE) <strong>" +
         (s.wr === null ? "—" : Math.round(s.wr) + "%") + "</strong></span><span>Total R <strong>" + (s.nR ? (s.R > 0 ? "+" : "") + s.R.toFixed(1) : "—") + "</strong></span>" + runTxt + "</div>" +
-        '<div class="sb-tbls">' +
+        '<details class="sb-more sb-bd"' + (bdOpen ? " open" : "") + '><summary>Breakdown tables</summary><div class="sb-tbls">' +
         table("With or counter trend", rows, function(x){ return sbCalc(x).trend; }, ["With trend", "Counter trend", "No bias"]) +
         table("Bias", rows, function(x){ var b = sbBias(x.bias); return !b.call ? "No bias" : b.mixed ? "Mixed (tie, HTF decided)" : "Clear"; }, ["Clear", "Mixed (tie, HTF decided)", "No bias"]) +
         table("Session", rows, function(x){ return x.session; }, SESSIONS) +
@@ -2321,37 +2364,48 @@
         table("Confirmation", rows, function(x){ return x.confirms.length ? x.confirms : "None"; }, SB_CONFIRMS.concat(["None"])) +
         table("LTF obstacles", rows, function(x){ return !x.obstacles.length ? "Not checked" : x.obstacles.indexOf("None") !== -1 ? "Clear" : "Something in the way"; }, ["Clear", "Something in the way", "Not checked"]) +
         table("Grade", rows, function(x){ return x.grade || "No grade"; }, SB_GRADES.concat(["No grade"])) +
-        "</div>" : '<div class="hint">' + (all.length ? "Nothing matches this filter." : "Nothing logged yet.") + "</div>";
-      $("sb-log").innerHTML = rows.map(function(x){
-        var c = sbCalc(x), biasTxt = SB_TFS.map(function(t){ return t + " " + (x.bias[t] || "—"); }).join(" · ");
-        var poolTxt = SB_SLOTS.map(function(sl){ var v = x.liq[sl[0]]; if(!v.pools.length && v.price === null) return "";
+        "</div></details>" : '<div class="hint">' + (all.length ? "Nothing matches this filter." : "Nothing logged yet.") + "</div>";
+      // One card per session (date + session); entries listed inside it.
+      var groups = [], byKey = {};
+      rows.forEach(function(x){ var k = x.date + "|" + x.session; if(!byKey[k]){ byKey[k] = []; groups.push(byKey[k]); } byKey[k].push(x); });
+      $("sb-log").innerHTML = groups.map(function(g){
+        g.sort(function(a, b){ return (a.time || "") < (b.time || "") ? -1 : (a.time || "") > (b.time || "") ? 1 : a.createdAt - b.createdAt; });
+        var x0 = g[0], c0 = sbCalc(x0), trades = g.filter(function(x){ return x.direction; });
+        var biasTxt = SB_TFS.map(function(t){ return t + " " + (x0.bias[t] || "—"); }).join(" · ");
+        var poolTxt = SB_SLOTS.map(function(sl){ var v = x0.liq[sl[0]]; if(!v.pools.length && v.price === null) return "";
             return sl[1] + ": " + (sbSlotText(v) || "—") + (v.price !== null ? " @ " + v.price : "") + (v.formed ? " (" + v.formed.slice(5) + ")" : ""); }).filter(Boolean).join(" · ") ||
-          Object.keys(x.pools).map(function(p){ return (x.pools[p] === "above" ? "↑" : "↓") + p; }).join(" ");
-        var head = x.direction ? '<strong class="' + (x.direction === "Buy" ? "pos" : "neg") + '">' + x.direction + "</strong> " + escapeHtml(c.trend) +
-          (x.entry !== null ? " · " + x.entry + (x.time ? " @ " + escapeHtml(x.time) : "") : "") + (c.rr ? " · 1:" + c.rr.toFixed(2) : "") +
-          (x.outcome ? ' · <strong>' + escapeHtml(x.outcome) + "</strong>" : "") + (x.mfe !== null ? " · +" + x.mfe + "p max" : "") +
-          (c.beGap !== null && c.beGap <= 5 ? ' · <span class="sb-close">BE close call ' + (c.beGap <= 0 ? "(touched)" : c.beGap.toFixed(1) + "p") + "</span>" : "") : "<em>No trade</em>";
-        var tags = [].concat(x.confluences, x.smt.length ? ["SMT: " + x.smt.join(", ") + (x.smtTf ? " " + x.smtTf : "")] : [], x.confirms, x.grade ? ["Grade " + x.grade] : [], x.taken !== "Backtest" ? [x.taken] : []);
-        return '<article class="bts-item" data-id="' + escapeHtml(x.id) + '"><div class="bts-meta"><strong>' + escapeHtml(x.date) + "</strong>" +
-          '<span class="bts-pill">' + escapeHtml(x.session) + "</span>" + (c.call ? '<span class="bts-pill">Bias ' + c.call + (sbBias(x.bias).mixed ? " (mixed)" : "") + "</span>" : "") +
-          '<span class="bts-acts"><button type="button" class="ghost small" data-act="edit">Edit</button><button type="button" class="ghost small" data-act="del">Delete</button></span></div>' +
-          '<div class="sb-line">' + head + "</div>" +
-          (sbTodo(x).length ? '<div class="sb-todo">To finish: ' + escapeHtml(sbTodo(x).join(", ")) + "</div>" : "") +
-          (tags.length ? '<div class="sb-tags">' + tags.map(function(t){ return "<span>" + escapeHtml(t) + "</span>"; }).join("") + "</div>" : "") +
-          '<details class="sb-more"><summary>Story and details</summary><div class="sb-small">' + escapeHtml(biasTxt) + (poolTxt ? "<br>Pools: " + escapeHtml(poolTxt) : "") +
-          (x.poolsNote ? "<br>" + escapeHtml(x.poolsNote) : "") + "</div>" +
-          (x.story ? '<div class="bts-text">' + escapeHtml(x.story) + "</div>" : "") +
-          (x.direction ? '<div class="sb-small">SL ' + (x.sl === null ? "—" : x.sl) + (x.slReason ? " (" + escapeHtml(x.slReason) + ")" : "") + " · TP " + (x.tp === null ? "—" : x.tp) + (x.tpSlot ? " (" + escapeHtml(sbSlotName(x.tpSlot) + (sbSlotText(x.liq[x.tpSlot]) ? ": " + sbSlotText(x.liq[x.tpSlot]) : "")) + ")" : x.tpTarget ? " (" + escapeHtml(x.tpTarget) + ")" : "") +
-            (x.mae !== null ? " · max against " + x.mae + "p" : "") + (x.beAt !== null ? " · BE at +" + x.beAt + "p" + (c.bePrice !== null ? " (" + c.bePrice.toFixed(2) + ")" : "") : "") +
-            (c.beGap !== null ? " · came back to " + x.beClose + " = " + (c.beGap <= 0 ? "touched BE" : c.beGap.toFixed(1) + "p from BE") : "") + (x.exitTime ? " · out " + escapeHtml(x.exitTime) : "") +
-            (x.sweepSlot ? " · swept " + escapeHtml(sbSlotName(x.sweepSlot) + (sbSlotText(x.liq[x.sweepSlot]) ? ": " + sbSlotText(x.liq[x.sweepSlot]) : "")) : x.sweep ? " · swept " + escapeHtml(x.sweep) : "") + (x.fvgTfs.length ? " · FVG " + escapeHtml(x.fvgTfs.join("/")) : "") + (x.obstacles.length ? " · LTF: " + escapeHtml(x.obstacles.join(", ")) : "") + "</div>" : "") +
-          (x.plan ? '<div class="bts-text"><b>Plan:</b> ' + escapeHtml(x.plan) + "</div>" : "") +
-          (x.notes ? '<div class="bts-text"><b>Notes:</b> ' + escapeHtml(x.notes) + "</div>" : "") + "</details></article>";
+          Object.keys(x0.pools).map(function(p){ return (x0.pools[p] === "above" ? "↑" : "↓") + p; }).join(" ");
+        var entries = g.map(function(x, n){
+          var c = sbCalc(x);
+          var head = x.direction ? (trades.length > 1 ? "<span class=\"sb-n\">" + (trades.indexOf(x) + 1) + ".</span> " : "") + '<strong class="' + (x.direction === "Buy" ? "pos" : "neg") + '">' + x.direction + "</strong> " + escapeHtml(c.trend) +
+            (x.entry !== null ? " · " + x.entry + (x.time ? " @ " + escapeHtml(x.time) : "") : "") + (c.rr ? " · 1:" + c.rr.toFixed(2) : "") +
+            (x.outcome ? ' · <strong>' + escapeHtml(x.outcome) + "</strong>" : "") + (x.mfe !== null ? " · +" + x.mfe + "p max" : "") +
+            (c.beGap !== null && c.beGap <= 5 ? ' · <span class="sb-close">BE close call ' + (c.beGap <= 0 ? "(touched)" : c.beGap.toFixed(1) + "p") + "</span>" : "") : "<em>No trade</em>";
+          var tags = [].concat(x.confluences, x.smt.length ? ["SMT: " + x.smt.join(", ") + (x.smtTf ? " " + x.smtTf : "")] : [], x.confirms, x.grade ? ["Grade " + x.grade] : []);
+          return '<div class="sb-entry" data-id="' + escapeHtml(x.id) + '"><div class="sb-entry-top"><div class="sb-line">' + head + '</div><span class="bts-acts"><button type="button" class="ghost small" data-act="edit">Edit</button><button type="button" class="ghost small" data-act="del">Delete</button></span></div>' +
+            (sbTodo(x).length ? '<div class="sb-todo">To finish: ' + escapeHtml(sbTodo(x).join(", ")) + "</div>" : "") +
+            (tags.length ? '<div class="sb-tags">' + tags.map(function(t){ return "<span>" + escapeHtml(t) + "</span>"; }).join("") + "</div>" : "") +
+            (x.direction ? '<div class="sb-small">SL ' + (x.sl === null ? "—" : x.sl) + (x.slReason ? " (" + escapeHtml(x.slReason) + ")" : "") + " · TP " + (x.tp === null ? "—" : x.tp) + (x.tpSlot ? " (" + escapeHtml(sbSlotName(x.tpSlot) + (sbSlotText(x.liq[x.tpSlot]) ? ": " + sbSlotText(x.liq[x.tpSlot]) : "")) + ")" : x.tpTarget ? " (" + escapeHtml(x.tpTarget) + ")" : "") +
+              (x.mae !== null ? " · max against " + x.mae + "p" : "") + (x.beAt !== null ? " · BE at +" + x.beAt + "p" + (c.bePrice !== null ? " (" + c.bePrice.toFixed(2) + ")" : "") : "") +
+              (c.beGap !== null ? " · came back to " + x.beClose + " = " + (c.beGap <= 0 ? "touched BE" : c.beGap.toFixed(1) + "p from BE") : "") + (x.exitTime ? " · out " + escapeHtml(x.exitTime) : "") +
+              (x.sweepSlot ? " · swept " + escapeHtml(sbSlotName(x.sweepSlot) + (sbSlotText(x.liq[x.sweepSlot]) ? ": " + sbSlotText(x.liq[x.sweepSlot]) : "")) : x.sweep ? " · swept " + escapeHtml(x.sweep) : "") + (x.fvgTfs.length ? " · FVG " + escapeHtml(x.fvgTfs.join("/")) : "") + (x.obstacles.length ? " · LTF: " + escapeHtml(x.obstacles.join(", ")) : "") + "</div>" : "") +
+            (x.plan ? '<div class="bts-text"><b>Plan:</b> ' + escapeHtml(x.plan) + "</div>" : "") +
+            (x.notes ? '<div class="bts-text"><b>Notes:</b> ' + escapeHtml(x.notes) + "</div>" : "") + "</div>";
+        }).join("");
+        var sR = rowStats(g);
+        return '<article class="bts-item"><div class="bts-meta"><strong>' + escapeHtml(x0.date) + "</strong>" +
+          '<span class="bts-pill">' + escapeHtml(x0.session) + "</span>" + (c0.call ? '<span class="bts-pill">Bias ' + c0.call + (sbBias(x0.bias).mixed ? " (mixed)" : "") + "</span>" : "") +
+          (x0.taken !== "Backtest" ? '<span class="bts-pill">' + escapeHtml(x0.taken) + "</span>" : "") +
+          (trades.length > 1 ? '<span class="bts-pill">' + trades.length + " entries" + (sR.nR ? " · " + (sR.R > 0 ? "+" : "") + sR.R.toFixed(1) + "R" : "") + "</span>" : "") + "</div>" +
+          entries +
+          '<details class="sb-more"><summary>Story, bias and pools</summary><div class="sb-small">' + escapeHtml(biasTxt) + (poolTxt ? "<br>Pools: " + escapeHtml(poolTxt) : "") +
+          (x0.poolsNote ? "<br>" + escapeHtml(x0.poolsNote) : "") + "</div>" +
+          (x0.story ? '<div class="bts-text">' + escapeHtml(x0.story) + "</div>" : "") + "</details></article>";
       }).join("");
     }
     $("sb-log").addEventListener("click", function(ev){
       var btn = ev.target.closest("button[data-act]"); if(!btn) return;
-      var id = btn.closest(".bts-item").dataset.id;
+      var id = btn.closest("[data-id]").dataset.id;
       var x = list().filter(function(y){ return y.id === id; })[0]; if(!x) return;
       if(btn.dataset.act === "edit"){
         editing = id; st = normalizeSB(JSON.parse(JSON.stringify(x))); writeInputs(); render(); err("");

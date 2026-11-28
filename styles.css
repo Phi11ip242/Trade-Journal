@@ -1138,3 +1138,10 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .sb-liq-in{ display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 8px; font-size: 13px; color: var(--text-dim); }
 .sb-liq-in label{ display: flex; align-items: center; gap: 6px; }
 .sb-liq-in input{ min-height: 38px; font-size: 16px; max-width: 160px; }
+.sb-mates{ border: 1px dashed var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; }
+.sb-mates[hidden]{ display: none; }
+.sb-mate{ display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--border); }
+.sb-entry{ border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; }
+.sb-entry-top{ display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
+.sb-entry-top .sb-line{ margin-top: 0; }
+.sb-n{ color: var(--text-faint); font-weight: 700; }
