@@ -273,9 +273,9 @@
   var SB_TFS = ["1D", "4H", "1H", "15M"];
   var SB_BIAS_STATES = ["Bull", "Weak bull", "Bear", "Weak bear"];   // tap order after blank
   var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NY AM high", "NY AM low", "Equal highs", "Equal lows"];
-  var SB_CONFLUENCES = ["Liquidity sweep", "SMT", "HTF FVG above/below", "Inside HTF FVG", "Order block", "Breaker block", "IFVG", "Failed FVG"];
-  var SB_SMT_PAIRS = ["XAG swept", "XAG held", "EUR swept", "EUR held"];
-  var SB_LTFS = ["1M", "3M", "5M", "15M", "30M", "1H", "4H"];
+  var SB_CONFLUENCES = ["Liquidity sweep", "SMT", "HTF FVG above/below", "Inside HTF FVG", "IFVG", "Failed FVG"];
+  var SB_SMT_PAIRS = ["XAU swept", "XAU held", "XAG swept", "XAG held", "EUR swept", "EUR held"];
+  var SB_LTFS = ["1M", "3M", "5M", "15M", "30M", "1H", "4H", "1D"];
   var SB_OBSTACLES = ["None", "1M FVG", "3M FVG", "5M FVG", "15M FVG"];
   var SB_CONFIRMS = ["1M CHoCH + retest", "3M CHoCH + retest", "5M CHoCH + retest", "1M IFVG", "3M IFVG", "5M IFVG", "Engulfing candle", "BOS + retest"];
   var SB_SL_REASONS = ["Structure + buffer", "Structure, no buffer", "Fixed pips", "Other"];
@@ -2099,7 +2099,7 @@
       $("sb-smt-row").hidden = !has("SMT");
       $("sb-smt").innerHTML = chips("smt", SB_SMT_PAIRS, st.smt) + '<span class="sb-sep">on</span>' + chips("smtTf", ["5M", "15M", "1H", "4H"], st.smtTf);
       $("sb-fvg-row").hidden = !(has("HTF FVG above/below") || has("Inside HTF FVG"));
-      $("sb-fvg").innerHTML = chips("fvgTf", ["15M", "30M", "1H", "4H"], st.fvgTfs);
+      $("sb-fvg").innerHTML = chips("fvgTf", ["15M", "30M", "1H", "4H", "1D"], st.fvgTfs);
       $("sb-obst").innerHTML = chips("obst", SB_OBSTACLES, st.obstacles);
       $("sb-confirm").innerHTML = chips("confirm", SB_CONFIRMS, st.confirms);
       $("sb-slr").innerHTML = chips("slr", SB_SL_REASONS, st.slReason);
@@ -2139,6 +2139,13 @@
       else if(MULTI[g]){
         var arr = st[MULTI[g]], i = arr.indexOf(v);
         if(g === "obst" && v === "None"){ st.obstacles = i === -1 ? ["None"] : []; }
+        else if(g === "smt"){
+          // per pair it's either swept or held, never both
+          var pair = v.split(" ")[0];
+          st.smt = st.smt.filter(function(x){ return x.split(" ")[0] !== pair; });
+          if(i === -1) st.smt.push(v);
+          st.smt.sort(function(a, b){ return SB_SMT_PAIRS.indexOf(a) - SB_SMT_PAIRS.indexOf(b); });
+        }
         else {
           if(i === -1) arr.push(v); else arr.splice(i, 1);
           if(g === "obst") st.obstacles = st.obstacles.filter(function(x){ return x !== "None"; });
