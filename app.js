@@ -271,6 +271,7 @@
   // trade taken from it, or "No trade". Lists are tap-chips so a session is
   // logged in under a minute; free text stays for the story.
   var SB_TFS = ["1D", "4H", "1H", "15M"];
+  var SB_BIAS_STATES = ["Bull", "Weak bull", "Bear", "Weak bear"];   // tap order after blank
   var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NY AM high", "NY AM low", "Equal highs", "Equal lows"];
   var SB_CONFLUENCES = ["Liquidity sweep", "SMT", "HTF FVG above/below", "Inside HTF FVG", "Order block", "Breaker block", "IFVG", "Failed FVG"];
   var SB_SMT_PAIRS = ["XAG swept", "XAG held", "EUR swept", "EUR held"];
@@ -285,7 +286,7 @@
   function pickOne(v, list){ return list.indexOf(v) === -1 ? "" : v; }
   function normalizeSB(x){
     x = x || {};
-    var bias = {}; SB_TFS.forEach(function(t){ var v = x.bias && x.bias[t]; bias[t] = v === "Bull" || v === "Bear" ? v : ""; });
+    var bias = {}; SB_TFS.forEach(function(t){ var v = x.bias && x.bias[t]; bias[t] = SB_BIAS_STATES.indexOf(v) !== -1 ? v : ""; });
     var pools = {}; SB_POOLS.forEach(function(p){ var v = x.pools && x.pools[p]; if(v === "above" || v === "below") pools[p] = v; });
     var dir = x.direction === "Buy" || x.direction === "Sell" ? x.direction : "";
     return {
@@ -315,12 +316,20 @@
       updatedAt: Number(x.updatedAt) || Number(x.createdAt) || Date.now()
     };
   }
-  // Bias call from the four timeframes: 1D and 4H lead; 1H/15M break a tie.
-  function sbBiasCall(b){
-    var score = 0, w = { "1D": 2, "4H": 2, "1H": 1, "15M": 1 };
-    SB_TFS.forEach(function(t){ if(b[t] === "Bull") score += w[t]; if(b[t] === "Bear") score -= w[t]; });
-    return score > 0 ? "Buys" : score < 0 ? "Sells" : "";
+  // Bias call from the four timeframes. A WEAK shift isn't confirmed yet, so
+  // it still counts for the old side (weak bull = bearish, weak bear = bullish).
+  // Majority wins; a tie (e.g. 2 v 2) goes to the highest timeframe, flagged
+  // as mixed so you know to be extra careful.
+  function sbTfSide(v){ return v === "Bull" || v === "Weak bear" ? "Buys" : v === "Bear" || v === "Weak bull" ? "Sells" : ""; }
+  function sbBias(b){
+    var buys = 0, sells = 0;
+    SB_TFS.forEach(function(t){ var s = sbTfSide(b[t]); if(s === "Buys") buys++; if(s === "Sells") sells++; });
+    if(!buys && !sells) return { call: "", mixed: false };
+    if(buys !== sells) return { call: buys > sells ? "Buys" : "Sells", mixed: false };
+    for(var i = 0; i < SB_TFS.length; i++){ var s = sbTfSide(b[SB_TFS[i]]); if(s) return { call: s, mixed: true, by: SB_TFS[i] }; }
+    return { call: "", mixed: false };
   }
+  function sbBiasCall(b){ return sbBias(b).call; }
   function sbCalc(x){
     var pip = 0.1, sgn = x.direction === "Sell" ? -1 : 1;
     var slP = (x.entry !== null && x.sl !== null) ? (x.entry - x.sl) * sgn / pip : null;
@@ -2049,11 +2058,14 @@
       var c = sbCalc(st);
       $("sb-session").innerHTML = chips("session", SESSIONS, st.session);
       $("sb-taken").innerHTML = chips("taken", SB_TAKEN, st.taken);
+      var bz = sbBias(st.bias);
       $("sb-bias").innerHTML = SB_TFS.map(function(t){
         var v = st.bias[t];
-        return '<button type="button" class="sb-tf ' + (v === "Bull" ? "bull" : v === "Bear" ? "bear" : "") + '" data-g="tf" data-v="' + t + '">' +
-          t + "<b>" + (v === "Bull" ? "Bull" : v === "Bear" ? "Bear" : "—") + "</b></button>";
-      }).join("") + '<span class="sb-call">' + (c.call ? "Bias: <strong>" + c.call + "</strong>" : "Tap each timeframe: Bull → Bear → —") + "</span>";
+        var cls = v === "Bull" ? "bull" : v === "Bear" ? "bear" : v === "Weak bull" ? "bull weak" : v === "Weak bear" ? "bear weak" : "";
+        return '<button type="button" class="sb-tf ' + cls + '" data-g="tf" data-v="' + t + '">' + t + "<b>" + (v || "—") + "</b>" +
+          (v === "Weak bull" ? "<i>counts bearish</i>" : v === "Weak bear" ? "<i>counts bullish</i>" : "") + "</button>";
+      }).join("") + '<span class="sb-call">' + (bz.call ? "Bias: <strong>" + bz.call + "</strong>" + (bz.mixed ? ' <span class="sb-mixed">mixed: ' + bz.by + " decides, extra caution</span>" : "") :
+        "Tap each timeframe: Bull → Weak bull → Bear → Weak bear → —") + "</span>";
       $("sb-pools").innerHTML = SB_POOLS.map(function(p){
         var v = st.pools[p];
         return '<button type="button" class="bt-chip sb-pool' + (v ? " " + v : "") + '" data-g="pool" data-v="' + escapeHtml(p) + '">' +
@@ -2098,7 +2110,7 @@
       var b = ev.target.closest("button[data-g]"); if(!b) return;
       readInputs();
       var g = b.dataset.g, v = b.dataset.v;
-      if(g === "tf") st.bias[v] = st.bias[v] === "" ? "Bull" : st.bias[v] === "Bull" ? "Bear" : "";
+      if(g === "tf"){ var cyc = [""].concat(SB_BIAS_STATES); st.bias[v] = cyc[(cyc.indexOf(st.bias[v]) + 1) % cyc.length]; }
       else if(g === "pool") { var p = st.pools[v]; if(!p) st.pools[v] = "above"; else if(p === "above") st.pools[v] = "below"; else delete st.pools[v]; }
       else if(g === "dir") st.direction = v === "No trade" ? "" : v;
       else if(MULTI[g]){
@@ -2179,6 +2191,7 @@
         (s.wr === null ? "—" : Math.round(s.wr) + "%") + "</strong></span><span>Total R <strong>" + (s.nR ? (s.R > 0 ? "+" : "") + s.R.toFixed(1) : "—") + "</strong></span></div>" +
         '<div class="sb-tbls">' +
         table("With or counter trend", rows, function(x){ return sbCalc(x).trend; }, ["With trend", "Counter trend", "No bias"]) +
+        table("Bias", rows, function(x){ var b = sbBias(x.bias); return !b.call ? "No bias" : b.mixed ? "Mixed (tie, HTF decided)" : "Clear"; }, ["Clear", "Mixed (tie, HTF decided)", "No bias"]) +
         table("Session", rows, function(x){ return x.session; }, SESSIONS) +
         table("Confluence", rows, function(x){ return x.confluences.length ? x.confluences : "None"; }, SB_CONFLUENCES.concat(["None"])) +
         table("SMT", rows, function(x){ return x.confluences.indexOf("SMT") !== -1 ? "With SMT" : "No SMT"; }, ["With SMT", "No SMT"]) +
@@ -2194,7 +2207,7 @@
           (x.outcome ? ' · <strong>' + escapeHtml(x.outcome) + "</strong>" : "") + (x.mfe !== null ? " · +" + x.mfe + "p max" : "") : "<em>No trade</em>";
         var tags = [].concat(x.confluences, x.smt.length ? ["SMT: " + x.smt.join(", ") + (x.smtTf ? " " + x.smtTf : "")] : [], x.confirms, x.grade ? ["Grade " + x.grade] : [], x.taken !== "Backtest" ? [x.taken] : []);
         return '<article class="bts-item" data-id="' + escapeHtml(x.id) + '"><div class="bts-meta"><strong>' + escapeHtml(x.date) + "</strong>" +
-          '<span class="bts-pill">' + escapeHtml(x.session) + "</span>" + (c.call ? '<span class="bts-pill">Bias ' + c.call + "</span>" : "") +
+          '<span class="bts-pill">' + escapeHtml(x.session) + "</span>" + (c.call ? '<span class="bts-pill">Bias ' + c.call + (sbBias(x.bias).mixed ? " (mixed)" : "") + "</span>" : "") +
           '<span class="bts-acts"><button type="button" class="ghost small" data-act="edit">Edit</button><button type="button" class="ghost small" data-act="del">Delete</button></span></div>' +
           '<div class="sb-line">' + head + "</div>" +
           (tags.length ? '<div class="sb-tags">' + tags.map(function(t){ return "<span>" + escapeHtml(t) + "</span>"; }).join("") + "</div>" : "") +

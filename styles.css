@@ -1116,3 +1116,6 @@ button:disabled{ opacity: .35; cursor: not-allowed; }
 .sb-more{ margin-top: 6px; }
 .sb-more > summary{ cursor: pointer; font-size: 12.5px; color: var(--accent); }
 .sb-small{ font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+.sb-tf.weak{ border-style: dashed; background: transparent; }
+.sb-tf i{ font-style: normal; font-size: 10.5px; opacity: .85; }
+.sb-mixed{ color: #ffb020; font-size: 12.5px; }
