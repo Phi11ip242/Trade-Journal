@@ -272,7 +272,26 @@
   // logged in under a minute; free text stays for the story.
   var SB_TFS = ["1D", "4H", "1H", "15M"];
   var SB_BIAS_STATES = ["Bull", "Weak bull", "Bear", "Weak bear"];   // tap order after blank
-  var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NY AM high", "NY AM low", "Equal highs", "Equal lows"];
+  var SB_POOLS = ["PDH", "PDL", "PWH", "PWL", "PMH", "PML", "Asia high", "Asia low", "London high", "London low", "NY high", "NY low", "Equal highs", "Equal lows"];
+  var SB_POOL_RENAME = { "NY AM high": "NY high", "NY AM low": "NY low" };
+  function sbPoolName(p){ return SB_POOL_RENAME[p] || p; }
+  // Liquidity as 1st/2nd above and 1st/2nd below price; each can stack several
+  // pools at one price (e.g. PDH + Asia high), with the date they formed.
+  var SB_HIGHS = ["PDH", "PWH", "PMH", "Asia high", "London high", "NY high", "Equal highs"];
+  var SB_LOWS = ["PDL", "PWL", "PML", "Asia low", "London low", "NY low", "Equal lows"];
+  var SB_SLOTS = [["a1", "1st above"], ["a2", "2nd above"], ["b1", "1st below"], ["b2", "2nd below"]];
+  var SB_SLOT_KEYS = SB_SLOTS.map(function(x){ return x[0]; });
+  function sbSlotName(k){ var f = SB_SLOTS.filter(function(x){ return x[0] === k; })[0]; return f ? f[1] : k === "other" ? "Other" : ""; }
+  function normalizeLiq(l){
+    l = l || {}; var out = {};
+    SB_SLOTS.forEach(function(sl){
+      var k = sl[0], v = l[k] || {};
+      out[k] = { pools: pickList((Array.isArray(v.pools) ? v.pools : []).map(sbPoolName), k.charAt(0) === "a" ? SB_HIGHS : SB_LOWS),
+        price: num(v.price), formed: /^\d{4}-\d{2}-\d{2}$/.test(str(v.formed)) ? str(v.formed) : "" };
+    });
+    return out;
+  }
+  function sbSlotText(slot){ return slot && slot.pools.length ? slot.pools.join(" + ") : ""; }
   var SB_CONFLUENCES = ["Liquidity sweep", "SMT", "HTF FVG above/below", "Inside HTF FVG", "IFVG", "Failed FVG"];
   var SB_SMT_PAIRS = ["XAU swept", "XAU held", "XAG swept", "XAG held", "EUR swept", "EUR held"];
   var SB_LTFS = ["1M", "3M", "5M", "15M", "30M", "1H", "4H", "1D"];
@@ -287,26 +306,29 @@
   function normalizeSB(x){
     x = x || {};
     var bias = {}; SB_TFS.forEach(function(t){ var v = x.bias && x.bias[t]; bias[t] = SB_BIAS_STATES.indexOf(v) !== -1 ? v : ""; });
-    var pools = {}; SB_POOLS.forEach(function(p){ var v = x.pools && x.pools[p]; if(v === "above" || v === "below") pools[p] = v; });
+    var pools = {}; Object.keys(x.pools || {}).forEach(function(k){ var p = sbPoolName(k), v = x.pools[k]; if(SB_POOLS.indexOf(p) !== -1 && (v === "above" || v === "below")) pools[p] = v; });
     var dir = x.direction === "Buy" || x.direction === "Sell" ? x.direction : "";
     return {
       id: str(x.id) || makeId(),
       date: /^\d{4}-\d{2}-\d{2}$/.test(str(x.date)) ? str(x.date) : todayStr(),
       session: pickOne(x.session, SESSIONS) || "Asia",
       taken: pickOne(x.taken, SB_TAKEN) || "Backtest",
-      bias: bias, pools: pools,
+      bias: bias, pools: pools,                         // old style (before 1st/2nd slots), kept for old logs
+      liq: normalizeLiq(x.liq),
       poolsNote: str(x.poolsNote).slice(0, 500),
       story: str(x.story).slice(0, 20000),
       direction: dir,                                   // "" = no trade this session
       confluences: pickList(x.confluences, SB_CONFLUENCES),
-      sweep: pickOne(x.sweep, SB_POOLS),
+      sweep: pickOne(sbPoolName(x.sweep), SB_POOLS),
+      sweepSlot: pickOne(x.sweepSlot, SB_SLOT_KEYS),
       smt: pickList(x.smt, SB_SMT_PAIRS), smtTf: pickOne(x.smtTf, SB_LTFS),
       fvgTfs: pickList(x.fvgTfs, SB_LTFS),
       obstacles: pickList(x.obstacles, SB_OBSTACLES),
       confirms: pickList(x.confirms, SB_CONFIRMS),
       entry: num(x.entry), time: str(x.time).slice(0, 10),
       sl: num(x.sl), slReason: pickOne(x.slReason, SB_SL_REASONS),
-      tp: num(x.tp), tpTarget: pickOne(x.tpTarget, SB_POOLS.concat(["Other"])),
+      tp: num(x.tp), tpTarget: pickOne(sbPoolName(x.tpTarget), SB_POOLS.concat(["Other"])),
+      tpSlot: pickOne(x.tpSlot, SB_SLOT_KEYS.concat(["other"])),
       plan: str(x.plan).slice(0, 5000),
       outcome: pickOne(x.outcome, SB_OUTCOMES),
       mfe: num(x.mfe), mae: num(x.mae), beAt: num(x.beAt), exitTime: str(x.exitTime).slice(0, 10),
@@ -2063,7 +2085,7 @@
     function blank(keep){
       var k = keep || {};
       return normalizeSB({ date: k.date || todayStr(), session: k.session || "Asia", taken: k.taken || "Backtest",
-        bias: k.bias, pools: k.pools, poolsNote: k.poolsNote, story: k.story });
+        bias: k.bias, liq: k.liq, poolsNote: k.poolsNote, story: k.story });
     }
     function list(){ return settings.btSessions || (settings.btSessions = []); }
     function chips(name, items, sel, opt){
@@ -2075,6 +2097,11 @@
       }).join("");
     }
     function fmt(n, d){ return n === null || !isFinite(n) ? "—" : n.toFixed(d === undefined ? 0 : d); }
+    function slotAge(slot){
+      if(!slot.formed || !st.date) return "";
+      var d = Math.round((new Date(st.date + "T00:00:00") - new Date(slot.formed + "T00:00:00")) / 86400000);
+      return d < 0 ? "formed after this date?" : d === 0 ? "formed today" : d + " day" + (d === 1 ? "" : "s") + " old";
+    }
     function render(){
       var c = sbCalc(st);
       $("sb-session").innerHTML = chips("session", SESSIONS, st.session);
@@ -2087,11 +2114,11 @@
           (v === "Weak bull" ? "<i>counts bearish</i>" : v === "Weak bear" ? "<i>counts bullish</i>" : "") + "</button>";
       }).join("") + '<span class="sb-call">' + (bz.call ? "Bias: <strong>" + bz.call + "</strong>" + (bz.mixed ? ' <span class="sb-mixed">mixed: ' + bz.by + " decides, extra caution</span>" : "") :
         "Tap each timeframe: Bull → Weak bull → Bear → Weak bear → —") + "</span>";
-      $("sb-pools").innerHTML = SB_POOLS.map(function(p){
-        var v = st.pools[p];
-        return '<button type="button" class="bt-chip sb-pool' + (v ? " " + v : "") + '" data-g="pool" data-v="' + escapeHtml(p) + '">' +
-          (v === "above" ? "↑ " : v === "below" ? "↓ " : "") + escapeHtml(p) + "</button>";
-      }).join("");
+      SB_SLOTS.forEach(function(sl){
+        var k = sl[0], slot = st.liq[k];
+        $("sb-liq-" + k).innerHTML = chips("liq-" + k, k.charAt(0) === "a" ? SB_HIGHS : SB_LOWS, slot.pools);
+        $("sb-liq-" + k + "-age").textContent = slotAge(slot);
+      });
       $("sb-dir").innerHTML = chips("dir", ["No trade", "Buy", "Sell"], st.direction || "No trade");
       $("sb-trend").textContent = st.direction ? c.trend : "";
       $("sb-trend").className = "sb-trend " + (c.trend === "With trend" ? "with" : c.trend === "Counter trend" ? "counter" : "");
@@ -2099,7 +2126,8 @@
       $("sb-conf").innerHTML = chips("conf", SB_CONFLUENCES, st.confluences);
       var has = function(x){ return st.confluences.indexOf(x) !== -1; };
       $("sb-sweep-row").hidden = !has("Liquidity sweep");
-      $("sb-sweep").innerHTML = chips("sweep", SB_POOLS, st.sweep, { cls: function(p){ return st.pools[p] ? "sb-hint-pool" : ""; } });
+      var slotLabel = function(k){ var t = sbSlotText(st.liq[k]); return sbSlotName(k) + (t ? ": " + t : ""); };
+      $("sb-sweep").innerHTML = chips("sweepSlot", SB_SLOT_KEYS, st.sweepSlot, { label: slotLabel });
       $("sb-smt-row").hidden = !has("SMT");
       $("sb-smt").innerHTML = chips("smt", SB_SMT_PAIRS, st.smt) + '<span class="sb-sep">on</span>' + chips("smtTf", ["5M", "15M", "1H", "4H"], st.smtTf);
       $("sb-fvg-row").hidden = !(has("HTF FVG above/below") || has("Inside HTF FVG"));
@@ -2107,8 +2135,7 @@
       $("sb-obst").innerHTML = chips("obst", SB_OBSTACLES, st.obstacles);
       $("sb-confirm").innerHTML = chips("confirm", SB_CONFIRMS, st.confirms);
       $("sb-slr").innerHTML = chips("slr", SB_SL_REASONS, st.slReason);
-      $("sb-tpt").innerHTML = chips("tpt", SB_POOLS.concat(["Other"]), st.tpTarget, {
-        cls: function(p){ return st.pools[p] ? "sb-hint-pool" : ""; } });
+      $("sb-tpt").innerHTML = chips("tpSlot", SB_SLOT_KEYS.concat(["other"]), st.tpSlot, { label: slotLabel });
       $("sb-outcome").innerHTML = chips("outcome", SB_OUTCOMES, st.outcome);
       $("sb-grade").innerHTML = chips("grade", SB_GRADES, st.grade);
       $("sb-mfe-open").innerHTML = chips("mfeOpen", ["Still running"], st.mfeOpen ? "Still running" : "");
@@ -2124,24 +2151,27 @@
     }
     function readInputs(){
       st.date = $("sb-date").value; st.story = $("sb-story").value; st.poolsNote = $("sb-pools-note").value;
+      SB_SLOT_KEYS.forEach(function(k){ st.liq[k].price = num($("sb-liq-" + k + "-price").value); st.liq[k].formed = $("sb-liq-" + k + "-formed").value; });
       ["entry", "sl", "tp", "mfe", "mae", "beAt", "beClose"].forEach(function(k){ st[k] = num($("sb-" + k).value); });
       st.time = $("sb-time").value.trim(); st.exitTime = $("sb-exit-time").value.trim();
       st.plan = $("sb-plan").value; st.notes = $("sb-notes").value;
     }
     function writeInputs(){
       $("sb-date").value = st.date; $("sb-story").value = st.story; $("sb-pools-note").value = st.poolsNote;
+      SB_SLOT_KEYS.forEach(function(k){ $("sb-liq-" + k + "-price").value = st.liq[k].price === null ? "" : st.liq[k].price; $("sb-liq-" + k + "-formed").value = st.liq[k].formed; });
       ["entry", "sl", "tp", "mfe", "mae", "beAt", "beClose"].forEach(function(k){ $("sb-" + k).value = st[k] === null ? "" : st[k]; });
       $("sb-time").value = st.time; $("sb-exit-time").value = st.exitTime; $("sb-plan").value = st.plan; $("sb-notes").value = st.notes;
     }
     var MULTI = { conf: "confluences", smt: "smt", fvgTf: "fvgTfs", obst: "obstacles", confirm: "confirms" };
     var ONE_TOGGLE = { mfeOpen: 1 };
-    var ONE = { session: "session", taken: "taken", sweep: "sweep", smtTf: "smtTf", slr: "slReason", tpt: "tpTarget", outcome: "outcome", grade: "grade" };
+    var ONE = { session: "session", taken: "taken", sweepSlot: "sweepSlot", smtTf: "smtTf", slr: "slReason", tpSlot: "tpSlot", outcome: "outcome", grade: "grade" };
     form.addEventListener("click", function(ev){
       var b = ev.target.closest("button[data-g]"); if(!b) return;
       readInputs();
       var g = b.dataset.g, v = b.dataset.v;
       if(g === "tf"){ var cyc = [""].concat(SB_BIAS_STATES); st.bias[v] = cyc[(cyc.indexOf(st.bias[v]) + 1) % cyc.length]; }
-      else if(g === "pool") { var p = st.pools[v]; if(!p) st.pools[v] = "above"; else if(p === "above") st.pools[v] = "below"; else delete st.pools[v]; }
+      else if(g.indexOf("liq-") === 0){ var lk = g.slice(4), lp = st.liq[lk].pools, li = lp.indexOf(v); if(li === -1) lp.push(v); else lp.splice(li, 1);
+        var ord = lk.charAt(0) === "a" ? SB_HIGHS : SB_LOWS; lp.sort(function(a, b){ return ord.indexOf(a) - ord.indexOf(b); }); }
       else if(g === "dir") st.direction = v === "No trade" ? "" : v;
       else if(ONE_TOGGLE[g]) st.mfeOpen = !st.mfeOpen;
       else if(MULTI[g]){
@@ -2160,14 +2190,14 @@
         }
       }
       else if(ONE[g]) st[ONE[g]] = st[ONE[g]] === v && g !== "session" && g !== "taken" ? "" : v;
-      if(g === "tpt" && v !== "Other" && st.pools[v] === undefined) {/* target need not be marked */}
       render();
     });
     form.addEventListener("input", function(ev){ if(/sb-(entry|sl|tp|beAt|beClose|mfe|mae|exit-time)$/.test(ev.target.id)){ readInputs(); render(); } });
+    form.addEventListener("change", function(ev){ if(/^sb-liq-..-formed$/.test(ev.target.id) || ev.target.id === "sb-date"){ readInputs(); SB_SLOT_KEYS.forEach(function(k){ $("sb-liq-" + k + "-age").textContent = slotAge(st.liq[k]); }); } });
     // Prefill from the latest log of the same date: bias, pools and story carry on.
     function contextFor(date){
       var same = list().filter(function(x){ return x.date === date; }).sort(function(a, b){ return b.createdAt - a.createdAt; })[0];
-      return same ? { date: date, session: same.session, taken: same.taken, bias: same.bias, pools: same.pools, poolsNote: same.poolsNote } : { date: date };
+      return same ? { date: date, session: same.session, taken: same.taken, bias: same.bias, liq: same.liq, poolsNote: same.poolsNote } : { date: date };
     }
     $("sb-date").addEventListener("change", function(){ if(editing) return; readInputs(); var keepStory = st.story; st = blank(contextFor(st.date)); st.story = keepStory; writeInputs(); render(); });
     function err(t){ var e = $("sb-error"); e.textContent = t || ""; e.hidden = !t; }
@@ -2187,14 +2217,14 @@
       saveSettings();
       editing = null;
       // keep the session context for the next trade
-      st = blank({ date: rec.date, session: rec.session, taken: rec.taken, bias: rec.bias, pools: rec.pools, poolsNote: rec.poolsNote, story: rec.story });
+      st = blank({ date: rec.date, session: rec.session, taken: rec.taken, bias: rec.bias, liq: rec.liq, poolsNote: rec.poolsNote, story: rec.story });
       writeInputs(); render(); renderLog();
       $("sb-save").textContent = "Save"; $("sb-cancel").hidden = true;
       $("sb-saved").hidden = false; setTimeout(function(){ $("sb-saved").hidden = true; }, 1800);
     });
     $("sb-next").addEventListener("click", function(){
       readInputs(); var i = SESSIONS.indexOf(st.session);
-      var next = blank({ date: st.date, session: SESSIONS[Math.min(i + 1, SESSIONS.length - 1)], taken: st.taken, bias: st.bias, pools: st.pools, poolsNote: st.poolsNote });
+      var next = blank({ date: st.date, session: SESSIONS[Math.min(i + 1, SESSIONS.length - 1)], taken: st.taken, bias: st.bias, liq: st.liq, poolsNote: st.poolsNote });
       editing = null; st = next; writeInputs(); render(); err("");
       $("sb-save").textContent = "Save"; $("sb-cancel").hidden = true;
     });
@@ -2284,6 +2314,8 @@
         table("With or counter trend", rows, function(x){ return sbCalc(x).trend; }, ["With trend", "Counter trend", "No bias"]) +
         table("Bias", rows, function(x){ var b = sbBias(x.bias); return !b.call ? "No bias" : b.mixed ? "Mixed (tie, HTF decided)" : "Clear"; }, ["Clear", "Mixed (tie, HTF decided)", "No bias"]) +
         table("Session", rows, function(x){ return x.session; }, SESSIONS) +
+        table("Liquidity swept", rows, function(x){ return x.sweepSlot ? sbSlotName(x.sweepSlot) : "Not marked"; }, ["1st above", "2nd above", "1st below", "2nd below", "Not marked"]) +
+        table("TP target", rows, function(x){ return x.tpSlot ? sbSlotName(x.tpSlot) : "Not marked"; }, ["1st above", "2nd above", "1st below", "2nd below", "Other", "Not marked"]) +
         table("Confluence", rows, function(x){ return x.confluences.length ? x.confluences : "None"; }, SB_CONFLUENCES.concat(["None"])) +
         table("SMT", rows, function(x){ return x.confluences.indexOf("SMT") !== -1 ? "With SMT" : "No SMT"; }, ["With SMT", "No SMT"]) +
         table("Confirmation", rows, function(x){ return x.confirms.length ? x.confirms : "None"; }, SB_CONFIRMS.concat(["None"])) +
@@ -2292,7 +2324,9 @@
         "</div>" : '<div class="hint">' + (all.length ? "Nothing matches this filter." : "Nothing logged yet.") + "</div>";
       $("sb-log").innerHTML = rows.map(function(x){
         var c = sbCalc(x), biasTxt = SB_TFS.map(function(t){ return t + " " + (x.bias[t] || "—"); }).join(" · ");
-        var poolTxt = Object.keys(x.pools).map(function(p){ return (x.pools[p] === "above" ? "↑" : "↓") + p; }).join(" ");
+        var poolTxt = SB_SLOTS.map(function(sl){ var v = x.liq[sl[0]]; if(!v.pools.length && v.price === null) return "";
+            return sl[1] + ": " + (sbSlotText(v) || "—") + (v.price !== null ? " @ " + v.price : "") + (v.formed ? " (" + v.formed.slice(5) + ")" : ""); }).filter(Boolean).join(" · ") ||
+          Object.keys(x.pools).map(function(p){ return (x.pools[p] === "above" ? "↑" : "↓") + p; }).join(" ");
         var head = x.direction ? '<strong class="' + (x.direction === "Buy" ? "pos" : "neg") + '">' + x.direction + "</strong> " + escapeHtml(c.trend) +
           (x.entry !== null ? " · " + x.entry + (x.time ? " @ " + escapeHtml(x.time) : "") : "") + (c.rr ? " · 1:" + c.rr.toFixed(2) : "") +
           (x.outcome ? ' · <strong>' + escapeHtml(x.outcome) + "</strong>" : "") + (x.mfe !== null ? " · +" + x.mfe + "p max" : "") +
@@ -2307,10 +2341,10 @@
           '<details class="sb-more"><summary>Story and details</summary><div class="sb-small">' + escapeHtml(biasTxt) + (poolTxt ? "<br>Pools: " + escapeHtml(poolTxt) : "") +
           (x.poolsNote ? "<br>" + escapeHtml(x.poolsNote) : "") + "</div>" +
           (x.story ? '<div class="bts-text">' + escapeHtml(x.story) + "</div>" : "") +
-          (x.direction ? '<div class="sb-small">SL ' + (x.sl === null ? "—" : x.sl) + (x.slReason ? " (" + escapeHtml(x.slReason) + ")" : "") + " · TP " + (x.tp === null ? "—" : x.tp) + (x.tpTarget ? " (" + escapeHtml(x.tpTarget) + ")" : "") +
+          (x.direction ? '<div class="sb-small">SL ' + (x.sl === null ? "—" : x.sl) + (x.slReason ? " (" + escapeHtml(x.slReason) + ")" : "") + " · TP " + (x.tp === null ? "—" : x.tp) + (x.tpSlot ? " (" + escapeHtml(sbSlotName(x.tpSlot) + (sbSlotText(x.liq[x.tpSlot]) ? ": " + sbSlotText(x.liq[x.tpSlot]) : "")) + ")" : x.tpTarget ? " (" + escapeHtml(x.tpTarget) + ")" : "") +
             (x.mae !== null ? " · max against " + x.mae + "p" : "") + (x.beAt !== null ? " · BE at +" + x.beAt + "p" + (c.bePrice !== null ? " (" + c.bePrice.toFixed(2) + ")" : "") : "") +
             (c.beGap !== null ? " · came back to " + x.beClose + " = " + (c.beGap <= 0 ? "touched BE" : c.beGap.toFixed(1) + "p from BE") : "") + (x.exitTime ? " · out " + escapeHtml(x.exitTime) : "") +
-            (x.sweep ? " · swept " + escapeHtml(x.sweep) : "") + (x.fvgTfs.length ? " · FVG " + escapeHtml(x.fvgTfs.join("/")) : "") + (x.obstacles.length ? " · LTF: " + escapeHtml(x.obstacles.join(", ")) : "") + "</div>" : "") +
+            (x.sweepSlot ? " · swept " + escapeHtml(sbSlotName(x.sweepSlot) + (sbSlotText(x.liq[x.sweepSlot]) ? ": " + sbSlotText(x.liq[x.sweepSlot]) : "")) : x.sweep ? " · swept " + escapeHtml(x.sweep) : "") + (x.fvgTfs.length ? " · FVG " + escapeHtml(x.fvgTfs.join("/")) : "") + (x.obstacles.length ? " · LTF: " + escapeHtml(x.obstacles.join(", ")) : "") + "</div>" : "") +
           (x.plan ? '<div class="bts-text"><b>Plan:</b> ' + escapeHtml(x.plan) + "</div>" : "") +
           (x.notes ? '<div class="bts-text"><b>Notes:</b> ' + escapeHtml(x.notes) + "</div>" : "") + "</details></article>";
       }).join("");
